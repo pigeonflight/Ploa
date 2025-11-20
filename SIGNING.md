@@ -15,14 +15,17 @@
 
 ## Local Development Signing
 
-For local builds, you can use your Apple Development certificate:
+Your Developer ID certificate is configured in `tauri.conf.json`:
+- **Certificate**: Developer ID Application: David Bain (963VDG875L)
+- **Team ID**: 963VDG875L
+
+For local builds, Tauri will automatically use this certificate:
 
 ```bash
-# The signing identity will be auto-detected from your keychain
-# Or set it explicitly:
-export TAURI_SIGNING_IDENTITY="Apple Development: David Bain (RHAKW9ZZ34)"
 bun run tauri:build
 ```
+
+The app will be signed and ready for distribution. No "damaged" error!
 
 ## GitHub Actions Signing
 
@@ -38,14 +41,19 @@ For CI/CD builds, you need to:
 
 ## Export Certificate for CI/CD
 
+To enable signing in GitHub Actions, export your Developer ID certificate:
+
 ```bash
-# Export your Developer ID certificate
-security find-identity -v -p codesigning | grep "Developer ID"
-# Note the certificate name, then:
-security export -k ~/Library/Keychains/login.keychain-db -t identities -f pkcs12 -P "your-password" -o certificate.p12 "Developer ID Application: Your Name (TEAMID)"
+# Export your Developer ID certificate (replace PASSWORD with a secure password)
+security export -k ~/Library/Keychains/login.keychain-db -t identities -f pkcs12 -P "PASSWORD" -o certificate.p12 "Developer ID Application: David Bain (963VDG875L)"
 
 # Base64 encode it
 base64 -i certificate.p12 -o certificate_base64.txt
+
+# Then add to GitHub Secrets:
+# - APPLE_CERTIFICATE: contents of certificate_base64.txt
+# - APPLE_CERTIFICATE_PASSWORD: the PASSWORD you used above
+# - APPLE_TEAM_ID: 963VDG875L
 ```
 
 ## Notarization (Optional but Recommended)

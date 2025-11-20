@@ -38,8 +38,8 @@
       "frameworks": [],
       "minimumSystemVersion": "10.13",
       "exceptionDomain": "",
-      "signingIdentity": null,
-      "providerShortName": null,
+      "signingIdentity": "Developer ID Application: David Bain (963VDG875L)",
+      "providerShortName": "963VDG875L",
       "entitlements": "Entitlements.plist",
       "hardenedRuntime": true,
       "gatekeeperAssess": false
