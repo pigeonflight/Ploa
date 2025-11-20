@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ploa - Plone REST API GUI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            padding: 4rem 2rem 2rem;
+        }
+
+        header h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        header p {
+            font-size: 1.5rem;
+            opacity: 0.95;
+            margin-bottom: 2rem;
+        }
+
+        .logo {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 2rem;
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .content {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem;
+            margin: 2rem 0;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .feature {
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .feature h3 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            font-size: 1.3rem;
+        }
+
+        .downloads {
+            text-align: center;
+            margin: 3rem 0;
+        }
+
+        .downloads h2 {
+            color: #667eea;
+            margin-bottom: 1.5rem;
+            font-size: 2rem;
+        }
+
+        .download-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background: #764ba2;
+        }
+
+        .github-link {
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .github-link a {
+            color: white;
+            text-decoration: none;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .github-link a:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        footer {
+            text-align: center;
+            color: white;
+            padding: 2rem;
+            opacity: 0.9;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2.5rem;
+            }
+
+            header p {
+                font-size: 1.2rem;
+            }
+
+            .content {
+                padding: 2rem;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <img src="https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/icons/plone-logo.png" alt="Plone Logo" onerror="this.style.display='none'">
+        </div>
+        <h1>Ploa</h1>
+        <p>Plone REST API GUI - Desktop application for managing Plone sites</p>
+    </header>
+
+    <div class="container">
+        <div class="content">
+            <h2 style="color: #667eea; margin-bottom: 1rem;">What is Ploa?</h2>
+            <p style="font-size: 1.1rem; margin-bottom: 2rem;">
+                Ploa is a desktop application that makes managing Plone sites faster and easier. 
+                Connect to your Plone site, browse content, manage tags, and edit blocks—all from a 
+                native desktop app that stays logged in and remembers your preferences.
+            </p>
+
+            <h2 style="color: #667eea; margin-bottom: 1rem; margin-top: 2rem;">Key Features</h2>
+            <div class="features">
+                <div class="feature">
+                    <h3>🚀 Quick Access</h3>
+                    <p>Open the app and instantly connect to your Plone site. No need to open a browser or navigate through multiple tabs.</p>
+                </div>
+
+                <div class="feature">
+                    <h3>🔐 Stay Logged In</h3>
+                    <p>Auto-login with saved credentials. Your session persists between app launches, so you can get right back to work.</p>
+                </div>
+
+                <div class="feature">
+                    <h3>📁 Fast Content Browsing</h3>
+                    <p>Navigate through folders and view item details quickly. Browse your Plone content structure with ease.</p>
+                </div>
+
+                <div class="feature">
+                    <h3>🏷️ Tag Cleanup Tools</h3>
+                    <p>Find and merge duplicate or similar tags across your entire site. Fix typos, standardize capitalization, and consolidate related tags.</p>
+                </div>
+
+                <div class="feature">
+                    <h3>🎨 Visual Block Editing</h3>
+                    <p>Edit Plone content blocks with a visual interface. Drag and drop to reorder blocks, or edit directly in JSON mode.</p>
+                </div>
+
+                <div class="feature">
+                    <h3>💻 Native Desktop App</h3>
+                    <p>Works offline and doesn't require browser tabs. A dedicated desktop experience for Plone content management.</p>
+                </div>
+            </div>
+
+            <div class="downloads">
+                <h2>Download</h2>
+                <p style="margin-bottom: 1rem;">Get the latest version for your platform:</p>
+                <div class="download-buttons">
+                    <a href="https://github.com/pigeonflight/Ploa/releases/latest" class="btn">
+                        📦 Download Latest Release
+                    </a>
+                    <a href="https://github.com/pigeonflight/Ploa" class="btn btn-secondary">
+                        🔗 View on GitHub
+                    </a>
+                </div>
+            </div>
+
+            <div class="github-link">
+                <a href="https://github.com/pigeonflight/Ploa">
+                    ⭐ Star us on GitHub
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Ploa - Plone REST API GUI</p>
+        <p style="margin-top: 0.5rem; font-size: 0.9rem;">Built with ❤️ for the Plone community</p>
+    </footer>
+</body>
+</html>
+
