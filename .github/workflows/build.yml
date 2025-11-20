@@ -46,9 +46,6 @@ jobs:
         with:
           workspaces: './src-tauri -> Cargo.toml'
 
-      - name: Sync node_modules
-        run: bun run tauri sync
-
       - name: Build the app
         uses: tauri-apps/tauri-action@v0
         env:
