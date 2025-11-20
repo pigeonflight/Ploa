@@ -26,3 +26,8 @@ Thumbs.db
 .env
 .env.local
 
+# Certificate exports (never commit these!)
+certificate.p12
+certificate_base64.txt
+.cert-password.txt
+

@@ -25,7 +25,8 @@ fi
 PASSWORD="$1"
 
 echo "Exporting certificate..."
-security export -k ~/Library/Keychains/login.keychain-db -t identities -f pkcs12 -P "$PASSWORD" -o "$OUTPUT_FILE" "$CERT_NAME"
+echo "Note: You may be prompted for your macOS login password to access the keychain."
+security export -k ~/Library/Keychains/login.keychain-db -t identities -f pkcs12 -P "$PASSWORD" -o "$OUTPUT_FILE" "$CERT_NAME" 2>&1
 
 if [ $? -ne 0 ]; then
     echo "Error: Failed to export certificate"
