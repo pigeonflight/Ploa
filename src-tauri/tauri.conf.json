@@ -41,8 +41,7 @@
       "signingIdentity": "Developer ID Application: David Bain (963VDG875L)",
       "providerShortName": "963VDG875L",
       "entitlements": "Entitlements.plist",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false
+      "hardenedRuntime": true
     }
   }
 }
