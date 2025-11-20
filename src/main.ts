@@ -118,7 +118,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const keywordsBtn = document.querySelector<HTMLButtonElement>("#keywordsBtn")!;
   const itemsList = document.querySelector<HTMLDivElement>("#itemsList")!;
   const currentPathSpan = document.querySelector<HTMLSpanElement>("#currentPath")!;
-  const userStatus = document.querySelector<HTMLDivElement>("#userStatus")!;
   const statusText = document.querySelector<HTMLSpanElement>("#statusText")!;
   const headerLoginBtn = document.querySelector<HTMLButtonElement>("#headerLoginBtn")!;
   const disconnectBtn = document.querySelector<HTMLButtonElement>("#disconnectBtn")!;
@@ -130,7 +129,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const credentialsHint = document.querySelector<HTMLDivElement>("#credentialsHint")!;
 
   // State
-  let isLoggedIn = false;
   let currentBaseUrl = "";
   let currentPath = "";
 
@@ -210,7 +208,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Helper to update auth state UI
   function updateAuthState(loggedIn: boolean, username?: string) {
-    isLoggedIn = loggedIn;
     if (loggedIn) {
       loginForm.style.display = "none";
       appContent.style.display = "block";
@@ -304,7 +301,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Disconnect handler
   disconnectBtn.addEventListener("click", () => {
-    isLoggedIn = false;
     currentBaseUrl = "";
     currentPath = "";
     // Clear saved token on disconnect
@@ -383,11 +379,11 @@ document.addEventListener("DOMContentLoaded", () => {
         infoBtn.style.fontSize = "1.1rem";
         infoBtn.style.marginLeft = "0.5rem";
         infoBtn.style.opacity = "0.6";
-        infoBtn.onmouseover = (e) => {
+        infoBtn.onmouseover = () => {
           infoBtn.style.backgroundColor = "#e0e0e0";
           infoBtn.style.opacity = "1";
         };
-        infoBtn.onmouseout = (e) => {
+        infoBtn.onmouseout = () => {
           infoBtn.style.backgroundColor = "transparent";
           infoBtn.style.opacity = "0.6";
         };
@@ -1479,7 +1475,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (mergePlan.size > 0) {
             mergePlanSection.style.display = "block";
             mergePlanList.innerHTML = "";
-            mergePlan.forEach((sources, target) => {
+            mergePlan.forEach((_sources, _target) => {
               // ... (existing code to render list items if needed) ...
             });
           } else {
