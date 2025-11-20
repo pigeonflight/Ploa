@@ -1,0 +1,92 @@
+:root {
+  --plone-blue: #0283be;
+  --plone-blue-dark: #016895;
+  --plone-blue-light: #0298d1;
+  --plone-white: #ffffff;
+  --plone-text: #333333;
+  --plone-text-light: #666666;
+  --plone-border: #e0e0e0;
+  --plone-bg: #f5f5f5;
+
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color: var(--plone-text);
+  background-color: var(--plone-white);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: var(--plone-blue);
+  text-decoration: inherit;
+}
+a:hover {
+  color: var(--plone-blue-dark);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--plone-white);
+}
+
+h1 {
+  font-size: 2.5em;
+  line-height: 1.2;
+  color: var(--plone-blue);
+  margin: 0 0 1rem 0;
+}
+
+h2 {
+  color: var(--plone-blue);
+  font-size: 1.5em;
+  margin: 1.5rem 0 1rem 0;
+}
+
+#app {
+  width: 100%;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  border-radius: 4px;
+  border: 1px solid var(--plone-blue);
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: var(--plone-blue);
+  color: var(--plone-white);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover {
+  background-color: var(--plone-blue-dark);
+  border-color: var(--plone-blue-dark);
+}
+button:focus,
+button:focus-visible {
+  outline: 2px solid var(--plone-blue);
+  outline-offset: 2px;
+}
+
+button.secondary {
+  background-color: var(--plone-white);
+  color: var(--plone-blue);
+  border-color: var(--plone-blue);
+}
+button.secondary:hover {
+  background-color: var(--plone-bg);
+}
+
