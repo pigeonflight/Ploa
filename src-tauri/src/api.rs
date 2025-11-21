@@ -424,7 +424,7 @@ impl PloneApiClient {
                     let parts: Vec<&str> = path.split("++api++").collect();
                     if parts.len() > 1 {
                         path = parts[1].trim_start_matches('/').to_string();
-                    } else {
+        } else {
                         path = parts[0].trim_start_matches('/').to_string();
                     }
                 }
@@ -616,25 +616,67 @@ impl PloneApiClient {
 
                     // Check if source tag exists (case-insensitive, trimmed)
                     let source_trimmed = source.trim();
+                    let target_trimmed = target.trim();
+                    
+                    // Skip if source and target are the same (case-insensitive)
+                    if source_trimmed.eq_ignore_ascii_case(target_trimmed) {
+                        continue;
+                    }
+                    
                     let has_source = subjects
                         .iter()
                         .any(|s| s.trim().eq_ignore_ascii_case(source_trimmed));
                     
+                    let has_target = subjects
+                        .iter()
+                        .any(|s| s.trim().eq_ignore_ascii_case(target_trimmed));
+                    
+                    // Only process if source exists
                     if has_source {
+                        // If item has both source and target, we just need to remove source
+                        // If item only has source, we need to remove source and add target
+                        
                         // Remove source tag(s) - remove all case-insensitive matches
                         let before_count = subjects.len();
                         subjects.retain(|s| !s.trim().eq_ignore_ascii_case(source_trimmed));
                         
-                        // Only mark as changed if we actually removed something
+                        // Check if we actually removed something
                         if subjects.len() < before_count {
                             changed = true;
-                        }
-                        
-                        // Add target tag if not already present (case-insensitive)
-                        let target_trimmed = target.trim();
-                        if !subjects.iter().any(|s| s.trim().eq_ignore_ascii_case(target_trimmed)) {
+                            
+                            // Add target tag if not already present (case-insensitive)
+                            // Check again after removing source in case target was removed somehow
+                            let still_has_target = subjects
+                                .iter()
+                                .any(|s| s.trim().eq_ignore_ascii_case(target_trimmed));
+                            
+                            if !still_has_target {
                             subjects.push(target.to_string());
-                            changed = true;
+                            }
+                        }
+                    }
+
+                    // Only update if the final subjects list is actually different from original
+                    // This prevents unnecessary updates and handles edge cases
+                    if changed {
+                        // Normalize both lists for comparison (trim, lowercase, sort)
+                        let mut final_subjects_normalized: Vec<String> = subjects
+                            .iter()
+                            .map(|s| s.trim().to_lowercase())
+                            .collect();
+                        final_subjects_normalized.sort();
+                        final_subjects_normalized.dedup();
+                        
+                        let mut original_subjects_normalized: Vec<String> = original_subjects
+                            .iter()
+                            .map(|s| s.trim().to_lowercase())
+                            .collect();
+                        original_subjects_normalized.sort();
+                        original_subjects_normalized.dedup();
+                        
+                        // Only proceed if they're actually different
+                        if final_subjects_normalized == original_subjects_normalized {
+                            changed = false;
                         }
                     }
 

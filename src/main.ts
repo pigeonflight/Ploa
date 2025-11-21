@@ -1,6 +1,7 @@
 import "./style.css";
 import * as api from "./lib/api";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 
 // Plone brand color
 const PLONE_BLUE = "#0283be";
@@ -136,9 +137,10 @@ document.addEventListener("DOMContentLoaded", () => {
         <span>Built with ❤️ by</span>
         <img src="/incrementic-logo.svg" alt="Incrementic" />
         <span>🇯🇲</span>
+        <span style="margin-left: 0.5rem; opacity: 0.6;">v<span id="app-version">-</span></span>
       </span>
     </footer>
-  </div>
+    </div>
   `;
 
   // UI Elements
@@ -168,6 +170,20 @@ document.addEventListener("DOMContentLoaded", () => {
       await invoke("plugin:shell|open", { path: "https://incrementic.com" });
     } catch (error) {
       console.error("Failed to open URL:", error);
+    }
+  });
+
+  // Load and display app version
+  getVersion().then((version) => {
+    const versionSpan = document.getElementById("app-version");
+    if (versionSpan) {
+      versionSpan.textContent = version;
+    }
+  }).catch((error) => {
+    console.error("Failed to get app version:", error);
+    const versionSpan = document.getElementById("app-version");
+    if (versionSpan) {
+      versionSpan.textContent = "?";
     }
   });
 
@@ -891,9 +907,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
           deleteBtn.onclick = (e) => {
             e.stopPropagation();
-            if (confirm('Delete this block?')) {
+            e.preventDefault();
+            // Delete immediately (confirm dialogs don't work well in Tauri)
               deleteBlock(blockId);
-            }
           };
 
           actions.appendChild(dragHandle);
@@ -1074,8 +1090,30 @@ document.addEventListener("DOMContentLoaded", () => {
       <div style="padding: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
           <h3 style="margin: 0;">🏷️ Keywords Manager</h3>
-          <button id="kwBackBtn" style="padding: 0.5rem 1rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333; font-weight: 500;">
+          <div style="display: flex; gap: 0.5rem;">
+            <button id="createKeywordBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+              + Create Keyword
+            </button>
+            <button id="bulkImportBtn" style="padding: 0.5rem 1rem; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 0.5rem;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              Bulk Import
+            </button>
+            <button id="kwBackBtn" style="padding: 0.5rem 1rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333; font-weight: 500;">
             ← Back to Browser
+          </button>
+        </div>
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 2px solid #eee;">
+          <button id="kwTabSimilar" class="kw-tab active" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid ${PLONE_BLUE}; cursor: pointer; font-weight: 500; color: ${PLONE_BLUE};">
+            Similar Keywords
+          </button>
+          <button id="kwTabAll" class="kw-tab" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-weight: 500; color: #666;">
+            All Keywords
           </button>
         </div>
         
@@ -1093,10 +1131,549 @@ document.addEventListener("DOMContentLoaded", () => {
       browseBtn.click();
     });
 
+    // Create Keyword handler
+    document.getElementById("createKeywordBtn")?.addEventListener("click", () => {
+      showCreateKeywordUI();
+    });
+
+    // Bulk Import handler
+    document.getElementById("bulkImportBtn")?.addEventListener("click", () => {
+      showBulkImportUI();
+    });
+
+    // Tab switching
+    let currentTab: 'similar' | 'all' = 'similar';
+    document.getElementById("kwTabSimilar")?.addEventListener("click", () => {
+      currentTab = 'similar';
+      updateTabs();
+      showSimilarKeywordsView();
+    });
+    document.getElementById("kwTabAll")?.addEventListener("click", () => {
+      currentTab = 'all';
+      updateTabs();
+      showAllKeywordsView();
+    });
+
+    function updateTabs() {
+      const similarTab = document.getElementById("kwTabSimilar");
+      const allTab = document.getElementById("kwTabAll");
+      if (similarTab && allTab) {
+        if (currentTab === 'similar') {
+          similarTab.classList.add('active');
+          similarTab.style.borderBottomColor = PLONE_BLUE;
+          similarTab.style.color = PLONE_BLUE;
+          allTab.classList.remove('active');
+          allTab.style.borderBottomColor = 'transparent';
+          allTab.style.color = '#666';
+        } else {
+          allTab.classList.add('active');
+          allTab.style.borderBottomColor = PLONE_BLUE;
+          allTab.style.color = PLONE_BLUE;
+          similarTab.classList.remove('active');
+          similarTab.style.borderBottomColor = 'transparent';
+          similarTab.style.color = '#666';
+        }
+      }
+    }
+
     const kwContent = document.getElementById("kwContent")!;
     let allTags: Record<string, number> = {};
     let similarPairs: api.SimilarTagPair[] = [];
     let mergePlan: Map<string, string[]> = new Map(); // target -> sources
+
+    // Show All Keywords view
+    function showAllKeywordsView() {
+      const sortedTags = Object.entries(allTags)
+        .sort((a, b) => b[1] - a[1]); // Sort by count descending
+
+      kwContent.innerHTML = `
+        <div style="max-width: 1200px; margin: 0 auto;">
+          <div style="margin-bottom: 1.5rem;">
+            <input type="text" id="keywordFilterInput" placeholder="Filter keywords..." style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
+          </div>
+          <div id="allKeywordsList" style="display: grid; gap: 0.75rem;">
+            ${sortedTags.map(([tag, count]) => `
+              <div class="keyword-item" data-keyword="${tag}" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; transition: all 0.2s;">
+                <div style="flex: 1;">
+                  <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${tag}</div>
+                  <div style="font-size: 0.85em; color: #666;">Used in ${count} item${count !== 1 ? 's' : ''}</div>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                  <button class="rename-keyword-btn" data-keyword="${tag}" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
+                    Rename
+                  </button>
+                  <button class="delete-keyword-btn" data-keyword="${tag}" style="padding: 0.5rem 1rem; background: #ef5350; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
+                    Delete
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          ${sortedTags.length === 0 ? `
+            <div style="text-align: center; padding: 3rem; color: #666;">
+              <p>No keywords found.</p>
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      // Filter functionality
+      const filterInput = document.getElementById("keywordFilterInput") as HTMLInputElement;
+      if (filterInput) {
+        filterInput.addEventListener("input", (e) => {
+          const filter = (e.target as HTMLInputElement).value.toLowerCase();
+          document.querySelectorAll(".keyword-item").forEach((item) => {
+            const keyword = item.getAttribute("data-keyword")?.toLowerCase() || "";
+            (item as HTMLElement).style.display = keyword.includes(filter) ? "flex" : "none";
+          });
+        });
+      }
+
+      // Rename handlers
+      document.querySelectorAll(".rename-keyword-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const keyword = (e.target as HTMLElement).getAttribute("data-keyword");
+          if (keyword) {
+            showRenameKeywordDialog(keyword);
+          }
+        });
+      });
+
+      // Delete handlers
+      document.querySelectorAll(".delete-keyword-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const keyword = (e.target as HTMLElement).getAttribute("data-keyword");
+          if (keyword) {
+            showDeleteKeywordDialog(keyword);
+          }
+        });
+      });
+    }
+
+    // Show Rename Keyword dialog
+    function showRenameKeywordDialog(oldKeyword: string) {
+      const count = allTags[oldKeyword] || 0;
+      kwContent.innerHTML = `
+        <div style="max-width: 600px; margin: 0 auto;">
+          <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0 0 1.5rem 0;">Rename Keyword</h3>
+            <div style="margin-bottom: 1rem;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Current Name</label>
+              <div style="padding: 0.75rem; background: #f5f5f5; border-radius: 4px; color: #666;">${oldKeyword}</div>
+              <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">Used in ${count} item${count !== 1 ? 's' : ''}</p>
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">New Name</label>
+              <input type="text" id="newKeywordNameInput" value="${oldKeyword}" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
+            </div>
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+              <button id="cancelRenameBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333;">
+                Cancel
+              </button>
+              <button id="saveRenameBtn" style="padding: 0.75rem 1.5rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                Rename
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById("cancelRenameBtn")?.addEventListener("click", () => {
+        showAllKeywordsView();
+      });
+
+      document.getElementById("saveRenameBtn")?.addEventListener("click", async () => {
+        const newNameInput = document.getElementById("newKeywordNameInput") as HTMLInputElement;
+        const newName = newNameInput.value.trim();
+
+        if (!newName) {
+          alert("Please enter a new keyword name.");
+          return;
+        }
+
+        if (newName === oldKeyword) {
+          alert("New name must be different from the current name.");
+          return;
+        }
+
+        // Check if new name already exists
+        if (allTags[newName]) {
+          if (!confirm(`Keyword "${newName}" already exists with ${allTags[newName]} items. This will merge "${oldKeyword}" into "${newName}". Continue?`)) {
+            return;
+          }
+        }
+
+        const saveBtn = document.getElementById("saveRenameBtn") as HTMLButtonElement;
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Renaming...";
+
+        try {
+          // Merge old keyword into new keyword
+          const result = await api.mergeTags(newName, [oldKeyword]);
+          alert(`Keyword renamed successfully!\n\nUpdated ${result.updated} items.\nAffected ${result.affected_items} total items.${result.errors.length > 0 ? `\n\nErrors: ${result.errors.length}` : ''}`);
+          
+          // Reload keywords
+          showKeywordsManager();
+        } catch (error) {
+          alert(`Error renaming keyword: ${error instanceof Error ? error.message : "Unknown error"}`);
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Rename";
+        }
+      });
+    }
+
+    // Show Delete Keyword dialog
+    function showDeleteKeywordDialog(keyword: string) {
+      const count = allTags[keyword] || 0;
+      kwContent.innerHTML = `
+        <div style="max-width: 600px; margin: 0 auto;">
+          <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0 0 1.5rem 0; color: #c62828;">Delete Keyword</h3>
+            <div style="margin-bottom: 1.5rem;">
+              <p style="margin: 0 0 1rem 0;">Are you sure you want to delete the keyword <strong>"${keyword}"</strong>?</p>
+              <div style="padding: 1rem; background: #ffebee; border-radius: 4px; border-left: 4px solid #c62828;">
+                <p style="margin: 0; color: #c62828; font-weight: 500;">This will remove the keyword from ${count} item${count !== 1 ? 's' : ''}.</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+              <button id="cancelDeleteBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333;">
+                Cancel
+              </button>
+              <button id="confirmDeleteBtn" style="padding: 0.75rem 1.5rem; background: #ef5350; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                Delete Keyword
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById("cancelDeleteBtn")?.addEventListener("click", () => {
+        showAllKeywordsView();
+      });
+
+      document.getElementById("confirmDeleteBtn")?.addEventListener("click", async () => {
+        const deleteBtn = document.getElementById("confirmDeleteBtn") as HTMLButtonElement;
+        deleteBtn.disabled = true;
+        deleteBtn.textContent = "Deleting...";
+
+        try {
+          // Search for all items with this keyword and remove it
+          const items = await api.search(undefined, undefined);
+          let updated = 0;
+          let errors: string[] = [];
+
+          for (const item of items.items || []) {
+            const subjects = item.Subject || item.subjects || [];
+            if (Array.isArray(subjects) && subjects.some((s: string) => s.trim().toLowerCase() === keyword.toLowerCase())) {
+              const itemPath = item.path || item["@id"];
+              if (!itemPath) continue;
+
+              try {
+                const newSubjects = subjects.filter((s: string) => s.trim().toLowerCase() !== keyword.toLowerCase());
+                await api.updateSubjects(itemPath, newSubjects);
+                updated++;
+              } catch (error) {
+                errors.push(`Failed to update ${item.title || itemPath}: ${error instanceof Error ? error.message : "Unknown error"}`);
+              }
+            }
+          }
+
+          alert(`Keyword deleted successfully!\n\nRemoved from ${updated} items.${errors.length > 0 ? `\n\nErrors: ${errors.length}` : ''}`);
+          
+          // Reload keywords
+          showKeywordsManager();
+        } catch (error) {
+          alert(`Error deleting keyword: ${error instanceof Error ? error.message : "Unknown error"}`);
+          deleteBtn.disabled = false;
+          deleteBtn.textContent = "Delete Keyword";
+        }
+      });
+    }
+
+    // Show Similar Keywords view (existing functionality)
+    function showSimilarKeywordsView() {
+      // This will be called when switching to similar tab
+      // The existing renderResults function handles this
+      if (similarPairs.length > 0 || Object.keys(allTags).length > 0) {
+        renderResults(Object.keys(allTags).length, 90);
+      }
+    }
+
+    // Show Create Keyword UI
+    function showCreateKeywordUI() {
+        kwContent.innerHTML = `
+        <div style="max-width: 800px; margin: 0 auto;">
+          <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0 0 1.5rem 0;">Create New Keyword</h3>
+            <div style="margin-bottom: 1.5rem;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Keyword Name</label>
+              <input type="text" id="newKeywordInput" placeholder="Enter keyword name..." style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
+          </div>
+          <div style="margin-bottom: 1.5rem;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Apply to Path (optional)</label>
+              <input type="text" id="keywordPathInput" placeholder="Leave empty for entire site, or enter path like /resources" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
+              <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">Leave empty to create the keyword without applying it to any items. You can add it to items later.</p>
+              </div>
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+              <button id="cancelCreateKeywordBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333;">
+                Cancel
+              </button>
+              <button id="saveCreateKeywordBtn" style="padding: 0.75rem 1.5rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                Create Keyword
+              </button>
+              </div>
+              </div>
+              </div>
+      `;
+
+      document.getElementById("cancelCreateKeywordBtn")?.addEventListener("click", () => {
+        showKeywordsManager();
+      });
+
+      document.getElementById("saveCreateKeywordBtn")?.addEventListener("click", async () => {
+        const keywordInput = document.getElementById("newKeywordInput") as HTMLInputElement;
+        const pathInput = document.getElementById("keywordPathInput") as HTMLInputElement;
+        const keyword = keywordInput.value.trim();
+        const path = pathInput.value.trim() || undefined;
+
+        if (!keyword) {
+          alert("Please enter a keyword name.");
+          return;
+        }
+
+        // Check if keyword already exists
+        if (allTags[keyword]) {
+          if (!confirm(`Keyword "${keyword}" already exists with ${allTags[keyword]} items. Do you want to continue?`)) {
+            return;
+          }
+        }
+
+        const saveBtn = document.getElementById("saveCreateKeywordBtn") as HTMLButtonElement;
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Creating...";
+
+        try {
+          // If path is provided, apply keyword to all items in that path
+          if (path) {
+            const items = await api.getItems(path);
+            let updated = 0;
+            let errors: string[] = [];
+
+            for (const item of items) {
+              const itemPath = item.path || item["@id"];
+              if (!itemPath) continue;
+
+              try {
+                const currentSubjects = item.Subject || item.subjects || [];
+                const subjectsArray = Array.isArray(currentSubjects) ? currentSubjects : [];
+                
+                // Check if keyword already exists (case-insensitive)
+                if (!subjectsArray.some((s: string) => s.trim().toLowerCase() === keyword.toLowerCase())) {
+                  const newSubjects = [...subjectsArray, keyword];
+                  await api.updateSubjects(itemPath, newSubjects);
+                  updated++;
+                }
+              } catch (error) {
+                errors.push(`Failed to update ${item.title || itemPath}: ${error instanceof Error ? error.message : "Unknown error"}`);
+              }
+            }
+
+            alert(`Keyword "${keyword}" created and applied to ${updated} items.${errors.length > 0 ? `\n\nErrors: ${errors.length}` : ''}`);
+          } else {
+            // Just create the keyword (it will appear in the list when we reload)
+            alert(`Keyword "${keyword}" created. It will appear in the keywords list.`);
+          }
+
+          // Reload keywords manager
+          showKeywordsManager();
+        } catch (error) {
+          alert(`Error creating keyword: ${error instanceof Error ? error.message : "Unknown error"}`);
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Create Keyword";
+        }
+      });
+    }
+
+    // Show Bulk Import UI
+    function showBulkImportUI() {
+      kwContent.innerHTML = `
+        <div style="max-width: 800px; margin: 0 auto;">
+          <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0 0 1.5rem 0;">Bulk Import Keywords</h3>
+            <div style="margin-bottom: 1.5rem;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Keywords (one per line or comma-separated)</label>
+              <textarea id="bulkKeywordsInput" placeholder="Enter keywords, one per line or separated by commas:&#10;Keyword 1&#10;Keyword 2&#10;Keyword 3" style="width: 100%; min-height: 200px; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-family: monospace;" ></textarea>
+              <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">You can paste keywords separated by newlines or commas. Empty lines will be ignored.</p>
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Apply to Path (optional)</label>
+              <input type="text" id="bulkImportPathInput" placeholder="Leave empty for entire site, or enter path like /resources" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
+              <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">If specified, keywords will be applied to all items in this path. Leave empty to just create the keywords without applying them.</p>
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" id="bulkImportSkipExisting" checked style="width: 18px; height: 18px; cursor: pointer;" />
+                <span>Skip keywords that already exist</span>
+              </label>
+            </div>
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+              <button id="cancelBulkImportBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333;">
+                Cancel
+              </button>
+              <button id="saveBulkImportBtn" style="padding: 0.75rem 1.5rem; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                Import Keywords
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById("cancelBulkImportBtn")?.addEventListener("click", () => {
+        if (currentTab === 'all') {
+          showAllKeywordsView();
+        } else {
+          showKeywordsManager();
+        }
+      });
+
+      document.getElementById("saveBulkImportBtn")?.addEventListener("click", async () => {
+        const keywordsInput = document.getElementById("bulkKeywordsInput") as HTMLTextAreaElement;
+        const pathInput = document.getElementById("bulkImportPathInput") as HTMLInputElement;
+        const skipExistingCheckbox = document.getElementById("bulkImportSkipExisting") as HTMLInputElement;
+        
+        const keywordsText = keywordsInput.value.trim();
+        const path = pathInput.value.trim() || undefined;
+        const skipExisting = skipExistingCheckbox.checked;
+
+        if (!keywordsText) {
+          alert("Please enter at least one keyword.");
+          return;
+        }
+
+        // Parse keywords - support both newline and comma separation
+        const keywords = keywordsText
+          .split(/[\n,]/)
+          .map(k => k.trim())
+          .filter(k => k.length > 0);
+
+        if (keywords.length === 0) {
+          alert("No valid keywords found. Please enter keywords separated by newlines or commas.");
+          return;
+        }
+
+        const saveBtn = document.getElementById("saveBulkImportBtn") as HTMLButtonElement;
+        saveBtn.disabled = true;
+        saveBtn.textContent = `Importing ${keywords.length} keywords...`;
+
+        try {
+          let created = 0;
+          let skipped = 0;
+          let applied = 0;
+          let errors: string[] = [];
+
+          // Show progress
+          const progressDiv = document.createElement("div");
+          progressDiv.style.cssText = "margin-top: 1.5rem; padding: 1rem; background: #f5f5f5; border-radius: 4px;";
+          progressDiv.innerHTML = `
+            <div style="margin-bottom: 0.5rem; font-weight: 500;">Importing keywords...</div>
+            <div style="font-size: 0.9em; color: #666;">Processing: <span id="currentKeyword">-</span></div>
+            <div style="margin-top: 0.5rem; width: 100%; background: #e0e0e0; border-radius: 4px; overflow: hidden;">
+              <div id="importProgressBar" style="width: 0%; background: #4caf50; height: 24px; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.85em; font-weight: bold;">
+                0%
+              </div>
+            </div>
+          `;
+          saveBtn.parentElement?.parentElement?.appendChild(progressDiv);
+
+          // Process each keyword
+          for (let i = 0; i < keywords.length; i++) {
+            const keyword = keywords[i];
+            const currentKeywordSpan = document.getElementById("currentKeyword");
+            if (currentKeywordSpan) {
+              currentKeywordSpan.textContent = keyword;
+            }
+
+            // Update progress
+            const progress = Math.round(((i + 1) / keywords.length) * 100);
+            const progressBar = document.getElementById("importProgressBar");
+            if (progressBar) {
+              progressBar.style.width = `${progress}%`;
+              progressBar.textContent = `${progress}%`;
+            }
+
+            // Check if keyword already exists
+            if (skipExisting && allTags[keyword]) {
+              skipped++;
+              continue;
+            }
+
+            try {
+              // If path is provided, apply keyword to all items in that path
+              if (path) {
+                const items = await api.getItems(path);
+                let itemUpdated = 0;
+
+                for (const item of items) {
+                  const itemPath = item.path || item["@id"];
+                  if (!itemPath) continue;
+
+                  try {
+                    const currentSubjects = item.Subject || item.subjects || [];
+                    const subjectsArray = Array.isArray(currentSubjects) ? currentSubjects : [];
+                    
+                    // Check if keyword already exists (case-insensitive)
+                    if (!subjectsArray.some((s: string) => s.trim().toLowerCase() === keyword.toLowerCase())) {
+                      const newSubjects = [...subjectsArray, keyword];
+                      await api.updateSubjects(itemPath, newSubjects);
+                      itemUpdated++;
+                    }
+                  } catch (error) {
+                    // Continue with other items
+                  }
+                }
+
+                if (itemUpdated > 0) {
+                  applied += itemUpdated;
+                  created++;
+                } else {
+                  created++; // Keyword created even if no items updated
+                }
+              } else {
+                // Just create the keyword (it will appear in the list when we reload)
+                created++;
+              }
+            } catch (error) {
+              errors.push(`${keyword}: ${error instanceof Error ? error.message : "Unknown error"}`);
+            }
+          }
+
+          // Remove progress indicator
+          progressDiv.remove();
+
+          // Show results
+          let message = `Import complete!\n\n`;
+          message += `Created: ${created} keyword${created !== 1 ? 's' : ''}\n`;
+          if (skipped > 0) {
+            message += `Skipped (already exist): ${skipped}\n`;
+          }
+          if (applied > 0) {
+            message += `Applied to: ${applied} item${applied !== 1 ? 's' : ''}\n`;
+          }
+          if (errors.length > 0) {
+            message += `\nErrors: ${errors.length}\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n... and ${errors.length - 5} more` : ''}`;
+          }
+
+          alert(message);
+          
+          // Reload keywords manager
+          showKeywordsManager();
+        } catch (error) {
+          alert(`Error during bulk import: ${error instanceof Error ? error.message : "Unknown error"}`);
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Import Keywords";
+        }
+      });
+    }
 
     // Define the execute merge handler function at the showKeywordsManager scope so it persists
     const executeMergeHandler = async () => {
@@ -1147,14 +1724,14 @@ document.addEventListener("DOMContentLoaded", () => {
               <div style="width: 100%; max-width: 400px; margin: 1rem auto; background: #f0f0f0; border-radius: 10px; overflow: hidden;">
                 <div style="width: ${progress}%; background: ${PLONE_BLUE}; height: 24px; transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.85em; font-weight: bold;">
                   ${progress}%
-                </div>
-              </div>
+            </div>
+          </div>
               ${currentIndex < mergeEntries.length ? `
                 <p style="color: #666; font-size: 0.9em; margin-top: 1rem;">
                   Merging into: <strong>${mergeEntries[currentIndex]?.[0] || ''}</strong>
                 </p>
               ` : ''}
-            </div>
+              </div>
           `;
         };
 
@@ -1203,10 +1780,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 </ul>
               </div>
             ` : ''}
-            
+          
             <button id="reloadTagsBtn" style="margin-top: 2rem; padding: 0.75rem 2rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1.1em;">
               Reload Keywords
-            </button>
+          </button>
           </div>
         `;
 
@@ -1247,18 +1824,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // 2. Find Similar (Default 90%)
       const loadingMsg = document.getElementById("loadingMsg");
-      
-      // Witty loading messages
-      const messages = [
-        "Consulting the thesaurus...",
-        "Asking the librarian...",
-        "Comparing apples to appples...",
-        "Hunting for typos...",
-        "Measuring Levenshtein distances...",
-        "Untangling the tag spaghetti...",
-        "Reading the dictionary backwards...",
-        "Squinting at similar words...",
-        "Doing the alphabet dance...",
+
+            // Witty loading messages
+            const messages = [
+              "Consulting the thesaurus...",
+              "Asking the librarian...",
+              "Comparing apples to appples...",
+              "Hunting for typos...",
+              "Measuring Levenshtein distances...",
+              "Untangling the tag spaghetti...",
+              "Reading the dictionary backwards...",
+              "Squinting at similar words...",
+              "Doing the alphabet dance...",
         "Grouping the flock...",
         "Ron, Carol, and David are sorting keywords...",
         "Playing word association games...",
@@ -1311,15 +1888,15 @@ document.addEventListener("DOMContentLoaded", () => {
         "Ron's organizing by similarity...",
         "Carol is checking for variations...",
         "David's computing Levenshtein distances..."
-      ];
+            ];
 
-      let msgIndex = 0;
+            let msgIndex = 0;
       if (loadingMsg) {
         loadingMsg.innerHTML = `<span style="font-style: italic;">Found ${tagCount} keywords. ${messages[0]}</span>`;
       }
 
-      const intervalId = setInterval(() => {
-        msgIndex = (msgIndex + 1) % messages.length;
+            const intervalId = setInterval(() => {
+              msgIndex = (msgIndex + 1) % messages.length;
         if (loadingMsg) {
           loadingMsg.innerHTML = `<span style="font-style: italic;">Found ${tagCount} keywords. ${messages[msgIndex]}</span>`;
         }
@@ -1327,7 +1904,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         similarPairs = await api.findSimilarTags(allTags, 90, 100);
-        clearInterval(intervalId);
+              clearInterval(intervalId);
       } catch (error) {
         clearInterval(intervalId);
         throw error;
@@ -1347,7 +1924,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderResults(tagCount: number, currentThreshold: number) {
-      if (similarPairs.length === 0) {
+            if (similarPairs.length === 0) {
         kwContent.innerHTML = `
           <div style="text-align: center; padding: 2rem;">
             <p style="font-size: 1.2em; margin-bottom: 0.5rem;">No similar keywords found at ${currentThreshold}% similarity.</p>
@@ -1367,8 +1944,8 @@ document.addEventListener("DOMContentLoaded", () => {
           similarPairs = await api.findSimilarTags(allTags, 80, 100);
           renderResults(tagCount, 80);
         });
-        return;
-      }
+              return;
+            }
 
       kwContent.innerHTML = `
         <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; background: #e8f5e9; padding: 1rem; border-radius: 4px;">
@@ -1390,15 +1967,15 @@ document.addEventListener("DOMContentLoaded", () => {
                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
                  <path d="M3 21v-5h5"/>
                </svg>
-             </button>
+                </button>
           </div>
         </div>
 
         <div id="similarResults">
           <p style="color: #666; font-size: 13px; margin-bottom: 1rem;">Select pairs to merge, then execute the plan below.</p>
           <div id="pairsList" style="max-height: 500px; overflow-y: auto; padding-bottom: 1rem;"></div>
-        </div>
-      `;
+              </div>
+            `;
 
       // Re-attach threshold handler
       document.getElementById("refreshBtn")?.addEventListener("click", async () => {
@@ -1409,189 +1986,189 @@ document.addEventListener("DOMContentLoaded", () => {
         renderResults(tagCount, newThreshold);
       });
 
-      // Helper to manage merge plan with mutual exclusivity
-      const toggleMerge = (keepTag: string, discardTag: string) => {
-        // 1. Remove any existing plan where 'keepTag' was going to be discarded
-        if (mergePlan.has(discardTag)) {
-          const sources = mergePlan.get(discardTag)!;
-          const index = sources.indexOf(keepTag);
-          if (index > -1) {
-            sources.splice(index, 1);
-            if (sources.length === 0) {
-              mergePlan.delete(discardTag);
-            }
-          }
-        }
+            // Helper to manage merge plan with mutual exclusivity
+            const toggleMerge = (keepTag: string, discardTag: string) => {
+              // 1. Remove any existing plan where 'keepTag' was going to be discarded
+              if (mergePlan.has(discardTag)) {
+                const sources = mergePlan.get(discardTag)!;
+                const index = sources.indexOf(keepTag);
+                if (index > -1) {
+                  sources.splice(index, 1);
+                  if (sources.length === 0) {
+                    mergePlan.delete(discardTag);
+                  }
+                }
+              }
 
-        // 2. Add 'discardTag' to be merged into 'keepTag'
-        if (!mergePlan.has(keepTag)) {
-          mergePlan.set(keepTag, []);
-        }
-        const sources = mergePlan.get(keepTag)!;
-        if (!sources.includes(discardTag)) {
-          sources.push(discardTag);
-        }
+              // 2. Add 'discardTag' to be merged into 'keepTag'
+              if (!mergePlan.has(keepTag)) {
+                mergePlan.set(keepTag, []);
+              }
+              const sources = mergePlan.get(keepTag)!;
+              if (!sources.includes(discardTag)) {
+                sources.push(discardTag);
+              }
 
-        updateMergePlan();
-      };
+              updateMergePlan();
+            };
 
       const pairsList = document.getElementById("pairsList")!;
 
-      similarPairs.forEach((pair, index) => {
-        const row = document.createElement("div");
-        row.className = "similarity-row";
-        row.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.75rem; transition: all 0.3s;";
-        row.id = `pair-row-${index}`;
+            similarPairs.forEach((pair, index) => {
+              const row = document.createElement("div");
+              row.className = "similarity-row";
+              row.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.75rem; transition: all 0.3s;";
+              row.id = `pair-row-${index}`;
 
-        row.innerHTML = `
-          <div style="flex: 1; display: flex; align-items: center; gap: 1rem;">
-            <div class="tag-option" id="tag-left-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s;">
-              <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
-              <div style="font-size: 0.85em; color: #666;">${pair.count} items</div>
-            </div>
-            
-            <div style="display: flex; flex-direction: column; align-items: center; color: #888;">
-              <span style="font-size: 1.2em; font-weight: bold;">≈</span>
-              <span style="font-size: 0.8em; background: ${pair.similarity >= 90 ? '#e8f5e9' : '#fff3e0'}; color: ${pair.similarity >= 90 ? '#2e7d32' : '#ef6c00'}; padding: 2px 6px; border-radius: 4px;">${pair.similarity}%</span>
-            </div>
-            
-            <div class="tag-option" id="tag-right-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s;">
-              <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.matched}</div>
-              <div style="font-size: 0.85em; color: #666;">${pair.matched_count} items</div>
-            </div>
-          </div>
+              row.innerHTML = `
+                <div style="flex: 1; display: flex; align-items: center; gap: 1rem;">
+                  <div class="tag-option" id="tag-left-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s;">
+                    <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
+                    <div style="font-size: 0.85em; color: #666;">${pair.count} items</div>
+                  </div>
+                  
+                  <div style="display: flex; flex-direction: column; align-items: center; color: #888;">
+                    <span style="font-size: 1.2em; font-weight: bold;">≈</span>
+                    <span style="font-size: 0.8em; background: ${pair.similarity >= 90 ? '#e8f5e9' : '#fff3e0'}; color: ${pair.similarity >= 90 ? '#2e7d32' : '#ef6c00'}; padding: 2px 6px; border-radius: 4px;">${pair.similarity}%</span>
+                  </div>
+                  
+                  <div class="tag-option" id="tag-right-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s;">
+                    <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.matched}</div>
+                    <div style="font-size: 0.85em; color: #666;">${pair.matched_count} items</div>
+                  </div>
+                </div>
           <div style="margin-left: 1rem; min-width: 120px; text-align: center;">
-            <span class="status-text" style="font-size: 0.9em; color: #888; font-style: italic;">Click to keep</span>
-          </div>
-        `;
+                  <span class="status-text" style="font-size: 0.9em; color: #888; font-style: italic;">Click to keep</span>
+                </div>
+              `;
 
         pairsList.appendChild(row);
 
-        const leftCard = row.querySelector(`#tag-left-${index}`) as HTMLElement;
-        const rightCard = row.querySelector(`#tag-right-${index}`) as HTMLElement;
-        const statusText = row.querySelector(`.status-text`) as HTMLElement;
+              const leftCard = row.querySelector(`#tag-left-${index}`) as HTMLElement;
+              const rightCard = row.querySelector(`#tag-right-${index}`) as HTMLElement;
+              const statusText = row.querySelector(`.status-text`) as HTMLElement;
 
-        const updateRowVisuals = (keepLeft: boolean) => {
-          // Reset styles
-          leftCard.style.borderColor = "transparent";
-          leftCard.style.background = "#f8f9fa";
-          leftCard.style.opacity = "1";
-          leftCard.innerHTML = `
-            <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
-            <div style="font-size: 0.85em; color: #666;">${pair.count} items</div>
-          `;
+              const updateRowVisuals = (keepLeft: boolean) => {
+                // Reset styles
+                leftCard.style.borderColor = "transparent";
+                leftCard.style.background = "#f8f9fa";
+                leftCard.style.opacity = "1";
+                leftCard.innerHTML = `
+                  <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
+                  <div style="font-size: 0.85em; color: #666;">${pair.count} items</div>
+                `;
 
-          rightCard.style.borderColor = "transparent";
-          rightCard.style.background = "#f8f9fa";
-          rightCard.style.opacity = "1";
-          rightCard.innerHTML = `
-            <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.matched}</div>
-            <div style="font-size: 0.85em; color: #666;">${pair.matched_count} items</div>
-          `;
+                rightCard.style.borderColor = "transparent";
+                rightCard.style.background = "#f8f9fa";
+                rightCard.style.opacity = "1";
+                rightCard.innerHTML = `
+                  <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.matched}</div>
+                  <div style="font-size: 0.85em; color: #666;">${pair.matched_count} items</div>
+                `;
 
-          if (keepLeft) {
-            // Keep Left
-            leftCard.style.borderColor = "#4caf50";
-            leftCard.style.background = "#e8f5e9";
-            leftCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
+                if (keepLeft) {
+                  // Keep Left
+                  leftCard.style.borderColor = "#4caf50";
+                  leftCard.style.background = "#e8f5e9";
+                  leftCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
 
-            // Discard Right
-            rightCard.style.opacity = "0.6";
-            rightCard.style.background = "#ffebee";
-            rightCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
+                  // Discard Right
+                  rightCard.style.opacity = "0.6";
+                  rightCard.style.background = "#ffebee";
+                  rightCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
 
             statusText.textContent = "←";
-            statusText.style.color = PLONE_BLUE;
+                  statusText.style.color = PLONE_BLUE;
             statusText.style.fontSize = "2rem";
             statusText.style.textAlign = "center";
             statusText.style.fontWeight = "bold";
-          } else {
-            // Keep Right
-            rightCard.style.borderColor = "#4caf50";
-            rightCard.style.background = "#e8f5e9";
-            rightCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
+                } else {
+                  // Keep Right
+                  rightCard.style.borderColor = "#4caf50";
+                  rightCard.style.background = "#e8f5e9";
+                  rightCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
 
-            // Discard Left
-            leftCard.style.opacity = "0.6";
-            leftCard.style.background = "#ffebee";
-            leftCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
+                  // Discard Left
+                  leftCard.style.opacity = "0.6";
+                  leftCard.style.background = "#ffebee";
+                  leftCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
 
             statusText.textContent = "→";
-            statusText.style.color = PLONE_BLUE;
+                  statusText.style.color = PLONE_BLUE;
             statusText.style.fontSize = "2rem";
             statusText.style.textAlign = "center";
             statusText.style.fontWeight = "bold";
+                }
+              };
+
+              leftCard.onclick = () => {
+                updateRowVisuals(true);
+                toggleMerge(pair.tag, pair.matched);
+              };
+
+              rightCard.onclick = () => {
+                updateRowVisuals(false);
+                toggleMerge(pair.matched, pair.tag);
+              };
+            });
           }
-        };
 
-        leftCard.onclick = () => {
-          updateRowVisuals(true);
-          toggleMerge(pair.tag, pair.matched);
-        };
+        function updateMergePlan() {
+          // Create sticky footer if it doesn't exist
+          let stickyFooter = document.getElementById("stickyMergeFooter");
+          if (!stickyFooter) {
+            stickyFooter = document.createElement("div");
+            stickyFooter.id = "stickyMergeFooter";
+            stickyFooter.style.cssText = `
+              position: fixed;
+              bottom: 0;
+              left: 0;
+              right: 0;
+              background: white;
+              border-top: 1px solid #ddd;
+              box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+              padding: 1rem 2rem;
+              z-index: 1000;
+              display: none;
+              transform: translateY(100%);
+              transition: transform 0.3s ease-out;
+            `;
+            document.body.appendChild(stickyFooter);
+          }
 
-        rightCard.onclick = () => {
-          updateRowVisuals(false);
-          toggleMerge(pair.matched, pair.tag);
-        };
-      });
-    }
+          let totalMerges = 0;
+          mergePlan.forEach(sources => totalMerges += sources.length);
 
-    function updateMergePlan() {
-      // Create sticky footer if it doesn't exist
-      let stickyFooter = document.getElementById("stickyMergeFooter");
-      if (!stickyFooter) {
-        stickyFooter = document.createElement("div");
-        stickyFooter.id = "stickyMergeFooter";
-        stickyFooter.style.cssText = `
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          background: white;
-          border-top: 1px solid #ddd;
-          box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
-          padding: 1rem 2rem;
-          z-index: 1000;
-          display: none;
-          transform: translateY(100%);
-          transition: transform 0.3s ease-out;
-        `;
-        document.body.appendChild(stickyFooter);
-      }
+          if (totalMerges === 0) {
+            stickyFooter.style.transform = "translateY(100%)";
+            setTimeout(() => { stickyFooter!.style.display = "none"; }, 300);
+            return;
+          }
 
-      let totalMerges = 0;
-      mergePlan.forEach(sources => totalMerges += sources.length);
+          stickyFooter.style.display = "flex";
+          stickyFooter.style.justifyContent = "space-between";
+          stickyFooter.style.alignItems = "center";
+          // Force reflow
+          stickyFooter.offsetHeight;
+          stickyFooter.style.transform = "translateY(0)";
 
-      if (totalMerges === 0) {
-        stickyFooter.style.transform = "translateY(100%)";
-        setTimeout(() => { stickyFooter!.style.display = "none"; }, 300);
-        return;
-      }
-
-      stickyFooter.style.display = "flex";
-      stickyFooter.style.justifyContent = "space-between";
-      stickyFooter.style.alignItems = "center";
-      // Force reflow
-      stickyFooter.offsetHeight;
-      stickyFooter.style.transform = "translateY(0)";
-
-      stickyFooter.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 1rem;">
-          <div style="background: ${PLONE_BLUE}; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${totalMerges}</div>
-          <div>
-            <div style="font-weight: bold; font-size: 1.1em;">Changes Queued</div>
-            <div style="font-size: 0.9em; color: #666;">Ready to merge</div>
-          </div>
-        </div>
-        <div style="display: flex; gap: 1rem;">
-          <button id="viewPlanBtn" style="padding: 0.75rem 1.5rem; background: white; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-weight: 500;">
-            View Details
-          </button>
-          <button id="executeMergeBtn" style="padding: 0.75rem 1.5rem; background: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            Execute Merge
-          </button>
-        </div>
-      `;
+          stickyFooter.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <div style="background: ${PLONE_BLUE}; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${totalMerges}</div>
+              <div>
+                <div style="font-weight: bold; font-size: 1.1em;">Changes Queued</div>
+                <div style="font-size: 0.9em; color: #666;">Ready to merge</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+              <button id="viewPlanBtn" style="padding: 0.75rem 1.5rem; background: white; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                View Details
+              </button>
+              <button id="executeMergeBtn" style="padding: 0.75rem 1.5rem; background: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                Execute Merge
+              </button>
+            </div>
+          `;
 
       // Attach event listeners after setting innerHTML
       const viewPlanBtn = document.getElementById("viewPlanBtn");
@@ -1599,8 +2176,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const newViewBtn = viewPlanBtn.cloneNode(true) as HTMLElement;
         viewPlanBtn.parentNode?.replaceChild(newViewBtn, viewPlanBtn);
         newViewBtn.addEventListener("click", () => {
-          document.getElementById("mergePlanSection")?.scrollIntoView({ behavior: 'smooth' });
-        });
+            document.getElementById("mergePlanSection")?.scrollIntoView({ behavior: 'smooth' });
+          });
       }
 
       const executeMergeBtn = document.getElementById("executeMergeBtn");
@@ -1615,7 +2192,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (typeof executeMergeHandler === 'function') {
             try {
               await executeMergeHandler();
-            } catch (error) {
+              } catch (error) {
               console.error("Error in executeMergeHandler:", error);
               alert(`Error executing merge: ${error instanceof Error ? error.message : "Unknown error"}`);
             }
@@ -1626,21 +2203,21 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
 
-      // Also update the detailed list at the bottom (hidden by default now, maybe?)
+          // Also update the detailed list at the bottom (hidden by default now, maybe?)
       const mergePlanSection = document.getElementById("mergePlanSection");
       const mergePlanList = document.getElementById("mergePlanList");
 
       if (mergePlanSection && mergePlanList) {
-        if (mergePlan.size > 0) {
-          mergePlanSection.style.display = "block";
-          mergePlanList.innerHTML = "";
+          if (mergePlan.size > 0) {
+            mergePlanSection.style.display = "block";
+            mergePlanList.innerHTML = "";
           mergePlan.forEach((_sources, _target) => {
-            // ... (existing code to render list items if needed) ...
-          });
-        } else {
-          mergePlanSection.style.display = "none";
+              // ... (existing code to render list items if needed) ...
+            });
+          } else {
+            mergePlanSection.style.display = "none";
+          }
         }
-      }
     }
   }
 });
