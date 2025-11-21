@@ -374,12 +374,66 @@ impl PloneApiClient {
     }
 
     fn relative_path_from_id(&self, id: &str) -> Option<String> {
+        // The @id from Plone REST API is typically a full public URL like:
+        // https://domain.com/path/to/item
+        // We need to extract just the path portion: path/to/item
+        
+        // First, try to match against base_url (in case it's already an API URL)
         let base = self.base_url.trim_end_matches('/');
         if id.starts_with(base) {
-            Some(id[base.len()..].trim_start_matches('/').to_string())
-        } else {
-            None
+            return Some(id[base.len()..].trim_start_matches('/').to_string());
         }
+        
+        // Parse as URL to extract the path
+        if let Ok(url) = Url::parse(id) {
+            let mut path = url.path().to_string();
+            
+            // Remove leading slash
+            path = path.trim_start_matches('/').to_string();
+            
+            // If the path contains ++api++, remove it (we'll add it back via base_url)
+            if path.contains("++api++") {
+                let parts: Vec<&str> = path.split("++api++").collect();
+                if parts.len() > 1 {
+                    path = parts[1].trim_start_matches('/').to_string();
+                } else {
+                    path = parts[0].trim_start_matches('/').to_string();
+                }
+            }
+            
+            // Verify the domain matches (security check)
+            if let Ok(base_url_obj) = Url::parse(&self.base_url) {
+                if base_url_obj.host_str() == url.host_str() || base_url_obj.host_str().is_none() {
+                    return Some(path);
+                }
+            } else {
+                // If base_url parsing fails, still try to use the path
+                // (might be a relative path scenario)
+                return Some(path);
+            }
+        }
+        
+        // Fallback: manual string extraction for edge cases
+        if let Some(domain_end) = id.find("://") {
+            if let Some(path_start) = id[domain_end + 3..].find('/') {
+                let full_path = &id[domain_end + 3 + path_start..];
+                let mut path = full_path.trim_start_matches('/').to_string();
+                
+                // Remove ++api++ if present
+                if path.contains("++api++") {
+                    let parts: Vec<&str> = path.split("++api++").collect();
+                    if parts.len() > 1 {
+                        path = parts[1].trim_start_matches('/').to_string();
+                    } else {
+                        path = parts[0].trim_start_matches('/').to_string();
+                    }
+                }
+                
+                return Some(path);
+            }
+        }
+        
+        None
     }
 
     pub async fn collect_tags(
@@ -585,21 +639,72 @@ impl PloneApiClient {
                     }
 
                     if changed {
-                        if let Some(path) = self.relative_path_from_id(id) {
-                            let result = self
-                                .patch(Some(&path), json!({ "subjects": subjects }))
-                                .await;
-                            match result {
-                                Ok(_) => updated += 1,
-                                Err(err) => errors.push(format!(
-                                    "Failed to update {}: {}",
-                                    id, err
-                                )),
-                            }
+                        // Convert @id URL to API URL by inserting ++api++ into the path
+                        let api_url = if let Ok(mut url) = Url::parse(id) {
+                            let path = url.path();
+                            // Insert ++api++ after the domain but before the content path
+                            // e.g., /committees/... becomes /++api++/committees/...
+                            let new_path = if path.starts_with('/') {
+                                format!("/++api++{}", path)
+                            } else {
+                                format!("/++api++/{}", path)
+                            };
+                            url.set_path(&new_path);
+                            Some(url.to_string())
                         } else {
+                            None
+                        };
+                        
+                        let mut patch_succeeded = false;
+                        let mut last_error: Option<String> = None;
+                        
+                        // First attempt: use converted API URL
+                        if let Some(api_url_str) = &api_url {
+                            let result = self
+                                .patch(Some(api_url_str), json!({ "subjects": subjects }))
+                                .await;
+                            
+                            match result {
+                                Ok(_) => {
+                                    updated += 1;
+                                    patch_succeeded = true;
+                                }
+                                Err(err) => {
+                                    last_error = Some(err.message.clone());
+                                }
+                            }
+                        }
+                        
+                        // Fallback: try with extracted relative path
+                        if !patch_succeeded {
+                            if let Some(path) = self.relative_path_from_id(id) {
+                                let result = self
+                                    .patch(Some(&path), json!({ "subjects": subjects }))
+                                    .await;
+                                match result {
+                                    Ok(_) => {
+                                        updated += 1;
+                                        patch_succeeded = true;
+                                    }
+                                    Err(err) => {
+                                        if let Some(existing_err) = last_error {
+                                            last_error = Some(format!(
+                                                "API URL failed: {}; Path also failed: {}",
+                                                existing_err, err.message
+                                            ));
+                                        } else {
+                                            last_error = Some(err.message.clone());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if !patch_succeeded {
                             errors.push(format!(
-                                "Could not determine path for item: {}",
-                                id
+                                "Failed to update {}: {}",
+                                id,
+                                last_error.unwrap_or_else(|| "Could not determine path".to_string())
                             ));
                         }
                     }
