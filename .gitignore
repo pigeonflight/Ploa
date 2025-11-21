@@ -30,4 +30,5 @@ Thumbs.db
 certificate.p12
 certificate_base64.txt
 .cert-password.txt
+.cert-password-new.txt
 

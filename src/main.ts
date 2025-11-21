@@ -1,5 +1,6 @@
 import "./style.css";
 import * as api from "./lib/api";
+import { invoke } from "@tauri-apps/api/core";
 
 // Plone brand color
 const PLONE_BLUE = "#0283be";
@@ -9,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <div style="padding: 2rem; height: 100%; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
     <header style="border-bottom: 2px solid rgba(2, 131, 190, 0.4); padding: 0.5rem 0; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
-      <img src="/icons/plone-logo.png" alt="Plone" style="height: 40px;" />
+      <img src="/icons/plone-logo.png" alt="Plone" style="height: 28px;" />
       <div id="userStatus" style="display: flex; align-items: center; gap: 1rem;">
         <span id="statusText" style="color: #666; font-size: 14px;">Not connected</span>
         <button id="headerLoginBtn" style="display: none; padding: 0.25rem 0.75rem; background: transparent; border: 1px solid ${PLONE_BLUE}; color: ${PLONE_BLUE}; border-radius: 4px; cursor: pointer; font-size: 14px;">
@@ -105,7 +106,39 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
       </div>
-    </div>
+    </main>
+    <footer style="margin-top: auto; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.05); text-align: right;">
+      <style>
+        #incrementic-credit {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          text-decoration: none;
+          color: #999;
+          font-size: 10px;
+          opacity: 0.5;
+          transition: opacity 0.2s;
+        }
+        #incrementic-credit:hover {
+          opacity: 1;
+        }
+        #incrementic-credit img {
+          height: 12px;
+          width: auto;
+          opacity: 0.6;
+          transition: opacity 0.2s;
+        }
+        #incrementic-credit:hover img {
+          opacity: 1;
+        }
+      </style>
+      <span id="incrementic-credit" style="cursor: pointer;">
+        <span>Built with ❤️ by</span>
+        <img src="/incrementic-logo.svg" alt="Incrementic" />
+        <span>🇯🇲</span>
+      </span>
+    </footer>
+  </div>
   `;
 
   // UI Elements
@@ -127,6 +160,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const errorDiv = document.querySelector<HTMLDivElement>("#error")!;
   const urlHistory = document.querySelector<HTMLDataListElement>("#urlHistory")!;
   const credentialsHint = document.querySelector<HTMLDivElement>("#credentialsHint")!;
+  const incrementicCredit = document.querySelector<HTMLSpanElement>("#incrementic-credit")!;
+
+  // Handle Incrementic credit link
+  incrementicCredit.addEventListener("click", async () => {
+    try {
+      await invoke("plugin:shell|open", { path: "https://incrementic.com" });
+    } catch (error) {
+      console.error("Failed to open URL:", error);
+    }
+  });
 
   // State
   let currentBaseUrl = "";
@@ -1215,7 +1258,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <div id="mergePlanSection" style="margin-top: 1.5rem; padding: 1rem; background: #fff3e0; border-radius: 4px; display: none;">
                 <h4 style="margin: 0 0 0.5rem 0;">Merge Plan</h4>
                 <div id="mergePlanList" style="margin-bottom: 1rem;"></div>
-                <button id="executeMergeBtn" style="padding: 0.75rem 1.5rem; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                <button id="executeMergePlanBtn" style="padding: 0.75rem 1.5rem; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
                   Execute Merge
                 </button>
                 <button id="clearPlanBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; margin-left: 0.5rem; color: #333;">
@@ -1347,6 +1390,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 toggleMerge(pair.matched, pair.tag);
               };
             });
+
+            // Set up event listeners for merge plan section buttons
+            // We'll use event delegation since the handler is defined in updateMergePlan
+            const mergePlanSection = document.getElementById("mergePlanSection");
+            if (mergePlanSection) {
+              mergePlanSection.addEventListener("click", (e) => {
+                const target = e.target as HTMLElement;
+                if (target.id === "executeMergePlanBtn" || target.closest("#executeMergePlanBtn")) {
+                  // Trigger the execute handler from the sticky footer
+                  document.getElementById("executeMergeBtn")?.click();
+                } else if (target.id === "clearPlanBtn" || target.closest("#clearPlanBtn")) {
+                  mergePlan.clear();
+                  updateMergePlan();
+                }
+              });
+            }
           } catch (error) {
             document.getElementById("similarResults")!.innerHTML = `<p style='color: #d32f2f;'>Error: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
           }
@@ -1391,50 +1450,63 @@ document.addEventListener("DOMContentLoaded", () => {
           stickyFooter.offsetHeight;
           stickyFooter.style.transform = "translateY(0)";
 
-          stickyFooter.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <div style="background: ${PLONE_BLUE}; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${totalMerges}</div>
-              <div>
-                <div style="font-weight: bold; font-size: 1.1em;">Changes Queued</div>
-                <div style="font-size: 0.9em; color: #666;">Ready to merge</div>
-              </div>
-            </div>
-            <div style="display: flex; gap: 1rem;">
-              <button id="viewPlanBtn" style="padding: 0.75rem 1.5rem; background: white; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-weight: 500;">
-                View Details
-              </button>
-              <button id="executeMergeBtn" style="padding: 0.75rem 1.5rem; background: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                Execute Merge
-              </button>
-            </div>
-          `;
-
-          // Handlers for the sticky footer buttons
-          document.getElementById("viewPlanBtn")?.addEventListener("click", () => {
-            // Scroll to bottom where the detailed list is (or we could show a modal)
-            document.getElementById("mergePlanSection")?.scrollIntoView({ behavior: 'smooth' });
-          });
-
-          document.getElementById("executeMergeBtn")?.addEventListener("click", async () => {
+          // Define the execute merge handler function
+          const executeMergeHandler = async () => {
             const confirmed = confirm(`Are you sure you want to execute ${totalMerges} merge operations? This will update all affected items.`);
             if (!confirmed) return;
 
             const resultsDiv = document.getElementById("similarResults")!;
-            resultsDiv.innerHTML = "<div style='text-align: center; padding: 2rem;'><p>Executing merge operations...</p></div>";
             stickyFooter!.style.transform = "translateY(100%)";
+
+            // Create progress UI with spinner
+            const mergeEntries = Array.from(mergePlan.entries());
+            let currentIndex = 0;
+            
+            const updateProgress = () => {
+              const progress = Math.round((currentIndex / mergeEntries.length) * 100);
+              resultsDiv.innerHTML = `
+                <div style='text-align: center; padding: 2rem;'>
+                  <div style="display: inline-block; width: 60px; height: 60px; border: 4px solid #f3f3f3; border-top: 4px solid ${PLONE_BLUE}; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem;"></div>
+                  <style>
+                    @keyframes spin {
+                      0% { transform: rotate(0deg); }
+                      100% { transform: rotate(360deg); }
+                    }
+                  </style>
+                  <p style="font-size: 1.1em; margin: 0.5rem 0; font-weight: 500;">Executing merge operations...</p>
+                  <p style="color: #666; margin: 0.5rem 0;">Processing ${currentIndex + 1} of ${mergeEntries.length}</p>
+                  <div style="width: 100%; max-width: 400px; margin: 1rem auto; background: #f0f0f0; border-radius: 10px; overflow: hidden;">
+                    <div style="width: ${progress}%; background: ${PLONE_BLUE}; height: 24px; transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.85em; font-weight: bold;">
+                      ${progress}%
+                    </div>
+                  </div>
+                  ${currentIndex < mergeEntries.length ? `
+                    <p style="color: #666; font-size: 0.9em; margin-top: 1rem;">
+                      Merging into: <strong>${mergeEntries[currentIndex]?.[0] || ''}</strong>
+                    </p>
+                  ` : ''}
+                </div>
+              `;
+            };
+
+            updateProgress();
 
             let totalUpdated = 0;
             let totalAffected = 0;
             const allErrors: string[] = [];
 
-            for (const [target, sources] of mergePlan.entries()) {
+            for (const [target, sources] of mergeEntries) {
               try {
                 const result = await api.mergeTags(target, sources);
                 totalUpdated += result.updated;
                 totalAffected += result.affected_items;
                 allErrors.push(...result.errors);
+                currentIndex++;
+                updateProgress();
               } catch (error) {
                 allErrors.push(`Failed to merge into "${target}": ${error instanceof Error ? error.message : "Unknown error"}`);
+                currentIndex++;
+                updateProgress();
               }
             }
 
@@ -1466,7 +1538,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
             mergePlan.clear();
             updateMergePlan(); // Hide footer
+          };
+
+          stickyFooter.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <div style="background: ${PLONE_BLUE}; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${totalMerges}</div>
+              <div>
+                <div style="font-weight: bold; font-size: 1.1em;">Changes Queued</div>
+                <div style="font-size: 0.9em; color: #666;">Ready to merge</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+              <button id="viewPlanBtn" style="padding: 0.75rem 1.5rem; background: white; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                View Details
+              </button>
+              <button id="executeMergeBtn" style="padding: 0.75rem 1.5rem; background: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                Execute Merge
+              </button>
+            </div>
+          `;
+
+          // Attach event listeners after setting innerHTML
+          document.getElementById("viewPlanBtn")?.addEventListener("click", () => {
+            document.getElementById("mergePlanSection")?.scrollIntoView({ behavior: 'smooth' });
           });
+
+          document.getElementById("executeMergeBtn")?.addEventListener("click", executeMergeHandler);
 
           // Also update the detailed list at the bottom (hidden by default now, maybe?)
           const mergePlanSection = document.getElementById("mergePlanSection")!;
