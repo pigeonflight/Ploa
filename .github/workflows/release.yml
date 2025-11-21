@@ -18,12 +18,16 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
+            arch: 'x86_64'
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
+            arch: 'Apple-Silicon'
           - platform: 'windows-latest'
             args: ''
+            arch: ''
           - platform: 'ubuntu-22.04'
             args: ''
+            arch: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -97,4 +101,16 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Rename ARM64 DMG to Apple Silicon (macOS only)
+        if: matrix.arch == 'Apple-Silicon'
+        run: |
+          cd src-tauri/target/aarch64-apple-darwin/release/bundle/dmg
+          for file in *_aarch64.dmg; do
+            if [ -f "$file" ]; then
+              newname="${file/_aarch64/_Apple-Silicon}"
+              mv "$file" "$newname"
+              echo "Renamed $file to $newname"
+            fi
+          done
 
