@@ -502,6 +502,7 @@ impl PloneApiClient {
         let mut url = self.search_url()?;
         url.query_pairs_mut().append_pair("Subject", subject);
         url.query_pairs_mut().append_pair("b_size", "200");
+        url.query_pairs_mut().append_pair("metadata_fields", "Subject");
         if let Some(p) = path {
             url.query_pairs_mut().append_pair("path", p);
         }
@@ -556,23 +557,37 @@ impl PloneApiClient {
             for item in items {
                 if let Some(id) = item.get("@id").and_then(|v| v.as_str()) {
                     let mut subjects = Self::extract_subjects(&item);
+                    let original_subjects = subjects.clone();
                     let mut changed = false;
 
-                    if subjects
+                    // Check if source tag exists (case-insensitive, trimmed)
+                    let source_trimmed = source.trim();
+                    let has_source = subjects
                         .iter()
-                        .any(|s| s.eq_ignore_ascii_case(source))
-                    {
-                        subjects.retain(|s| !s.eq_ignore_ascii_case(source));
-                        if !subjects.iter().any(|s| s.eq_ignore_ascii_case(target)) {
-                            subjects.push(target.to_string());
+                        .any(|s| s.trim().eq_ignore_ascii_case(source_trimmed));
+                    
+                    if has_source {
+                        // Remove source tag(s) - remove all case-insensitive matches
+                        let before_count = subjects.len();
+                        subjects.retain(|s| !s.trim().eq_ignore_ascii_case(source_trimmed));
+                        
+                        // Only mark as changed if we actually removed something
+                        if subjects.len() < before_count {
+                            changed = true;
                         }
-                        changed = true;
+                        
+                        // Add target tag if not already present (case-insensitive)
+                        let target_trimmed = target.trim();
+                        if !subjects.iter().any(|s| s.trim().eq_ignore_ascii_case(target_trimmed)) {
+                            subjects.push(target.to_string());
+                            changed = true;
+                        }
                     }
 
                     if changed {
                         if let Some(path) = self.relative_path_from_id(id) {
                             let result = self
-                                .patch(Some(&path), json!({ "Subject": subjects }))
+                                .patch(Some(&path), json!({ "subjects": subjects }))
                                 .await;
                             match result {
                                 Ok(_) => updated += 1,
@@ -581,6 +596,11 @@ impl PloneApiClient {
                                     id, err
                                 )),
                             }
+                        } else {
+                            errors.push(format!(
+                                "Could not determine path for item: {}",
+                                id
+                            ));
                         }
                     }
                 }

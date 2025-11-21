@@ -1074,16 +1074,17 @@ document.addEventListener("DOMContentLoaded", () => {
       <div style="padding: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
           <h3 style="margin: 0;">🏷️ Keywords Manager</h3>
-          <button id="kwBackBtn" style="padding: 0.5rem 1rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">
+          <button id="kwBackBtn" style="padding: 0.5rem 1rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333; font-weight: 500;">
             ← Back to Browser
           </button>
         </div>
-        <p style="color: #666; margin-bottom: 1.5rem;">Manage and merge similar keywords across your site.</p>
         
         <div id="kwContent">
-          <button id="loadTagsBtn" style="padding: 0.75rem 1.5rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
-            Load All Keywords
-          </button>
+          <div style="text-align: center; padding: 3rem 1rem;">
+            <div style="display: inline-block; width: 40px; height: 40px; border: 3px solid #f3f3f3; border-top: 3px solid ${PLONE_BLUE}; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem;"></div>
+            <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+            <p id="loadingMsg" style="color: #666; font-size: 1.1em;">Analyzing keywords...</p>
+          </div>
         </div>
       </div>
     `;
@@ -1097,491 +1098,549 @@ document.addEventListener("DOMContentLoaded", () => {
     let similarPairs: api.SimilarTagPair[] = [];
     let mergePlan: Map<string, string[]> = new Map(); // target -> sources
 
-    document.getElementById("loadTagsBtn")?.addEventListener("click", async () => {
+    // Define the execute merge handler function at the showKeywordsManager scope so it persists
+    const executeMergeHandler = async () => {
       try {
-        kwContent.innerHTML = "<p>Loading keywords from site...</p>";
-        allTags = await api.collectTags();
-        const tagCount = Object.keys(allTags).length;
+        console.log("executeMergeHandler called, mergePlan:", Array.from(mergePlan.entries()));
+        let totalMerges = 0;
+        mergePlan.forEach(sources => totalMerges += sources.length);
+        console.log("Total merges calculated:", totalMerges);
 
-        kwContent.innerHTML = `
-          <div style="margin-bottom: 1.5rem; padding: 1rem; background: #e8f5e9; border-radius: 4px;">
-            <p style="margin: 0; font-weight: 500;">✓ Found ${tagCount} unique keywords</p>
-          </div>
-          
-          <div style="margin-bottom: 1.5rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Similarity Level:</label>
-            <div id="thresholdOptions" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem;">
-              <div class="threshold-card selected" data-value="98" style="border: 2px solid ${PLONE_BLUE}; background: #e3f2fd; padding: 0.75rem; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
-                <div style="font-weight: bold; margin-bottom: 0.25rem;">Very Close (98%)</div>
-                <div style="font-size: 12px; color: #555;">Fix typos & capitalization</div>
+        if (totalMerges === 0) {
+          alert("No merge operations planned. Please select tags to merge first.");
+          return;
+        }
+
+        console.log("Starting merge execution...");
+        
+        const resultsDiv = document.getElementById("similarResults");
+        if (!resultsDiv) {
+          console.error("similarResults div not found!");
+          alert("Error: Could not find results container. Please refresh the page.");
+          return;
+        }
+
+        const stickyFooter = document.getElementById("stickyMergeFooter");
+        if (stickyFooter) {
+          stickyFooter.style.transform = "translateY(100%)";
+        }
+
+        // Create progress UI with spinner - show immediately
+        const mergeEntries = Array.from(mergePlan.entries());
+        let currentIndex = 0;
+
+        console.log(`Starting merge of ${mergeEntries.length} target tags`);
+
+        const updateProgress = () => {
+          const progress = Math.round((currentIndex / mergeEntries.length) * 100);
+          resultsDiv.innerHTML = `
+            <div style='text-align: center; padding: 2rem;'>
+              <div style="display: inline-block; width: 60px; height: 60px; border: 4px solid #f3f3f3; border-top: 4px solid ${PLONE_BLUE}; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem;"></div>
+              <style>
+                @keyframes spin {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+                }
+              </style>
+              <p style="font-size: 1.1em; margin: 0.5rem 0; font-weight: 500;">Executing merge operations...</p>
+              <p style="color: #666; margin: 0.5rem 0;">Processing ${currentIndex + 1} of ${mergeEntries.length}</p>
+              <div style="width: 100%; max-width: 400px; margin: 1rem auto; background: #f0f0f0; border-radius: 10px; overflow: hidden;">
+                <div style="width: ${progress}%; background: ${PLONE_BLUE}; height: 24px; transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.85em; font-weight: bold;">
+                  ${progress}%
+                </div>
               </div>
-              <div class="threshold-card" data-value="90" style="border: 1px solid #ddd; background: white; padding: 0.75rem; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
-                <div style="font-weight: bold; margin-bottom: 0.25rem;">Close (90%)</div>
-                <div style="font-size: 12px; color: #555;">Plurals & small variations</div>
-              </div>
-              <div class="threshold-card" data-value="80" style="border: 1px solid #ddd; background: white; padding: 0.75rem; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
-                <div style="font-weight: bold; margin-bottom: 0.25rem;">Similar (80%)</div>
-                <div style="font-size: 12px; color: #555;">Related terms</div>
-              </div>
-              <div class="threshold-card" data-value="70" style="border: 1px solid #ddd; background: white; padding: 0.75rem; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
-                <div style="font-weight: bold; margin-bottom: 0.25rem;">Loose (70%)</div>
-                <div style="font-size: 12px; color: #555;">Broad matching</div>
-              </div>
+              ${currentIndex < mergeEntries.length ? `
+                <p style="color: #666; font-size: 0.9em; margin-top: 1rem;">
+                  Merging into: <strong>${mergeEntries[currentIndex]?.[0] || ''}</strong>
+                </p>
+              ` : ''}
             </div>
-            <input type="hidden" id="thresholdValue" value="98" />
+          `;
+        };
+
+        // Show progress immediately
+        updateProgress();
+        console.log("Progress UI displayed");
+
+        let totalUpdated = 0;
+        let totalAffected = 0;
+        const allErrors: string[] = [];
+
+        for (const [target, sources] of mergeEntries) {
+          console.log(`Merging ${sources.length} tags into "${target}"...`);
+          try {
+            const result = await api.mergeTags(target, sources);
+            console.log(`Merge result for "${target}":`, result);
+            totalUpdated += result.updated;
+            totalAffected += result.affected_items;
+            if (result.errors && result.errors.length > 0) {
+              allErrors.push(...result.errors);
+            }
+            currentIndex++;
+            updateProgress();
+          } catch (error) {
+            console.error(`Error merging into "${target}":`, error);
+            allErrors.push(`Failed to merge into "${target}": ${error instanceof Error ? error.message : "Unknown error"}`);
+            currentIndex++;
+            updateProgress();
+          }
+        }
+
+        console.log(`Merge complete. Updated: ${totalUpdated}, Affected: ${totalAffected}, Errors: ${allErrors.length}`);
+
+        resultsDiv.innerHTML = `
+          <div style="background: white; padding: 2rem; border-radius: 8px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🎉</div>
+            <h3 style="margin: 0 0 1rem 0;">Merge Complete!</h3>
+            <p style="margin: 0.5rem 0; font-size: 1.1em;">Successfully updated <strong>${totalUpdated}</strong> items.</p>
+            <p style="color: #666;">Affected <strong>${totalAffected}</strong> total items.</p>
+            
+            ${allErrors.length > 0 ? `
+              <div style="margin-top: 2rem; text-align: left; background: #ffebee; padding: 1rem; border-radius: 4px;">
+                <strong style="color: #c62828;">Errors occurred:</strong>
+                <ul style="margin: 0.5rem 0; padding-left: 1.5rem; color: #d32f2f;">
+                  ${allErrors.map(err => `<li>${err}</li>`).join('')}
+                </ul>
+              </div>
+            ` : ''}
+            
+            <button id="reloadTagsBtn" style="margin-top: 2rem; padding: 0.75rem 2rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1.1em;">
+              Reload Keywords
+            </button>
           </div>
-          
-          <button id="findSimilarBtn" style="padding: 0.75rem 1.5rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 1.5rem;">
-            Find Similar Keywords
-          </button>
-          
-          <div id="similarResults"></div>
         `;
 
-        // Threshold card selection logic
-        const thresholdCards = document.querySelectorAll('.threshold-card');
-        const thresholdInput = document.getElementById('thresholdValue') as HTMLInputElement;
-
-        thresholdCards.forEach(card => {
-          card.addEventListener('click', () => {
-            // Reset all cards
-            thresholdCards.forEach(c => {
-              (c as HTMLElement).style.border = '1px solid #ddd';
-              (c as HTMLElement).style.background = 'white';
-              c.classList.remove('selected');
-            });
-
-            // Select clicked card
-            (card as HTMLElement).style.border = `2px solid ${PLONE_BLUE}`;
-            (card as HTMLElement).style.background = '#e3f2fd';
-            card.classList.add('selected');
-
-            // Update hidden input
-            thresholdInput.value = card.getAttribute('data-value') || '70';
-          });
+        document.getElementById("reloadTagsBtn")?.addEventListener("click", () => {
+          showKeywordsManager();
         });
 
-        document.getElementById("findSimilarBtn")?.addEventListener("click", async () => {
-          try {
-            const threshold = parseInt(thresholdInput.value);
-            const similarResults = document.getElementById("similarResults")!;
-
-            // Witty loading messages
-            const messages = [
-              "Consulting the thesaurus...",
-              "Asking the librarian...",
-              "Comparing apples to appples...",
-              "Hunting for typos...",
-              "Measuring Levenshtein distances...",
-              "Untangling the tag spaghetti...",
-              "Reading the dictionary backwards...",
-              "Squinting at similar words...",
-              "Doing the alphabet dance...",
-              "Grouping the flock...",
-              "Ron, Carol, and David are sorting keywords...",
-              "Playing word association games...",
-              "Counting syllables like a poet...",
-              "Channeling the spirit of copy editors...",
-              "Running spell-check on life itself...",
-              "Finding needles in haystacks of text...",
-              "Performing keyword archaeology...",
-              "Teaching tags to play nice together...",
-              "Consulting with the word wizards...",
-              "Doing keyword yoga (stretching definitions)...",
-              "Running a tag therapy session...",
-              "Playing matchmaker for keywords...",
-              "Conducting a keyword census...",
-              "Asking Ron, Carol, and David for their expert opinion...",
-              "Organizing the keyword chaos...",
-              "Building bridges between similar words...",
-              "Performing keyword surgery...",
-              "Teaching tags to recognize their siblings...",
-              "Running keyword speed dating...",
-              "Consulting the keyword oracle...",
-              "Doing keyword detective work...",
-              "Finding long-lost keyword relatives...",
-              "Performing keyword genealogy...",
-              "Ron, Carol, and David are on keyword patrol...",
-              "Sorting keywords like a librarian on caffeine...",
-              "Playing keyword bingo...",
-              "Conducting keyword interviews...",
-              "Running keyword diagnostics...",
-              "Performing keyword acupuncture...",
-              "Teaching keywords to share nicely...",
-              "Ron is alphabetizing the keywords...",
-              "Carol is checking for duplicate meanings...",
-              "David is measuring keyword similarity...",
-              "Ron's organizing the tag collection...",
-              "Carol's cross-referencing the dictionary...",
-              "David's calculating edit distances...",
-              "Ron found a typo! (probably)...",
-              "Carol is consulting her keyword notes...",
-              "David is running similarity algorithms...",
-              "Ron says these tags look familiar...",
-              "Carol is double-checking the matches...",
-              "David's comparing character by character...",
-              "Ron's sorting keywords alphabetically...",
-              "Carol is finding semantic connections...",
-              "David is measuring string distances...",
-              "Ron thinks these might be duplicates...",
-              "Carol is verifying the matches...",
-              "David's running the comparison engine...",
-              "Ron's organizing by similarity...",
-              "Carol is checking for variations...",
-              "David's computing Levenshtein distances..."
-            ];
-
-            let msgIndex = 0;
-            similarResults.innerHTML = `<p style="color: #666; font-style: italic;">${messages[0]}</p>`;
-
-            const intervalId = setInterval(() => {
-              msgIndex = (msgIndex + 1) % messages.length;
-              similarResults.innerHTML = `<p style="color: #666; font-style: italic;">${messages[msgIndex]}</p>`;
-            }, 2000);
-
-            try {
-              similarPairs = await api.findSimilarTags(allTags, threshold, 100);
-            } finally {
-              clearInterval(intervalId);
-            }
-
-            if (similarPairs.length === 0) {
-              similarResults.innerHTML = "<p style='color: #666;'>No similar keywords found at this threshold.</p>";
-              return;
-            }
-
-            similarResults.innerHTML = `
-              <h4 style="margin: 1rem 0 0.5rem 0;">Similar Keywords (${similarPairs.length} pairs)</h4>
-              <p style="color: #666; font-size: 13px; margin-bottom: 1rem;">Select pairs to merge, then plan your changes below.</p>
-              <div id="pairsList" style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 0.5rem;"></div>
-              
-              <div id="mergePlanSection" style="margin-top: 1.5rem; padding: 1rem; background: #fff3e0; border-radius: 4px; display: none;">
-                <h4 style="margin: 0 0 0.5rem 0;">Merge Plan</h4>
-                <div id="mergePlanList" style="margin-bottom: 1rem;"></div>
-                <button id="executeMergePlanBtn" style="padding: 0.75rem 1.5rem; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
-                  Execute Merge
-                </button>
-                <button id="clearPlanBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; margin-left: 0.5rem; color: #333;">
-                  Clear Plan
-                </button>
-              </div>
-            `;
-
-            // Helper to manage merge plan with mutual exclusivity
-            const toggleMerge = (keepTag: string, discardTag: string) => {
-              // 1. Remove any existing plan where 'keepTag' was going to be discarded
-              if (mergePlan.has(discardTag)) {
-                const sources = mergePlan.get(discardTag)!;
-                const index = sources.indexOf(keepTag);
-                if (index > -1) {
-                  sources.splice(index, 1);
-                  if (sources.length === 0) {
-                    mergePlan.delete(discardTag);
-                  }
-                }
-              }
-
-              // 2. Add 'discardTag' to be merged into 'keepTag'
-              if (!mergePlan.has(keepTag)) {
-                mergePlan.set(keepTag, []);
-              }
-              const sources = mergePlan.get(keepTag)!;
-              if (!sources.includes(discardTag)) {
-                sources.push(discardTag);
-              }
-
-              updateMergePlan();
-            };
-
-            similarPairs.forEach((pair, index) => {
-              const row = document.createElement("div");
-              row.className = "similarity-row";
-              row.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.75rem; transition: all 0.3s;";
-              row.id = `pair-row-${index}`;
-
-              row.innerHTML = `
-                <div style="flex: 1; display: flex; align-items: center; gap: 1rem;">
-                  <div class="tag-option" id="tag-left-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s;">
-                    <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
-                    <div style="font-size: 0.85em; color: #666;">${pair.count} items</div>
-                  </div>
-                  
-                  <div style="display: flex; flex-direction: column; align-items: center; color: #888;">
-                    <span style="font-size: 1.2em; font-weight: bold;">≈</span>
-                    <span style="font-size: 0.8em; background: ${pair.similarity >= 90 ? '#e8f5e9' : '#fff3e0'}; color: ${pair.similarity >= 90 ? '#2e7d32' : '#ef6c00'}; padding: 2px 6px; border-radius: 4px;">${pair.similarity}%</span>
-                  </div>
-                  
-                  <div class="tag-option" id="tag-right-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s;">
-                    <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.matched}</div>
-                    <div style="font-size: 0.85em; color: #666;">${pair.matched_count} items</div>
-                  </div>
-                </div>
-                <div style="margin-left: 1rem; min-width: 120px; text-align: center;">
-                  <span class="status-text" style="font-size: 0.9em; color: #888; font-style: italic;">Click to keep</span>
-                </div>
-              `;
-
-              similarResults.appendChild(row);
-
-              const leftCard = row.querySelector(`#tag-left-${index}`) as HTMLElement;
-              const rightCard = row.querySelector(`#tag-right-${index}`) as HTMLElement;
-              const statusText = row.querySelector(`.status-text`) as HTMLElement;
-
-              const updateRowVisuals = (keepLeft: boolean) => {
-                // Reset styles
-                leftCard.style.borderColor = "transparent";
-                leftCard.style.background = "#f8f9fa";
-                leftCard.style.opacity = "1";
-                leftCard.innerHTML = `
-                  <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
-                  <div style="font-size: 0.85em; color: #666;">${pair.count} items</div>
-                `;
-
-                rightCard.style.borderColor = "transparent";
-                rightCard.style.background = "#f8f9fa";
-                rightCard.style.opacity = "1";
-                rightCard.innerHTML = `
-                  <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.matched}</div>
-                  <div style="font-size: 0.85em; color: #666;">${pair.matched_count} items</div>
-                `;
-
-                if (keepLeft) {
-                  // Keep Left
-                  leftCard.style.borderColor = "#4caf50";
-                  leftCard.style.background = "#e8f5e9";
-                  leftCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
-
-                  // Discard Right
-                  rightCard.style.opacity = "0.6";
-                  rightCard.style.background = "#ffebee";
-                  rightCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
-
-                  statusText.textContent = "←";
-                  statusText.style.color = PLONE_BLUE;
-                  statusText.style.fontSize = "2rem";
-                  statusText.style.textAlign = "center";
-                  statusText.style.fontWeight = "bold";
-                } else {
-                  // Keep Right
-                  rightCard.style.borderColor = "#4caf50";
-                  rightCard.style.background = "#e8f5e9";
-                  rightCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
-
-                  // Discard Left
-                  leftCard.style.opacity = "0.6";
-                  leftCard.style.background = "#ffebee";
-                  leftCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
-
-                  statusText.textContent = "→";
-                  statusText.style.color = PLONE_BLUE;
-                  statusText.style.fontSize = "2rem";
-                  statusText.style.textAlign = "center";
-                  statusText.style.fontWeight = "bold";
-                }
-              };
-
-              leftCard.onclick = () => {
-                updateRowVisuals(true);
-                toggleMerge(pair.tag, pair.matched);
-              };
-
-              rightCard.onclick = () => {
-                updateRowVisuals(false);
-                toggleMerge(pair.matched, pair.tag);
-              };
-            });
-
-            // Set up event listeners for merge plan section buttons
-            // We'll use event delegation since the handler is defined in updateMergePlan
-            const mergePlanSection = document.getElementById("mergePlanSection");
-            if (mergePlanSection) {
-              mergePlanSection.addEventListener("click", (e) => {
-                const target = e.target as HTMLElement;
-                if (target.id === "executeMergePlanBtn" || target.closest("#executeMergePlanBtn")) {
-                  // Trigger the execute handler from the sticky footer
-                  document.getElementById("executeMergeBtn")?.click();
-                } else if (target.id === "clearPlanBtn" || target.closest("#clearPlanBtn")) {
-                  mergePlan.clear();
-                  updateMergePlan();
-                }
-              });
-            }
-          } catch (error) {
-            document.getElementById("similarResults")!.innerHTML = `<p style='color: #d32f2f;'>Error: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
-          }
-        });
-
-        function updateMergePlan() {
-          // Create sticky footer if it doesn't exist
-          let stickyFooter = document.getElementById("stickyMergeFooter");
-          if (!stickyFooter) {
-            stickyFooter = document.createElement("div");
-            stickyFooter.id = "stickyMergeFooter";
-            stickyFooter.style.cssText = `
-              position: fixed;
-              bottom: 0;
-              left: 0;
-              right: 0;
-              background: white;
-              border-top: 1px solid #ddd;
-              box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
-              padding: 1rem 2rem;
-              z-index: 1000;
-              display: none;
-              transform: translateY(100%);
-              transition: transform 0.3s ease-out;
-            `;
-            document.body.appendChild(stickyFooter);
-          }
-
-          let totalMerges = 0;
-          mergePlan.forEach(sources => totalMerges += sources.length);
-
-          if (totalMerges === 0) {
-            stickyFooter.style.transform = "translateY(100%)";
-            setTimeout(() => { stickyFooter!.style.display = "none"; }, 300);
-            return;
-          }
-
-          stickyFooter.style.display = "flex";
-          stickyFooter.style.justifyContent = "space-between";
-          stickyFooter.style.alignItems = "center";
-          // Force reflow
-          stickyFooter.offsetHeight;
-          stickyFooter.style.transform = "translateY(0)";
-
-          // Define the execute merge handler function
-          const executeMergeHandler = async () => {
-            const confirmed = confirm(`Are you sure you want to execute ${totalMerges} merge operations? This will update all affected items.`);
-            if (!confirmed) return;
-
-            const resultsDiv = document.getElementById("similarResults")!;
-            stickyFooter!.style.transform = "translateY(100%)";
-
-            // Create progress UI with spinner
-            const mergeEntries = Array.from(mergePlan.entries());
-            let currentIndex = 0;
-            
-            const updateProgress = () => {
-              const progress = Math.round((currentIndex / mergeEntries.length) * 100);
-              resultsDiv.innerHTML = `
-                <div style='text-align: center; padding: 2rem;'>
-                  <div style="display: inline-block; width: 60px; height: 60px; border: 4px solid #f3f3f3; border-top: 4px solid ${PLONE_BLUE}; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem;"></div>
-                  <style>
-                    @keyframes spin {
-                      0% { transform: rotate(0deg); }
-                      100% { transform: rotate(360deg); }
-                    }
-                  </style>
-                  <p style="font-size: 1.1em; margin: 0.5rem 0; font-weight: 500;">Executing merge operations...</p>
-                  <p style="color: #666; margin: 0.5rem 0;">Processing ${currentIndex + 1} of ${mergeEntries.length}</p>
-                  <div style="width: 100%; max-width: 400px; margin: 1rem auto; background: #f0f0f0; border-radius: 10px; overflow: hidden;">
-                    <div style="width: ${progress}%; background: ${PLONE_BLUE}; height: 24px; transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.85em; font-weight: bold;">
-                      ${progress}%
-                    </div>
-                  </div>
-                  ${currentIndex < mergeEntries.length ? `
-                    <p style="color: #666; font-size: 0.9em; margin-top: 1rem;">
-                      Merging into: <strong>${mergeEntries[currentIndex]?.[0] || ''}</strong>
-                    </p>
-                  ` : ''}
-                </div>
-              `;
-            };
-
-            updateProgress();
-
-            let totalUpdated = 0;
-            let totalAffected = 0;
-            const allErrors: string[] = [];
-
-            for (const [target, sources] of mergeEntries) {
-              try {
-                const result = await api.mergeTags(target, sources);
-                totalUpdated += result.updated;
-                totalAffected += result.affected_items;
-                allErrors.push(...result.errors);
-                currentIndex++;
-                updateProgress();
-              } catch (error) {
-                allErrors.push(`Failed to merge into "${target}": ${error instanceof Error ? error.message : "Unknown error"}`);
-                currentIndex++;
-                updateProgress();
-              }
-            }
-
-            resultsDiv.innerHTML = `
-              <div style="background: white; padding: 2rem; border-radius: 8px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">🎉</div>
-                <h3 style="margin: 0 0 1rem 0;">Merge Complete!</h3>
-                <p style="margin: 0.5rem 0; font-size: 1.1em;">Successfully updated <strong>${totalUpdated}</strong> items.</p>
-                <p style="color: #666;">Affected <strong>${totalAffected}</strong> total items.</p>
-                
-                ${allErrors.length > 0 ? `
-                  <div style="margin-top: 2rem; text-align: left; background: #ffebee; padding: 1rem; border-radius: 4px;">
-                    <strong style="color: #c62828;">Errors occurred:</strong>
-                    <ul style="margin: 0.5rem 0; padding-left: 1.5rem; color: #d32f2f;">
-                      ${allErrors.map(err => `<li>${err}</li>`).join('')}
-                    </ul>
-                  </div>
-                ` : ''}
-                
-                <button id="reloadTagsBtn" style="margin-top: 2rem; padding: 0.75rem 2rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1.1em;">
-                  Reload Keywords
-                </button>
-              </div>
-            `;
-
-            document.getElementById("reloadTagsBtn")?.addEventListener("click", () => {
-              document.getElementById("loadTagsBtn")?.click();
-            });
-
-            mergePlan.clear();
-            updateMergePlan(); // Hide footer
-          };
-
-          stickyFooter.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <div style="background: ${PLONE_BLUE}; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${totalMerges}</div>
-              <div>
-                <div style="font-weight: bold; font-size: 1.1em;">Changes Queued</div>
-                <div style="font-size: 0.9em; color: #666;">Ready to merge</div>
-              </div>
-            </div>
-            <div style="display: flex; gap: 1rem;">
-              <button id="viewPlanBtn" style="padding: 0.75rem 1.5rem; background: white; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-weight: 500;">
-                View Details
-              </button>
-              <button id="executeMergeBtn" style="padding: 0.75rem 1.5rem; background: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                Execute Merge
+        mergePlan.clear();
+        updateMergePlan(); // Hide footer
+      } catch (error) {
+        console.error("Fatal error in executeMergeHandler:", error);
+        const resultsDiv = document.getElementById("similarResults");
+        if (resultsDiv) {
+          resultsDiv.innerHTML = `
+            <div style="background: #ffebee; padding: 2rem; border-radius: 8px; text-align: center;">
+              <div style="font-size: 3rem; margin-bottom: 1rem;">❌</div>
+              <h3 style="margin: 0 0 1rem 0; color: #c62828;">Error Executing Merge</h3>
+              <p style="color: #d32f2f;">${error instanceof Error ? error.message : "Unknown error occurred"}</p>
+              <button id="retryMergeBtn" style="margin-top: 1rem; padding: 0.75rem 2rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Try Again
               </button>
             </div>
           `;
-
-          // Attach event listeners after setting innerHTML
-          document.getElementById("viewPlanBtn")?.addEventListener("click", () => {
-            document.getElementById("mergePlanSection")?.scrollIntoView({ behavior: 'smooth' });
+          document.getElementById("retryMergeBtn")?.addEventListener("click", () => {
+            executeMergeHandler();
           });
+        } else {
+          alert(`Error executing merge: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
+      }
+    };
 
-          document.getElementById("executeMergeBtn")?.addEventListener("click", executeMergeHandler);
+    // Auto-start analysis
+    try {
+      // 1. Collect Tags
+      allTags = await api.collectTags();
+      const tagCount = Object.keys(allTags).length;
 
-          // Also update the detailed list at the bottom (hidden by default now, maybe?)
-          const mergePlanSection = document.getElementById("mergePlanSection")!;
-          const mergePlanList = document.getElementById("mergePlanList")!;
+      // 2. Find Similar (Default 90%)
+      const loadingMsg = document.getElementById("loadingMsg");
+      
+      // Witty loading messages
+      const messages = [
+        "Consulting the thesaurus...",
+        "Asking the librarian...",
+        "Comparing apples to appples...",
+        "Hunting for typos...",
+        "Measuring Levenshtein distances...",
+        "Untangling the tag spaghetti...",
+        "Reading the dictionary backwards...",
+        "Squinting at similar words...",
+        "Doing the alphabet dance...",
+        "Grouping the flock...",
+        "Ron, Carol, and David are sorting keywords...",
+        "Playing word association games...",
+        "Counting syllables like a poet...",
+        "Channeling the spirit of copy editors...",
+        "Running spell-check on life itself...",
+        "Finding needles in haystacks of text...",
+        "Performing keyword archaeology...",
+        "Teaching tags to play nice together...",
+        "Consulting with the word wizards...",
+        "Doing keyword yoga (stretching definitions)...",
+        "Running a tag therapy session...",
+        "Playing matchmaker for keywords...",
+        "Conducting a keyword census...",
+        "Asking Ron, Carol, and David for their expert opinion...",
+        "Organizing the keyword chaos...",
+        "Building bridges between similar words...",
+        "Performing keyword surgery...",
+        "Teaching tags to recognize their siblings...",
+        "Running keyword speed dating...",
+        "Consulting the keyword oracle...",
+        "Doing keyword detective work...",
+        "Finding long-lost keyword relatives...",
+        "Performing keyword genealogy...",
+        "Ron, Carol, and David are on keyword patrol...",
+        "Sorting keywords like a librarian on caffeine...",
+        "Playing keyword bingo...",
+        "Conducting keyword interviews...",
+        "Running keyword diagnostics...",
+        "Performing keyword acupuncture...",
+        "Teaching keywords to share nicely...",
+        "Ron is alphabetizing the keywords...",
+        "Carol is checking for duplicate meanings...",
+        "David is measuring keyword similarity...",
+        "Ron's organizing the tag collection...",
+        "Carol's cross-referencing the dictionary...",
+        "David's calculating edit distances...",
+        "Ron found a typo! (probably)...",
+        "Carol is consulting her keyword notes...",
+        "David is running similarity algorithms...",
+        "Ron says these tags look familiar...",
+        "Carol is double-checking the matches...",
+        "David's comparing character by character...",
+        "Ron's sorting keywords alphabetically...",
+        "Carol is finding semantic connections...",
+        "David is measuring string distances...",
+        "Ron thinks these might be duplicates...",
+        "Carol is verifying the matches...",
+        "David's running the comparison engine...",
+        "Ron's organizing by similarity...",
+        "Carol is checking for variations...",
+        "David's computing Levenshtein distances..."
+      ];
 
-          if (mergePlan.size > 0) {
-            mergePlanSection.style.display = "block";
-            mergePlanList.innerHTML = "";
-            mergePlan.forEach((_sources, _target) => {
-              // ... (existing code to render list items if needed) ...
-            });
-          } else {
-            mergePlanSection.style.display = "none";
+      let msgIndex = 0;
+      if (loadingMsg) {
+        loadingMsg.innerHTML = `<span style="font-style: italic;">Found ${tagCount} keywords. ${messages[0]}</span>`;
+      }
+
+      const intervalId = setInterval(() => {
+        msgIndex = (msgIndex + 1) % messages.length;
+        if (loadingMsg) {
+          loadingMsg.innerHTML = `<span style="font-style: italic;">Found ${tagCount} keywords. ${messages[msgIndex]}</span>`;
+        }
+      }, 2000);
+
+      try {
+        similarPairs = await api.findSimilarTags(allTags, 90, 100);
+        clearInterval(intervalId);
+      } catch (error) {
+        clearInterval(intervalId);
+        throw error;
+      }
+
+      // 3. Render Results
+      renderResults(tagCount, 90);
+
+    } catch (error) {
+      kwContent.innerHTML = `
+        <div style="padding: 2rem; text-align: center; color: #d32f2f;">
+          <p>Error loading keywords: ${error instanceof Error ? error.message : "Unknown error"}</p>
+          <button id="retryBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 1rem;">Retry</button>
+        </div>
+      `;
+      document.getElementById("retryBtn")?.addEventListener("click", () => showKeywordsManager());
+    }
+
+    function renderResults(tagCount: number, currentThreshold: number) {
+      if (similarPairs.length === 0) {
+        kwContent.innerHTML = `
+          <div style="text-align: center; padding: 2rem;">
+            <p style="font-size: 1.2em; margin-bottom: 0.5rem;">No similar keywords found at ${currentThreshold}% similarity.</p>
+            <p style="color: #666;">Your keyword list looks clean! ✨</p>
+            <div style="margin-top: 2rem; padding: 1rem; background: #f5f5f5; border-radius: 4px; display: inline-block; text-align: left;">
+              <p style="margin: 0 0 0.5rem 0; font-weight: 500;">Stats:</p>
+              <p style="margin: 0; color: #666;">Total Unique Keywords: <strong>${tagCount}</strong></p>
+            </div>
+            <div style="margin-top: 2rem;">
+               <button id="tryLowerBtn" style="padding: 0.5rem 1rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333;">Try Lower Threshold (80%)</button>
+            </div>
+          </div>
+        `;
+
+        document.getElementById("tryLowerBtn")?.addEventListener("click", async () => {
+          kwContent.innerHTML = `<div style="text-align: center; padding: 3rem;"><p>Checking at 80%...</p></div>`;
+          similarPairs = await api.findSimilarTags(allTags, 80, 100);
+          renderResults(tagCount, 80);
+        });
+        return;
+      }
+
+      kwContent.innerHTML = `
+        <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; background: #e8f5e9; padding: 1rem; border-radius: 4px;">
+          <div>
+            <p style="margin: 0; font-weight: 500; color: #2e7d32;">Found ${similarPairs.length} similar pairs</p>
+            <p style="margin: 0; font-size: 0.85em; color: #666;">Scanning ${tagCount} total keywords at ${currentThreshold}% similarity</p>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+             <select id="thresholdSelect" style="padding: 0.25rem; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                <option value="98" ${currentThreshold === 98 ? 'selected' : ''}>98% (Very Close)</option>
+                <option value="90" ${currentThreshold === 90 ? 'selected' : ''}>90% (Close)</option>
+                <option value="80" ${currentThreshold === 80 ? 'selected' : ''}>80% (Similar)</option>
+                <option value="70" ${currentThreshold === 70 ? 'selected' : ''}>70% (Loose)</option>
+             </select>
+             <button id="refreshBtn" title="Refresh" style="padding: 0.5rem; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 16px; line-height: 1; min-width: 32px; min-height: 32px; display: flex; align-items: center; justify-content: center; color: #666;">
+               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                 <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                 <path d="M21 3v5h-5"/>
+                 <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                 <path d="M3 21v-5h5"/>
+               </svg>
+             </button>
+          </div>
+        </div>
+
+        <div id="similarResults">
+          <p style="color: #666; font-size: 13px; margin-bottom: 1rem;">Select pairs to merge, then execute the plan below.</p>
+          <div id="pairsList" style="max-height: 500px; overflow-y: auto; padding-bottom: 1rem;"></div>
+        </div>
+      `;
+
+      // Re-attach threshold handler
+      document.getElementById("refreshBtn")?.addEventListener("click", async () => {
+        const select = document.getElementById("thresholdSelect") as HTMLSelectElement;
+        const newThreshold = parseInt(select.value);
+        kwContent.innerHTML = `<div style="text-align: center; padding: 3rem;"><p>Re-analyzing at ${newThreshold}%...</p></div>`;
+        similarPairs = await api.findSimilarTags(allTags, newThreshold, 100);
+        renderResults(tagCount, newThreshold);
+      });
+
+      // Helper to manage merge plan with mutual exclusivity
+      const toggleMerge = (keepTag: string, discardTag: string) => {
+        // 1. Remove any existing plan where 'keepTag' was going to be discarded
+        if (mergePlan.has(discardTag)) {
+          const sources = mergePlan.get(discardTag)!;
+          const index = sources.indexOf(keepTag);
+          if (index > -1) {
+            sources.splice(index, 1);
+            if (sources.length === 0) {
+              mergePlan.delete(discardTag);
+            }
           }
         }
-      } catch (error) {
-        document.getElementById("similarResults")!.innerHTML = `<p style='color: #d32f2f;'>Error: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
-  }
-});
+
+        // 2. Add 'discardTag' to be merged into 'keepTag'
+        if (!mergePlan.has(keepTag)) {
+          mergePlan.set(keepTag, []);
+        }
+        const sources = mergePlan.get(keepTag)!;
+        if (!sources.includes(discardTag)) {
+          sources.push(discardTag);
+        }
+
+        updateMergePlan();
+      };
+
+      const pairsList = document.getElementById("pairsList")!;
+
+      similarPairs.forEach((pair, index) => {
+        const row = document.createElement("div");
+        row.className = "similarity-row";
+        row.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.75rem; transition: all 0.3s;";
+        row.id = `pair-row-${index}`;
+
+        row.innerHTML = `
+          <div style="flex: 1; display: flex; align-items: center; gap: 1rem;">
+            <div class="tag-option" id="tag-left-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s;">
+              <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
+              <div style="font-size: 0.85em; color: #666;">${pair.count} items</div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; align-items: center; color: #888;">
+              <span style="font-size: 1.2em; font-weight: bold;">≈</span>
+              <span style="font-size: 0.8em; background: ${pair.similarity >= 90 ? '#e8f5e9' : '#fff3e0'}; color: ${pair.similarity >= 90 ? '#2e7d32' : '#ef6c00'}; padding: 2px 6px; border-radius: 4px;">${pair.similarity}%</span>
+            </div>
+            
+            <div class="tag-option" id="tag-right-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s;">
+              <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.matched}</div>
+              <div style="font-size: 0.85em; color: #666;">${pair.matched_count} items</div>
+            </div>
+          </div>
+          <div style="margin-left: 1rem; min-width: 120px; text-align: center;">
+            <span class="status-text" style="font-size: 0.9em; color: #888; font-style: italic;">Click to keep</span>
+          </div>
+        `;
+
+        pairsList.appendChild(row);
+
+        const leftCard = row.querySelector(`#tag-left-${index}`) as HTMLElement;
+        const rightCard = row.querySelector(`#tag-right-${index}`) as HTMLElement;
+        const statusText = row.querySelector(`.status-text`) as HTMLElement;
+
+        const updateRowVisuals = (keepLeft: boolean) => {
+          // Reset styles
+          leftCard.style.borderColor = "transparent";
+          leftCard.style.background = "#f8f9fa";
+          leftCard.style.opacity = "1";
+          leftCard.innerHTML = `
+            <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
+            <div style="font-size: 0.85em; color: #666;">${pair.count} items</div>
+          `;
+
+          rightCard.style.borderColor = "transparent";
+          rightCard.style.background = "#f8f9fa";
+          rightCard.style.opacity = "1";
+          rightCard.innerHTML = `
+            <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.matched}</div>
+            <div style="font-size: 0.85em; color: #666;">${pair.matched_count} items</div>
+          `;
+
+          if (keepLeft) {
+            // Keep Left
+            leftCard.style.borderColor = "#4caf50";
+            leftCard.style.background = "#e8f5e9";
+            leftCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
+
+            // Discard Right
+            rightCard.style.opacity = "0.6";
+            rightCard.style.background = "#ffebee";
+            rightCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
+
+            statusText.textContent = "←";
+            statusText.style.color = PLONE_BLUE;
+            statusText.style.fontSize = "2rem";
+            statusText.style.textAlign = "center";
+            statusText.style.fontWeight = "bold";
+          } else {
+            // Keep Right
+            rightCard.style.borderColor = "#4caf50";
+            rightCard.style.background = "#e8f5e9";
+            rightCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
+
+            // Discard Left
+            leftCard.style.opacity = "0.6";
+            leftCard.style.background = "#ffebee";
+            leftCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
+
+            statusText.textContent = "→";
+            statusText.style.color = PLONE_BLUE;
+            statusText.style.fontSize = "2rem";
+            statusText.style.textAlign = "center";
+            statusText.style.fontWeight = "bold";
+          }
+        };
+
+        leftCard.onclick = () => {
+          updateRowVisuals(true);
+          toggleMerge(pair.tag, pair.matched);
+        };
+
+        rightCard.onclick = () => {
+          updateRowVisuals(false);
+          toggleMerge(pair.matched, pair.tag);
+        };
+      });
+    }
+
+    function updateMergePlan() {
+      // Create sticky footer if it doesn't exist
+      let stickyFooter = document.getElementById("stickyMergeFooter");
+      if (!stickyFooter) {
+        stickyFooter = document.createElement("div");
+        stickyFooter.id = "stickyMergeFooter";
+        stickyFooter.style.cssText = `
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: white;
+          border-top: 1px solid #ddd;
+          box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+          padding: 1rem 2rem;
+          z-index: 1000;
+          display: none;
+          transform: translateY(100%);
+          transition: transform 0.3s ease-out;
+        `;
+        document.body.appendChild(stickyFooter);
+      }
+
+      let totalMerges = 0;
+      mergePlan.forEach(sources => totalMerges += sources.length);
+
+      if (totalMerges === 0) {
+        stickyFooter.style.transform = "translateY(100%)";
+        setTimeout(() => { stickyFooter!.style.display = "none"; }, 300);
+        return;
+      }
+
+      stickyFooter.style.display = "flex";
+      stickyFooter.style.justifyContent = "space-between";
+      stickyFooter.style.alignItems = "center";
+      // Force reflow
+      stickyFooter.offsetHeight;
+      stickyFooter.style.transform = "translateY(0)";
+
+      stickyFooter.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div style="background: ${PLONE_BLUE}; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${totalMerges}</div>
+          <div>
+            <div style="font-weight: bold; font-size: 1.1em;">Changes Queued</div>
+            <div style="font-size: 0.9em; color: #666;">Ready to merge</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 1rem;">
+          <button id="viewPlanBtn" style="padding: 0.75rem 1.5rem; background: white; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-weight: 500;">
+            View Details
+          </button>
+          <button id="executeMergeBtn" style="padding: 0.75rem 1.5rem; background: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            Execute Merge
+          </button>
+        </div>
+      `;
+
+      // Attach event listeners after setting innerHTML
+      const viewPlanBtn = document.getElementById("viewPlanBtn");
+      if (viewPlanBtn) {
+        const newViewBtn = viewPlanBtn.cloneNode(true) as HTMLElement;
+        viewPlanBtn.parentNode?.replaceChild(newViewBtn, viewPlanBtn);
+        newViewBtn.addEventListener("click", () => {
+          document.getElementById("mergePlanSection")?.scrollIntoView({ behavior: 'smooth' });
+        });
+      }
+
+      const executeMergeBtn = document.getElementById("executeMergeBtn");
+      if (executeMergeBtn) {
+        const newExecuteBtn = executeMergeBtn.cloneNode(true) as HTMLElement;
+        executeMergeBtn.parentNode?.replaceChild(newExecuteBtn, executeMergeBtn);
+        newExecuteBtn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log("Execute Merge clicked, mergePlan size:", mergePlan.size);
+          console.log("executeMergeHandler type:", typeof executeMergeHandler);
+          if (typeof executeMergeHandler === 'function') {
+            try {
+              await executeMergeHandler();
+            } catch (error) {
+              console.error("Error in executeMergeHandler:", error);
+              alert(`Error executing merge: ${error instanceof Error ? error.message : "Unknown error"}`);
+            }
+          } else {
+            console.error("executeMergeHandler is not a function!");
+            alert("Error: Merge handler not available. Please refresh the page.");
+          }
+        });
+      }
+
+      // Also update the detailed list at the bottom (hidden by default now, maybe?)
+      const mergePlanSection = document.getElementById("mergePlanSection");
+      const mergePlanList = document.getElementById("mergePlanList");
+
+      if (mergePlanSection && mergePlanList) {
+        if (mergePlan.size > 0) {
+          mergePlanSection.style.display = "block";
+          mergePlanList.innerHTML = "";
+          mergePlan.forEach((_sources, _target) => {
+            // ... (existing code to render list items if needed) ...
+          });
+        } else {
+          mergePlanSection.style.display = "none";
+        }
+      }
+    }
   }
 });
