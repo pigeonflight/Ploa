@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "Ploa - Plone REST API GUI",
+        "title": "Ploa - Desktop Companion for Plone Sites",
         "width": 1200,
         "height": 800,
         "minWidth": 800,
