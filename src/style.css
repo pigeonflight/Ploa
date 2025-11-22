@@ -1,12 +1,13 @@
 :root {
-  --plone-blue: #0283be;
-  --plone-blue-dark: #016895;
-  --plone-blue-light: #0298d1;
+  --plone-blue: #8CA9FF;
+  --plone-blue-dark: #7a94e0;
+  --plone-blue-light: #AAC4F5;
   --plone-white: #ffffff;
   --plone-text: #333333;
   --plone-text-light: #666666;
   --plone-border: #e0e0e0;
-  --plone-bg: #f5f5f5;
+  --plone-bg: #FFF8DE;
+  --plone-bg-accent: #FFF2C6;
 
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

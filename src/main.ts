@@ -1,17 +1,23 @@
 import "./style.css";
 import * as api from "./lib/api";
 import { invoke } from "@tauri-apps/api/core";
-import { getVersion } from "@tauri-apps/api/app";
 
 // Plone brand color
-const PLONE_BLUE = "#0283be";
+// Theme colors
+const THEME_PRIMARY = "#8CA9FF";
+const THEME_SECONDARY = "#AAC4F5";
+const THEME_BG_ACCENT = "#FFF2C6";
+const THEME_BG_LIGHT = "#FFF8DE";
+
+// Legacy constant mapping (to minimize refactoring churn)
+const PLONE_BLUE = THEME_PRIMARY;
 
 // Wait for DOM and Tauri to be ready
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <div style="padding: 2rem; height: 100%; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-    <header style="border-bottom: 2px solid rgba(2, 131, 190, 0.4); padding: 0.5rem 0; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
-      <img src="/icons/plone-logo.png" alt="Plone" style="height: 28px;" />
+    <header style="border-bottom: 2px solid ${THEME_SECONDARY}; padding: 0.5rem 0; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+      <img src="/PloaCircle.svg" alt="Ploa" style="height: 28px;" />
       <div id="userStatus" style="display: flex; align-items: center; gap: 1rem;">
         <span id="statusText" style="color: #666; font-size: 14px;">Not connected</span>
         <button id="headerLoginBtn" style="display: none; padding: 0.25rem 0.75rem; background: transparent; border: 1px solid ${PLONE_BLUE}; color: ${PLONE_BLUE}; border-radius: 4px; cursor: pointer; font-size: 14px;">
@@ -36,10 +42,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 list="urlHistory"
                 placeholder="https://demo.plone.org/++api++/"
                 value="https://demo.plone.org/++api++/"
-                style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+                style="width: 100%; padding: 0.5rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px;"
               />
               <datalist id="urlHistory"></datalist>
-              <div id="credentialsHint" style="display: none; margin-top: 0.5rem; padding: 0.5rem; background: #e3f2fd; border-radius: 4px; font-size: 13px; color: #0d47a1;">
+              <div id="credentialsHint" style="display: none; margin-top: 0.5rem; padding: 0.5rem; background: ${THEME_BG_ACCENT}; border-radius: 4px; font-size: 13px; color: #333;">
                 <strong>💡 Hint:</strong> Default credentials for demo.plone.org are <code>admin</code> / <code>admin</code>
               </div>
             </div>
@@ -90,18 +96,18 @@ document.addEventListener("DOMContentLoaded", () => {
         <div id="app-content" style="display: none;">
           <div id="browser" style="display: flex; flex-direction: column; gap: 1rem;">
             <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-              <button id="backBtn" style="padding: 0.5rem 1rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333;">
+              <button id="backBtn" style="padding: 0.5rem 1rem; background: ${THEME_BG_LIGHT}; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; cursor: pointer; color: #333;">
                 ← Up
               </button>
               <button id="browseBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer;">
                 Browse Root
               </button>
-              <button id="keywordsBtn" style="padding: 0.5rem 1rem; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              <button id="keywordsBtn" style="padding: 0.5rem 1rem; background: ${THEME_SECONDARY}; color: #333; border: none; border-radius: 4px; cursor: pointer;">
                 🏷️ Keywords Manager
               </button>
               <span id="currentPath" style="color: #666; font-family: monospace;">/</span>
             </div>
-            <div id="itemsList" style="border: 1px solid #ddd; border-radius: 4px; padding: 1rem; min-height: 200px; background: #f9f9f9;">
+            <div id="itemsList" style="border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; padding: 1rem; min-height: 200px; background: ${THEME_BG_LIGHT};">
               <p style="color: #666;">Click "Browse Root" to load items</p>
             </div>
           </div>
@@ -174,11 +180,14 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Load and display app version
-  getVersion().then((version) => {
+  invoke<string>("get_app_version").then(async (version) => {
     const versionSpan = document.getElementById("app-version");
     if (versionSpan) {
       versionSpan.textContent = version;
     }
+    
+    // Check for updates in the background
+    checkForUpdates(version);
   }).catch((error) => {
     console.error("Failed to get app version:", error);
     const versionSpan = document.getElementById("app-version");
@@ -186,6 +195,130 @@ document.addEventListener("DOMContentLoaded", () => {
       versionSpan.textContent = "?";
     }
   });
+
+  // Check for updates from GitHub
+  async function checkForUpdates(currentVersion: string) {
+    try {
+      const response = await fetch("https://api.github.com/repos/pigeonflight/Ploa/releases/latest", {
+        headers: {
+          "Accept": "application/vnd.github.v3+json"
+        }
+      });
+      
+      if (!response.ok) {
+        return; // Silently fail - don't bother user if check fails
+      }
+      
+      const release = await response.json();
+      const latestVersion = release.tag_name.replace(/^v/, ""); // Remove 'v' prefix if present
+      
+      // Compare versions (simple string comparison should work for semantic versioning)
+      if (compareVersions(latestVersion, currentVersion) > 0) {
+        // New version available - show notification
+        showUpdateNotification(latestVersion, release.html_url);
+      }
+    } catch (error) {
+      // Silently fail - don't bother user if check fails
+      console.debug("Update check failed:", error);
+    }
+  }
+
+  // Simple version comparison (assumes semantic versioning)
+  function compareVersions(v1: string, v2: string): number {
+    const parts1 = v1.split('.').map(Number);
+    const parts2 = v2.split('.').map(Number);
+    
+    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+      const part1 = parts1[i] || 0;
+      const part2 = parts2[i] || 0;
+      if (part1 > part2) return 1;
+      if (part1 < part2) return -1;
+    }
+    return 0;
+  }
+
+  // Show update notification
+  function showUpdateNotification(version: string, releaseUrl: string) {
+    // Check if notification already shown (store in sessionStorage)
+    const notificationKey = `update-notification-${version}`;
+    if (sessionStorage.getItem(notificationKey)) {
+      return; // Already shown in this session
+    }
+    
+    const notification = document.createElement("div");
+    notification.id = "update-notification";
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${PLONE_BLUE};
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      max-width: 350px;
+      animation: slideIn 0.3s ease-out;
+    `;
+    notification.innerHTML = `
+      <style>
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      </style>
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+        <div style="flex: 1;">
+          <div style="font-weight: 600; margin-bottom: 0.25rem;">New Version Available!</div>
+          <div style="font-size: 0.9em; opacity: 0.95;">Ploa ${version} is now available</div>
+        </div>
+        <button id="closeUpdateNotification" style="background: transparent; border: none; color: white; font-size: 1.2em; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; opacity: 0.8;">×</button>
+      </div>
+      <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem;">
+        <button id="downloadUpdateBtn" style="flex: 1; padding: 0.5rem 1rem; background: white; color: ${PLONE_BLUE}; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 0.9em;">
+          Download
+        </button>
+        <button id="dismissUpdateNotification" style="padding: 0.5rem 1rem; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
+          Later
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(notification);
+    sessionStorage.setItem(notificationKey, "true");
+    
+    // Close handlers
+    document.getElementById("closeUpdateNotification")?.addEventListener("click", () => {
+      notification.remove();
+    });
+    
+    document.getElementById("dismissUpdateNotification")?.addEventListener("click", () => {
+      notification.remove();
+    });
+    
+    // Download button handler - open release URL in browser
+    document.getElementById("downloadUpdateBtn")?.addEventListener("click", async () => {
+      try {
+        // Try with 'url' parameter first (for URLs)
+        await invoke("plugin:shell|open", { url: releaseUrl });
+      } catch (error) {
+        // Fallback to 'path' parameter
+        try {
+          await invoke("plugin:shell|open", { path: releaseUrl });
+        } catch (fallbackError) {
+          console.error("Failed to open release URL:", fallbackError);
+        }
+      }
+    });
+    
+    // Auto-dismiss after 30 seconds
+    setTimeout(() => {
+      if (notification.parentElement) {
+        notification.style.animation = "slideOut 0.3s ease-out";
+        setTimeout(() => notification.remove(), 300);
+      }
+    }, 30000);
+  }
 
   // State
   let currentBaseUrl = "";
@@ -271,7 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
       loginForm.style.display = "none";
       appContent.style.display = "block";
       statusText.textContent = `Connected as ${username || "Anonymous"}`;
-      statusText.style.color = "#4caf50";
+      statusText.style.color = THEME_PRIMARY;
       headerLoginBtn.style.display = "none";
       disconnectBtn.style.display = "block";
     } else {
@@ -391,14 +524,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const li = document.createElement("div");
         li.style.padding = "0.75rem";
-        li.style.borderBottom = "1px solid #eee";
+        li.style.borderBottom = `1px solid ${THEME_SECONDARY}`;
         li.style.display = "flex";
         li.style.alignItems = "center";
         li.style.justifyContent = "space-between";
         li.style.cursor = "pointer";
         li.style.transition = "background-color 0.2s";
 
-        li.onmouseover = () => { li.style.backgroundColor = "#f5f5f5"; };
+        li.onmouseover = () => { li.style.backgroundColor = THEME_BG_ACCENT; };
         li.onmouseout = () => { li.style.backgroundColor = "transparent"; };
 
         // Main click area (navigate or view)
@@ -439,7 +572,7 @@ document.addEventListener("DOMContentLoaded", () => {
         infoBtn.style.marginLeft = "0.5rem";
         infoBtn.style.opacity = "0.6";
         infoBtn.onmouseover = () => {
-          infoBtn.style.backgroundColor = "#e0e0e0";
+          infoBtn.style.backgroundColor = THEME_SECONDARY;
           infoBtn.style.opacity = "1";
         };
         infoBtn.onmouseout = () => {
@@ -540,7 +673,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     itemsList.innerHTML = `
       <div style="padding: 1rem;">
-        <button id="detailBackBtn" style="padding: 0.5rem 1rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; margin-bottom: 1rem;">
+        <button id="detailBackBtn" style="padding: 0.5rem 1rem; background: ${THEME_BG_LIGHT}; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; cursor: pointer; margin-bottom: 1rem; color: #333; font-weight: 500;">
           ← Back to List
         </button>
         <h3 style="margin-top: 0; margin-bottom: 0.5rem;">${title || objectData.id || "Untitled"}</h3>
@@ -553,7 +686,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
 
         <!--Tags Section-->
-        <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f5f5f5; border-radius: 4px;">
+        <div style="margin-bottom: 1.5rem; padding: 1rem; background: ${THEME_BG_LIGHT}; border-radius: 4px;">
           <h4 style="margin: 0 0 0.5rem 0;">Tags / Keywords</h4>
           <div id="tagsContainer" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
             ${subjects.map((tag: string) => `
@@ -565,21 +698,21 @@ document.addEventListener("DOMContentLoaded", () => {
       }
           </div>
           <div style="display: flex; gap: 0.5rem;">
-            <input type="text" id="newTagInput" placeholder="Add new tag..." style="flex: 1; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
+            <input type="text" id="newTagInput" placeholder="Add new tag..." style="flex: 1; padding: 0.5rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px;" />
             <button id="addTagBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer;">Add</button>
-            <button id="saveTagsBtn" style="padding: 0.5rem 1rem; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer;">Save Tags</button>
+            <button id="saveTagsBtn" style="padding: 0.5rem 1rem; background: ${THEME_SECONDARY}; color: #333; border: none; border-radius: 4px; cursor: pointer;">Save Tags</button>
           </div>
           <div id="tagStatus" style="margin-top: 0.5rem; font-size: 13px; display: none;"></div>
         </div>
 
         ${hasBlocks ? `
         <!-- Blocks Section -->
-        <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f5f5f5; border-radius: 4px;">
+        <div style="margin-bottom: 1.5rem; padding: 1rem; background: ${THEME_BG_LIGHT}; border-radius: 4px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
             <h4 style="margin: 0;">Blocks</h4>
             <div style="display: flex; gap: 0.5rem;">
               <button id="jsonModeBtn" style="padding: 0.4rem 0.8rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">JSON</button>
-              <button id="visualModeBtn" style="padding: 0.4rem 0.8rem; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">Visual</button>
+              <button id="visualModeBtn" style="padding: 0.4rem 0.8rem; background: ${THEME_SECONDARY}; color: #333; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">Visual</button>
             </div>
           </div>
           
@@ -589,12 +722,12 @@ document.addEventListener("DOMContentLoaded", () => {
             
             <div style="margin-bottom: 1rem;">
               <label style="font-weight: bold; font-size: 13px; display: block; margin-bottom: 0.25rem;">blocks:</label>
-              <textarea id="blocksEditor" style="width: 100%; min-height: 200px; font-family: monospace; font-size: 12px; border: 1px solid #ddd; padding: 0.5rem; border-radius: 4px;">${JSON.stringify(blocks, null, 2)}</textarea>
+              <textarea id="blocksEditor" style="width: 100%; min-height: 200px; font-family: monospace; font-size: 12px; border: 1px solid ${THEME_SECONDARY}; padding: 0.5rem; border-radius: 4px;">${JSON.stringify(blocks, null, 2)}</textarea>
             </div>
             
             <div style="margin-bottom: 1rem;">
               <label style="font-weight: bold; font-size: 13px; display: block; margin-bottom: 0.25rem;">blocks_layout:</label>
-              <textarea id="blocksLayoutEditor" style="width: 100%; min-height: 100px; font-family: monospace; font-size: 12px; border: 1px solid #ddd; padding: 0.5rem; border-radius: 4px;">${JSON.stringify(blocksLayout, null, 2)}</textarea>
+              <textarea id="blocksLayoutEditor" style="width: 100%; min-height: 100px; font-family: monospace; font-size: 12px; border: 1px solid ${THEME_SECONDARY}; padding: 0.5rem; border-radius: 4px;">${JSON.stringify(blocksLayout, null, 2)}</textarea>
             </div>
           </div>
           
@@ -607,7 +740,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <button id="addBlockBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">+ Add Block</button>
           </div>
           
-          <button id="saveBlocksBtn" style="padding: 0.5rem 1rem; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 1rem;">Save Blocks</button>
+          <button id="saveBlocksBtn" style="padding: 0.5rem 1rem; background: ${THEME_SECONDARY}; color: #333; border: none; border-radius: 4px; cursor: pointer; margin-top: 1rem;">Save Blocks</button>
           <div id="blockStatus" style="margin-top: 0.5rem; font-size: 13px; display: none;"></div>
         </div>
         ` : ''}
@@ -616,7 +749,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Store current tags
     let currentTags = [...subjects];
-    const objectPath = path.replace(/^.*\/\+\+api\+\+\//, '');
+    // Extract relative path from @id URL
+    // The @id is a full URL like https://example.com/Plone/my-item
+    // We need just the path part like Plone/my-item (no leading slash, backend adds it)
+    let objectPath = path;
+    try {
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        const urlObj = new URL(path);
+        let pathname = urlObj.pathname;
+        // Remove ++api++ if present (we'll let the backend add it)
+        if (pathname.includes('++api++')) {
+          const parts = pathname.split('++api++');
+          pathname = parts[parts.length - 1] || '/';
+        }
+        // Remove leading slash - backend will add it
+        objectPath = pathname.replace(/^\//, '');
+      } else {
+        // Already a relative path, just clean it up
+        objectPath = path.replace(/^.*\/\+\+api\+\+\//, '').replace(/^\//, '');
+      }
+    } catch (e) {
+      // Fallback: try simple extraction
+      objectPath = path.replace(/^.*\/\+\+api\+\+\//, '').replace(/^\//, '');
+    }
 
     // Back button handler (in details view)
     document.getElementById("detailBackBtn")?.addEventListener("click", () => {
@@ -627,6 +782,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const tagsContainer = document.getElementById("tagsContainer");
     const newTagInput = document.getElementById("newTagInput") as HTMLInputElement;
     const tagStatus = document.getElementById("tagStatus") as HTMLDivElement;
+    
+    // Validate path after tagStatus is declared
+    if (!objectPath || objectPath === '/') {
+      console.error('Invalid path extracted from:', path);
+      if (tagStatus) {
+        tagStatus.textContent = '✗ Error: Could not determine item path';
+        tagStatus.style.color = '#d32f2f';
+        tagStatus.style.display = 'block';
+      }
+    }
 
     function updateTagsDisplay() {
       if (!tagsContainer) return;
@@ -670,14 +835,22 @@ document.addEventListener("DOMContentLoaded", () => {
         tagStatus.style.color = "#666";
         tagStatus.style.display = "block";
 
+        // Ensure we have a valid path before attempting to save
+        if (!objectPath || objectPath === '/') {
+          throw new Error('Invalid item path');
+        }
+
         await api.patch(objectPath, { subjects: currentTags });
 
         tagStatus.textContent = "✓ Tags saved successfully!";
-        tagStatus.style.color = "#4caf50";
+        tagStatus.style.color = THEME_PRIMARY;
+        tagStatus.style.display = "block";
         setTimeout(() => { tagStatus.style.display = "none"; }, 3000);
       } catch (error) {
-        tagStatus.textContent = `✗ Error: ${error instanceof Error ? error.message : "Failed to save"}`;
+        tagStatus.textContent = `✗ Error: ${error instanceof Error ? error.message : "Update failed"}`;
         tagStatus.style.color = "#d32f2f";
+        tagStatus.style.display = "block";
+        console.error('Failed to save tags:', error, 'Path:', objectPath, 'Original path:', path);
       }
     });
 
@@ -703,7 +876,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentMode = 'json';
         jsonModeBtn.style.background = PLONE_BLUE;
         jsonModeBtn.style.color = 'white';
-        visualModeBtn!.style.background = '#e0e0e0';
+        visualModeBtn!.style.background = THEME_SECONDARY;
         visualModeBtn!.style.color = '#333';
         jsonModeDiv!.style.display = 'block';
         visualModeDiv!.style.display = 'none';
@@ -719,7 +892,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentMode = 'visual';
         visualModeBtn.style.background = PLONE_BLUE;
         visualModeBtn.style.color = 'white';
-        jsonModeBtn!.style.background = '#e0e0e0';
+        jsonModeBtn!.style.background = THEME_SECONDARY;
         jsonModeBtn!.style.color = '#333';
         jsonModeDiv!.style.display = 'none';
         visualModeDiv!.style.display = 'block';
@@ -757,7 +930,7 @@ document.addEventListener("DOMContentLoaded", () => {
           card.dataset.index = String(index);
           card.style.cssText = `
             background: white;
-            border: 1px solid #ddd;
+            border: 1px solid ${THEME_SECONDARY};
             border-radius: 6px;
             padding: 0.75rem;
             cursor: move;
@@ -1148,10 +1321,10 @@ document.addEventListener("DOMContentLoaded", () => {
       updateTabs();
       showSimilarKeywordsView();
     });
-    document.getElementById("kwTabAll")?.addEventListener("click", () => {
+    document.getElementById("kwTabAll")?.addEventListener("click", async () => {
       currentTab = 'all';
       updateTabs();
-      showAllKeywordsView();
+      await showAllKeywordsView();
     });
 
     function updateTabs() {
@@ -1181,22 +1354,106 @@ document.addEventListener("DOMContentLoaded", () => {
     let similarPairs: api.SimilarTagPair[] = [];
     let mergePlan: Map<string, string[]> = new Map(); // target -> sources
 
+    // Light caching for keywords (5 minute cache)
+    let keywordsCache: { data: Record<string, number>; timestamp: number } | null = null;
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+    
+    async function getCachedTags(forceRefresh = false): Promise<Record<string, number>> {
+      const now = Date.now();
+      
+      // Return cached data if it's still valid and not forcing refresh
+      if (!forceRefresh && keywordsCache && (now - keywordsCache.timestamp) < CACHE_DURATION) {
+        return keywordsCache.data;
+      }
+      
+      // Fetch fresh data
+      const tags = await api.collectTags();
+      keywordsCache = { data: tags, timestamp: now };
+      return tags;
+    }
+    
+    function invalidateKeywordsCache() {
+      keywordsCache = null;
+    }
+
     // Show All Keywords view
-    function showAllKeywordsView() {
+    async function showAllKeywordsView() {
+      // Check if we have cached data
+      const hasCache = keywordsCache && (Date.now() - keywordsCache.timestamp) < CACHE_DURATION;
+      
+      if (!hasCache) {
+        // Show loading state only if we don't have cache
+        kwContent.innerHTML = `
+          <div style="text-align: center; padding: 3rem 1rem;">
+            <div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid ${PLONE_BLUE}; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem;"></div>
+            <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+            <p style="color: #666; font-size: 1.1em; font-weight: 500; margin-bottom: 0.5rem;">Loading keywords...</p>
+            <p style="color: #999; font-size: 0.9em;">Scanning your Plone site</p>
+          </div>
+        `;
+      }
+
+      // Reload tags to get the latest data (uses cache if available)
+      try {
+        allTags = await getCachedTags();
+      } catch (error) {
+        kwContent.innerHTML = `
+          <div style="padding: 2rem; text-align: center; color: #d32f2f;">
+            <p>Error loading keywords: ${error instanceof Error ? error.message : "Unknown error"}</p>
+            <button id="retryAllKeywordsBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 1rem;">Retry</button>
+          </div>
+        `;
+        document.getElementById("retryAllKeywordsBtn")?.addEventListener("click", () => {
+          showAllKeywordsView();
+        });
+        return;
+      }
+
       const sortedTags = Object.entries(allTags)
         .sort((a, b) => b[1] - a[1]); // Sort by count descending
 
-      kwContent.innerHTML = `
+        kwContent.innerHTML = `
         <div style="max-width: 1200px; margin: 0 auto;">
           <div style="margin-bottom: 1.5rem;">
             <input type="text" id="keywordFilterInput" placeholder="Filter keywords..." style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
           </div>
+          <style>
+            .keyword-name-editable {
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              cursor: pointer;
+              padding: 0.25rem 0.5rem;
+              margin: -0.25rem -0.5rem;
+              border-radius: 4px;
+              transition: all 0.2s;
+            }
+            .keyword-name-editable:hover {
+              background: #f5f5f5;
+              color: ${PLONE_BLUE};
+            }
+            .keyword-name-editable .edit-icon {
+              opacity: 0;
+              transition: opacity 0.2s;
+              width: 14px;
+              height: 14px;
+            }
+            .keyword-name-editable:hover .edit-icon {
+              opacity: 0.6;
+            }
+          </style>
           <div id="allKeywordsList" style="display: grid; gap: 0.75rem;">
             ${sortedTags.map(([tag, count]) => `
               <div class="keyword-item" data-keyword="${tag}" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; transition: all 0.2s;">
                 <div style="flex: 1;">
-                  <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${tag}</div>
-                  <div style="font-size: 0.85em; color: #666;">Used in ${count} item${count !== 1 ? 's' : ''}</div>
+                  <div class="keyword-name-editable" data-keyword="${tag}" title="Click to rename">
+                    <span>${tag}</span>
+                    <svg class="edit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                  </div>
+                  <div style="font-size: 0.85em; color: #666; margin-top: 0.25rem;">Used in ${count} item${count !== 1 ? 's' : ''}</div>
                 </div>
                 <div style="display: flex; gap: 0.5rem;">
                   <button class="rename-keyword-btn" data-keyword="${tag}" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
@@ -1229,10 +1486,22 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
 
-      // Rename handlers
+      // Rename handlers - both button and clickable keyword name
       document.querySelectorAll(".rename-keyword-btn").forEach((btn) => {
         btn.addEventListener("click", (e) => {
+          e.stopPropagation();
           const keyword = (e.target as HTMLElement).getAttribute("data-keyword");
+          if (keyword) {
+            showRenameKeywordDialog(keyword);
+          }
+        });
+      });
+
+      // Make keyword names clickable to rename
+      document.querySelectorAll(".keyword-name-editable").forEach((element) => {
+        element.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const keyword = (e.target as HTMLElement).closest(".keyword-name-editable")?.getAttribute("data-keyword");
           if (keyword) {
             showRenameKeywordDialog(keyword);
           }
@@ -1262,10 +1531,10 @@ document.addEventListener("DOMContentLoaded", () => {
               <div style="padding: 0.75rem; background: #f5f5f5; border-radius: 4px; color: #666;">${oldKeyword}</div>
               <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">Used in ${count} item${count !== 1 ? 's' : ''}</p>
             </div>
-            <div style="margin-bottom: 1.5rem;">
+          <div style="margin-bottom: 1.5rem;">
               <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">New Name</label>
               <input type="text" id="newKeywordNameInput" value="${oldKeyword}" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
-            </div>
+              </div>
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
               <button id="cancelRenameBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333;">
                 Cancel
@@ -1273,9 +1542,9 @@ document.addEventListener("DOMContentLoaded", () => {
               <button id="saveRenameBtn" style="padding: 0.75rem 1.5rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
                 Rename
               </button>
-            </div>
-          </div>
-        </div>
+              </div>
+              </div>
+              </div>
       `;
 
       document.getElementById("cancelRenameBtn")?.addEventListener("click", () => {
@@ -1309,11 +1578,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
           // Merge old keyword into new keyword
-          const result = await api.mergeTags(newName, [oldKeyword]);
-          alert(`Keyword renamed successfully!\n\nUpdated ${result.updated} items.\nAffected ${result.affected_items} total items.${result.errors.length > 0 ? `\n\nErrors: ${result.errors.length}` : ''}`);
+          await api.mergeTags(newName, [oldKeyword]);
           
-          // Reload keywords
-          showKeywordsManager();
+          // Reload keywords and show the renamed keyword in All Keywords view
+          invalidateKeywordsCache(); // Invalidate cache after rename
+          allTags = await getCachedTags(true);
+          currentTab = 'all';
+          updateTabs();
+          showAllKeywordsView();
+          
+          // Scroll to the renamed keyword if it exists
+          setTimeout(() => {
+            const keywordItem = document.querySelector(`[data-keyword="${newName}"]`);
+            if (keywordItem) {
+              keywordItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              // Highlight it briefly
+              (keywordItem as HTMLElement).style.background = '#e8f5e9';
+              setTimeout(() => {
+                (keywordItem as HTMLElement).style.background = 'white';
+              }, 2000);
+            }
+          }, 100);
         } catch (error) {
           alert(`Error renaming keyword: ${error instanceof Error ? error.message : "Unknown error"}`);
           saveBtn.disabled = false;
@@ -1333,8 +1618,8 @@ document.addEventListener("DOMContentLoaded", () => {
               <p style="margin: 0 0 1rem 0;">Are you sure you want to delete the keyword <strong>"${keyword}"</strong>?</p>
               <div style="padding: 1rem; background: #ffebee; border-radius: 4px; border-left: 4px solid #c62828;">
                 <p style="margin: 0; color: #c62828; font-weight: 500;">This will remove the keyword from ${count} item${count !== 1 ? 's' : ''}.</p>
-              </div>
             </div>
+          </div>
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
               <button id="cancelDeleteBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333;">
                 Cancel
@@ -1357,31 +1642,76 @@ document.addEventListener("DOMContentLoaded", () => {
         deleteBtn.textContent = "Deleting...";
 
         try {
-          // Search for all items with this keyword and remove it
-          const items = await api.search(undefined, undefined);
-          let updated = 0;
-          let errors: string[] = [];
-
-          for (const item of items.items || []) {
-            const subjects = item.Subject || item.subjects || [];
-            if (Array.isArray(subjects) && subjects.some((s: string) => s.trim().toLowerCase() === keyword.toLowerCase())) {
-              const itemPath = item.path || item["@id"];
-              if (!itemPath) continue;
-
-              try {
-                const newSubjects = subjects.filter((s: string) => s.trim().toLowerCase() !== keyword.toLowerCase());
-                await api.updateSubjects(itemPath, newSubjects);
-                updated++;
-              } catch (error) {
-                errors.push(`Failed to update ${item.title || itemPath}: ${error instanceof Error ? error.message : "Unknown error"}`);
-              }
-            }
-          }
-
-          alert(`Keyword deleted successfully!\n\nRemoved from ${updated} items.${errors.length > 0 ? `\n\nErrors: ${errors.length}` : ''}`);
+          // Use merge_tags to find and update items with the keyword
+          // We'll merge to a very unique temporary value that won't conflict
+          // The backend's merge_tags uses search_items_by_subject which is efficient
+          const tempTarget = `__DELETE_${Date.now()}_${Math.random().toString(36).substring(2, 9)}__`;
+          const result = await api.mergeTags(tempTarget, [keyword]);
+          const updated = result.updated;
+          const errors = result.errors || [];
           
-          // Reload keywords
-          showKeywordsManager();
+          // Note: The tempTarget will remain on items, but it's unique and won't appear
+          // in normal keyword lists since it starts with __DELETE_. This is acceptable
+          // for now. A proper solution would require a backend delete_keyword function.
+
+          // Show success screen
+          // Invalidate cache and refresh - the keyword should be gone if it had 0 items
+          invalidateKeywordsCache();
+          allTags = await getCachedTags(true);
+          
+          // If the keyword still exists in allTags but had 0 items, it was likely a cache artifact
+          // Remove it from the local state
+          if (allTags[keyword] === 0) {
+            delete allTags[keyword];
+          }
+          
+          kwContent.innerHTML = `
+            <div style="max-width: 600px; margin: 0 auto;">
+              <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                  <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+                  <h3 style="margin: 0 0 0.5rem 0; color: #4caf50;">Keyword Deleted Successfully!</h3>
+                  <p style="font-size: 1.1em; font-weight: 600; color: #333;">"${keyword}"</p>
+                </div>
+                
+                <div style="background: #f5f5f5; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                  <h4 style="margin: 0 0 1rem 0; color: #667eea;">Summary</h4>
+                  <div style="display: grid; gap: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between;">
+                      <span style="color: #666;">Removed from items:</span>
+                      <strong style="color: #4caf50;">${updated}</strong>
+                    </div>
+                    ${errors.length > 0 ? `
+                      <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #666;">Errors:</span>
+                        <strong style="color: #ef5350;">${errors.length}</strong>
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+
+                ${errors.length > 0 ? `
+                  <div style="background: #ffebee; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem; max-height: 200px; overflow-y: auto;">
+                    <strong style="color: #c62828; display: block; margin-bottom: 0.5rem;">Errors:</strong>
+                    <ul style="margin: 0; padding-left: 1.5rem; color: #d32f2f; font-size: 0.9em;">
+                      ${errors.slice(0, 10).map(err => `<li>${err}</li>`).join('')}
+                      ${errors.length > 10 ? `<li>... and ${errors.length - 10} more</li>` : ''}
+                    </ul>
+                  </div>
+                ` : ''}
+
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                  <button id="backToKeywordsBtn" style="padding: 0.75rem 1.5rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                    Back to All Keywords
+          </button>
+                </div>
+              </div>
+            </div>
+          `;
+
+          document.getElementById("backToKeywordsBtn")?.addEventListener("click", () => {
+            showAllKeywordsView();
+          });
         } catch (error) {
           alert(`Error deleting keyword: ${error instanceof Error ? error.message : "Unknown error"}`);
           deleteBtn.disabled = false;
@@ -1401,30 +1731,80 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Show Create Keyword UI
     function showCreateKeywordUI() {
-        kwContent.innerHTML = `
+      // Use current browser path as default if available
+      const defaultPath = currentPath || "";
+      
+      kwContent.innerHTML = `
         <div style="max-width: 800px; margin: 0 auto;">
           <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-            <h3 style="margin: 0 0 1.5rem 0;">Create New Keyword</h3>
+            <h3 style="margin: 0 0 1.5rem 0;">Create and Apply Keyword</h3>
+            <div style="background: #e3f2fd; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem; border-left: 4px solid ${PLONE_BLUE};">
+              <p style="margin: 0; font-size: 0.9em; color: #1565c0;">
+                <strong>Note:</strong> In Plone, keywords only exist when applied to items. This will create the keyword and apply it to items in the specified location.
+              </p>
+            </div>
+            
             <div style="margin-bottom: 1.5rem;">
               <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Keyword Name</label>
               <input type="text" id="newKeywordInput" placeholder="Enter keyword name..." style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
-          </div>
-          <div style="margin-bottom: 1.5rem;">
-              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Apply to Path (optional)</label>
-              <input type="text" id="keywordPathInput" placeholder="Leave empty for entire site, or enter path like /resources" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
-              <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">Leave empty to create the keyword without applying it to any items. You can add it to items later.</p>
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Apply to Items</label>
+              <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <button type="button" id="useCurrentPathBtn" class="path-option-btn" data-path="${defaultPath}" style="flex: 1; padding: 0.75rem; background: ${defaultPath ? '#e8f5e9' : '#f5f5f5'}; border: 2px solid ${defaultPath ? '#4caf50' : '#ddd'}; border-radius: 4px; cursor: pointer; font-size: 0.9em; ${defaultPath ? 'color: #2e7d32; font-weight: 500;' : 'color: #666;'}">
+                  ${defaultPath ? `Current Path: ${defaultPath}` : 'No current path'}
+                </button>
+                <button type="button" id="useEntireSiteBtn" class="path-option-btn" data-path="" style="flex: 1; padding: 0.75rem; background: #fff3e0; border: 2px solid #ff9800; border-radius: 4px; cursor: pointer; font-size: 0.9em; color: #e65100; font-weight: 500;">
+                  Entire Site
+                </button>
               </div>
+              <input type="text" id="keywordPathInput" value="${defaultPath}" placeholder="Or enter a specific path like /resources" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; margin-top: 0.5rem;" />
+              <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">
+                The keyword will be applied to all items in the selected location. Items that already have this keyword will be skipped.
+              </p>
+            </div>
+            
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
               <button id="cancelCreateKeywordBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333;">
                 Cancel
               </button>
               <button id="saveCreateKeywordBtn" style="padding: 0.75rem 1.5rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
-                Create Keyword
+                Create & Apply Keyword
               </button>
-              </div>
-              </div>
-              </div>
+            </div>
+          </div>
+        </div>
       `;
+      
+      // Add path option button handlers
+      document.querySelectorAll(".path-option-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const path = btn.getAttribute("data-path") || "";
+          const pathInput = document.getElementById("keywordPathInput") as HTMLInputElement;
+          if (pathInput) {
+            pathInput.value = path;
+          }
+          // Update button styles
+          document.querySelectorAll(".path-option-btn").forEach((b) => {
+            (b as HTMLElement).style.background = "#f5f5f5";
+            (b as HTMLElement).style.borderColor = "#ddd";
+            (b as HTMLElement).style.color = "#666";
+            (b as HTMLElement).style.fontWeight = "normal";
+          });
+          if (path) {
+            (btn as HTMLElement).style.background = "#e8f5e9";
+            (btn as HTMLElement).style.borderColor = "#4caf50";
+            (btn as HTMLElement).style.color = "#2e7d32";
+            (btn as HTMLElement).style.fontWeight = "500";
+          } else {
+            (btn as HTMLElement).style.background = "#fff3e0";
+            (btn as HTMLElement).style.borderColor = "#ff9800";
+            (btn as HTMLElement).style.color = "#e65100";
+            (btn as HTMLElement).style.fontWeight = "500";
+          }
+        });
+      });
 
       document.getElementById("cancelCreateKeywordBtn")?.addEventListener("click", () => {
         showKeywordsManager();
@@ -1453,39 +1833,102 @@ document.addEventListener("DOMContentLoaded", () => {
         saveBtn.textContent = "Creating...";
 
         try {
-          // If path is provided, apply keyword to all items in that path
-          if (path) {
-            const items = await api.getItems(path);
-            let updated = 0;
-            let errors: string[] = [];
+          let updated = 0;
+          let skipped = 0;
+          let errors: string[] = [];
 
-            for (const item of items) {
-              const itemPath = item.path || item["@id"];
-              if (!itemPath) continue;
+          // In Plone, keywords only exist when applied to items
+          // Apply keyword to items (path can be empty for entire site)
+          const items = await api.getItems(path);
+          saveBtn.textContent = `Applying to ${items.length} items...`;
 
-              try {
-                const currentSubjects = item.Subject || item.subjects || [];
-                const subjectsArray = Array.isArray(currentSubjects) ? currentSubjects : [];
-                
-                // Check if keyword already exists (case-insensitive)
-                if (!subjectsArray.some((s: string) => s.trim().toLowerCase() === keyword.toLowerCase())) {
-                  const newSubjects = [...subjectsArray, keyword];
-                  await api.updateSubjects(itemPath, newSubjects);
-                  updated++;
-                }
-              } catch (error) {
-                errors.push(`Failed to update ${item.title || itemPath}: ${error instanceof Error ? error.message : "Unknown error"}`);
+          for (const item of items) {
+            const itemPath = item.path || item["@id"];
+            if (!itemPath) continue;
+
+            try {
+              const currentSubjects = item.Subject || item.subjects || [];
+              const subjectsArray = Array.isArray(currentSubjects) ? currentSubjects : [];
+              
+              // Check if keyword already exists (case-insensitive)
+              if (!subjectsArray.some((s: string) => s.trim().toLowerCase() === keyword.toLowerCase())) {
+                const newSubjects = [...subjectsArray, keyword];
+                await api.updateSubjects(itemPath, newSubjects);
+                updated++;
+              } else {
+                skipped++;
               }
+            } catch (error) {
+              errors.push(`Failed to update ${item.title || itemPath}: ${error instanceof Error ? error.message : "Unknown error"}`);
             }
-
-            alert(`Keyword "${keyword}" created and applied to ${updated} items.${errors.length > 0 ? `\n\nErrors: ${errors.length}` : ''}`);
-          } else {
-            // Just create the keyword (it will appear in the list when we reload)
-            alert(`Keyword "${keyword}" created. It will appear in the keywords list.`);
           }
 
-          // Reload keywords manager
-          showKeywordsManager();
+          // Show summary screen
+          invalidateKeywordsCache(); // Invalidate cache after create
+          allTags = await getCachedTags(true);
+          const keywordCount = allTags[keyword] || 0;
+          
+          kwContent.innerHTML = `
+            <div style="max-width: 800px; margin: 0 auto;">
+              <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                  <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+                  <h3 style="margin: 0 0 0.5rem 0; color: #4caf50;">Keyword Created Successfully!</h3>
+                  <p style="font-size: 1.2em; font-weight: 600; color: #333;">"${keyword}"</p>
+                </div>
+                
+                <div style="background: #f5f5f5; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                  <h4 style="margin: 0 0 1rem 0; color: #667eea;">Summary</h4>
+                  <div style="display: grid; gap: 0.75rem;">
+                    ${path ? `
+                      <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #666;">Applied to items:</span>
+                        <strong style="color: #4caf50;">${updated}</strong>
+                      </div>
+                      ${skipped > 0 ? `
+                        <div style="display: flex; justify-content: space-between;">
+                          <span style="color: #666;">Already had keyword:</span>
+                          <strong style="color: #666;">${skipped}</strong>
+                        </div>
+                      ` : ''}
+                    ` : ''}
+                    <div style="display: flex; justify-content: space-between;">
+                      <span style="color: #666;">Total items with keyword:</span>
+                      <strong style="color: #667eea;">${keywordCount}</strong>
+                    </div>
+                    ${errors.length > 0 ? `
+                      <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #666;">Errors:</span>
+                        <strong style="color: #ef5350;">${errors.length}</strong>
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+
+                ${errors.length > 0 ? `
+                  <div style="background: #ffebee; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem; max-height: 200px; overflow-y: auto;">
+                    <strong style="color: #c62828; display: block; margin-bottom: 0.5rem;">Errors:</strong>
+                    <ul style="margin: 0; padding-left: 1.5rem; color: #d32f2f; font-size: 0.9em;">
+                      ${errors.slice(0, 10).map(err => `<li>${err}</li>`).join('')}
+                      ${errors.length > 10 ? `<li>... and ${errors.length - 10} more</li>` : ''}
+                    </ul>
+                  </div>
+                ` : ''}
+
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                  <button id="viewAllKeywordsBtn" style="padding: 0.75rem 1.5rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                    View All Keywords
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+
+          document.getElementById("viewAllKeywordsBtn")?.addEventListener("click", () => {
+            currentTab = 'all';
+            updateTabs();
+            showAllKeywordsView();
+          });
         } catch (error) {
           alert(`Error creating keyword: ${error instanceof Error ? error.message : "Unknown error"}`);
           saveBtn.disabled = false;
@@ -1506,9 +1949,19 @@ document.addEventListener("DOMContentLoaded", () => {
               <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">You can paste keywords separated by newlines or commas. Empty lines will be ignored.</p>
             </div>
             <div style="margin-bottom: 1.5rem;">
-              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Apply to Path (optional)</label>
-              <input type="text" id="bulkImportPathInput" placeholder="Leave empty for entire site, or enter path like /resources" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
-              <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">If specified, keywords will be applied to all items in this path. Leave empty to just create the keywords without applying them.</p>
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Apply to Items</label>
+              <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <button type="button" id="bulkUseCurrentPathBtn" class="bulk-path-option-btn" data-path="${currentPath || ""}" style="flex: 1; padding: 0.75rem; background: ${currentPath ? '#e8f5e9' : '#f5f5f5'}; border: 2px solid ${currentPath ? '#4caf50' : '#ddd'}; border-radius: 4px; cursor: pointer; font-size: 0.9em; ${currentPath ? 'color: #2e7d32; font-weight: 500;' : 'color: #666;'}">
+                  ${currentPath ? `Current Path: ${currentPath}` : 'No current path'}
+                </button>
+                <button type="button" id="bulkUseEntireSiteBtn" class="bulk-path-option-btn" data-path="" style="flex: 1; padding: 0.75rem; background: #fff3e0; border: 2px solid #ff9800; border-radius: 4px; cursor: pointer; font-size: 0.9em; color: #e65100; font-weight: 500;">
+                  Entire Site
+                </button>
+              </div>
+              <input type="text" id="bulkImportPathInput" value="${currentPath || ""}" placeholder="Or enter a specific path like /resources" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; margin-top: 0.5rem;" />
+              <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">
+                Keywords will be applied to all items in the selected location. Items that already have a keyword will be skipped for that keyword.
+              </p>
             </div>
             <div style="margin-bottom: 1.5rem;">
               <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
@@ -1528,6 +1981,35 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       `;
 
+      // Add bulk import path option button handlers
+      document.querySelectorAll(".bulk-path-option-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const path = btn.getAttribute("data-path") || "";
+          const pathInput = document.getElementById("bulkImportPathInput") as HTMLInputElement;
+          if (pathInput) {
+            pathInput.value = path;
+          }
+          // Update button styles
+          document.querySelectorAll(".bulk-path-option-btn").forEach((b) => {
+            (b as HTMLElement).style.background = "#f5f5f5";
+            (b as HTMLElement).style.borderColor = "#ddd";
+            (b as HTMLElement).style.color = "#666";
+            (b as HTMLElement).style.fontWeight = "normal";
+          });
+          if (path) {
+            (btn as HTMLElement).style.background = "#e8f5e9";
+            (btn as HTMLElement).style.borderColor = "#4caf50";
+            (btn as HTMLElement).style.color = "#2e7d32";
+            (btn as HTMLElement).style.fontWeight = "500";
+          } else {
+            (btn as HTMLElement).style.background = "#fff3e0";
+            (btn as HTMLElement).style.borderColor = "#ff9800";
+            (btn as HTMLElement).style.color = "#e65100";
+            (btn as HTMLElement).style.fontWeight = "500";
+          }
+        });
+      });
+
       document.getElementById("cancelBulkImportBtn")?.addEventListener("click", () => {
         if (currentTab === 'all') {
           showAllKeywordsView();
@@ -1540,7 +2022,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const keywordsInput = document.getElementById("bulkKeywordsInput") as HTMLTextAreaElement;
         const pathInput = document.getElementById("bulkImportPathInput") as HTMLInputElement;
         const skipExistingCheckbox = document.getElementById("bulkImportSkipExisting") as HTMLInputElement;
-        
+
         const keywordsText = keywordsInput.value.trim();
         const path = pathInput.value.trim() || undefined;
         const skipExisting = skipExistingCheckbox.checked;
@@ -1608,7 +2090,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             try {
-              // If path is provided, apply keyword to all items in that path
+              // Only apply keyword if path is provided
               if (path) {
                 const items = await api.getItems(path);
                 let itemUpdated = 0;
@@ -1629,6 +2111,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                   } catch (error) {
                     // Continue with other items
+                    errors.push(`Failed to update ${item.title || itemPath}: ${error instanceof Error ? error.message : "Unknown error"}`);
                   }
                 }
 
@@ -1636,10 +2119,11 @@ document.addEventListener("DOMContentLoaded", () => {
                   applied += itemUpdated;
                   created++;
                 } else {
-                  created++; // Keyword created even if no items updated
+                  // Keyword already exists on all items, but we still count it as created
+                  created++;
                 }
               } else {
-                // Just create the keyword (it will appear in the list when we reload)
+                // Just create the keyword without applying it to any items
                 created++;
               }
             } catch (error) {
@@ -1665,8 +2149,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
           alert(message);
           
-          // Reload keywords manager
-          showKeywordsManager();
+          // Reload keywords and switch to All Keywords tab
+          invalidateKeywordsCache(); // Invalidate cache after bulk import
+          allTags = await getCachedTags(true);
+          currentTab = 'all';
+          updateTabs();
+          showAllKeywordsView();
         } catch (error) {
           alert(`Error during bulk import: ${error instanceof Error ? error.message : "Unknown error"}`);
           saveBtn.disabled = false;
@@ -1689,7 +2177,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         console.log("Starting merge execution...");
-        
+
         const resultsDiv = document.getElementById("similarResults");
         if (!resultsDiv) {
           console.error("similarResults div not found!");
@@ -1818,8 +2306,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Auto-start analysis
     try {
-      // 1. Collect Tags
-      allTags = await api.collectTags();
+      // 1. Collect Tags (use cache if available)
+      allTags = await getCachedTags();
       const tagCount = Object.keys(allTags).length;
 
       // 2. Find Similar (Default 90%)

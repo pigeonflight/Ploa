@@ -188,6 +188,11 @@ async fn find_similar_tags(
 }
 
 #[tauri::command]
+fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[tauri::command]
 async fn merge_tags(
     target: String,
     sources: Vec<String>,
@@ -224,7 +229,8 @@ fn main() {
             post,
             collect_tags,
             find_similar_tags,
-            merge_tags
+            merge_tags,
+            get_app_version
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
