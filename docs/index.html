@@ -3,8 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ploa - Plone REST API GUI</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/heroicons@2.0.18/24/outline/index.css" />
+    
+    <!-- Primary Meta Tags -->
+    <title>Ploa - Plone REST API GUI | Desktop Companion for Plone Sites</title>
+    <meta name="title" content="Ploa - Plone REST API GUI | Desktop Companion for Plone Sites">
+    <meta name="description" content="A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app that stays logged in and remembers your preferences.">
+    <meta name="keywords" content="Plone, Plone REST API, CMS, content management, desktop app, GUI, Tauri, Rust, macOS, Plone management, content editing, tag management">
+    <meta name="author" content="David Bain">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://ploa.incrementic.com/">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://ploa.incrementic.com/">
+    <meta property="og:title" content="Ploa - Plone REST API GUI | Desktop Companion for Plone Sites">
+    <meta property="og:description" content="A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app that stays logged in and remembers your preferences.">
+    <meta property="og:image" content="https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Ploa - Plone REST API GUI">
+    <meta property="og:site_name" content="Ploa">
+    <meta property="og:locale" content="en_US">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://ploa.incrementic.com/">
+    <meta name="twitter:title" content="Ploa - Plone REST API GUI | Desktop Companion for Plone Sites">
+    <meta name="twitter:description" content="A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app that stays logged in and remembers your preferences.">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg">
+    <meta name="twitter:image:alt" content="Ploa - Plone REST API GUI">
+    <meta name="twitter:creator" content="@pigeonflight">
+    <meta name="twitter:site" content="@pigeonflight">
+    
+    <!-- Additional Meta Tags -->
+    <meta name="theme-color" content="#8CA9FF">
+    <meta name="application-name" content="Ploa">
+    <meta name="apple-mobile-web-app-title" content="Ploa">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    
+    <!-- Schema.org structured data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Ploa",
+      "applicationCategory": "DesktopApplication",
+      "operatingSystem": "macOS",
+      "description": "A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app that stays logged in and remembers your preferences.",
+      "url": "https://ploa.incrementic.com/",
+      "downloadUrl": "https://github.com/pigeonflight/Ploa/releases/latest",
+      "author": {
+        "@type": "Person",
+        "name": "David Bain",
+        "url": "https://dbain.com",
+        "sameAs": ["https://x.com/pigeonflight"]
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "softwareVersion": "0.1.0",
+      "screenshot": "https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg"
+    }
+    </script>
     <style>
         * {
             margin: 0;
@@ -15,200 +82,344 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333333;
+            background: linear-gradient(135deg, #FFF8DE 0%, #ffffff 100%);
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 2rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
-        header {
-            text-align: center;
-            color: white;
-            padding: 4rem 2rem 2rem;
+        /* Header Badge */
+        .header-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin: 0 auto 4rem;
+            padding: 0.5rem 1.25rem;
+            background: #ffffff;
+            border: 1px solid #AAC4F5;
+            border-radius: 50px;
+            width: fit-content;
+            box-shadow: 0 2px 8px rgba(140, 169, 255, 0.1);
         }
 
-        header h1 {
-            font-size: 3.5rem;
-            margin-bottom: 1rem;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        .header-badge-logo {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        header p {
-            font-size: 1.5rem;
-            opacity: 0.95;
-            margin-bottom: 2rem;
-        }
-
-        .logo {
-            width: 120px;
-            height: 120px;
-            margin: 0 auto 2rem;
-            background: white;
-            border-radius: 20px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-
-        .logo img {
+        .header-badge-logo img {
             width: 100%;
             height: 100%;
             object-fit: contain;
         }
 
-        .content {
-            background: white;
+        .header-badge-text {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333333;
+        }
+
+        /* Main Hero Section */
+        .hero {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .hero h1 {
+            font-size: 4.5rem;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+        }
+
+        .hero h1 .line-1 {
+            color: #8CA9FF;
+            display: block;
+        }
+
+        .hero h1 .line-2,
+        .hero h1 .line-3 {
+            color: #333333;
+            display: block;
+        }
+
+        .hero-description {
+            font-size: 1.25rem;
+            color: #333333;
+            max-width: 700px;
+            margin: 0 auto 3rem;
+            line-height: 1.6;
+        }
+
+        /* CTA Buttons */
+        .cta-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 4rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.875rem 1.75rem;
+            font-size: 1rem;
+            font-weight: 500;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: #8CA9FF;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(140, 169, 255, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: #7a94e0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(140, 169, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: #ffffff;
+            color: #333333;
+            border: 1px solid #e0e0e0;
+        }
+
+        .btn-secondary:hover {
+            background: #FFF8DE;
+            border-color: #AAC4F5;
+        }
+
+        .btn-icon {
+            width: 16px;
+            height: 16px;
+            display: inline-block;
+        }
+
+        /* Features Section */
+        .features {
+            background: #ffffff;
             border-radius: 20px;
             padding: 3rem;
             margin: 2rem 0;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
 
-        .features {
+        .features h2 {
+            color: #8CA9FF;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .features-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 2rem;
-            margin: 2rem 0;
+            margin-top: 2rem;
         }
 
         .feature {
             padding: 1.5rem;
-            background: #f8f9fa;
-            border-radius: 10px;
-        }
-
-        .feature-icon {
-            width: 48px;
-            height: 48px;
-            color: #667eea;
-            margin-bottom: 1rem;
+            background: #FFF8DE;
+            border-radius: 12px;
+            border: 1px solid #FFF2C6;
         }
 
         .feature h3 {
-            color: #667eea;
-            margin-bottom: 0.5rem;
-            font-size: 1.3rem;
+            color: #8CA9FF;
+            margin-bottom: 0.75rem;
+            font-size: 1.25rem;
             display: flex;
             align-items: center;
             gap: 0.75rem;
         }
 
-        .feature-icon-inline {
+        .feature-icon {
             width: 24px;
             height: 24px;
             flex-shrink: 0;
         }
 
+        .feature p {
+            color: #666666;
+            line-height: 1.6;
+        }
+
+        /* Downloads Section */
         .downloads {
             text-align: center;
             margin: 3rem 0;
         }
 
         .downloads h2 {
-            color: #667eea;
-            margin-bottom: 1.5rem;
+            color: #8CA9FF;
+            margin-bottom: 1rem;
             font-size: 2rem;
         }
 
-        .download-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-            margin-top: 2rem;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 1rem 2rem;
-            background: #667eea;
-            color: white;
-            text-decoration: none;
+        .download-warning {
+            background: #FFF2C6;
+            border: 1px solid #FFE082;
             border-radius: 8px;
-            font-weight: 600;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 1rem;
+            margin: 1.5rem auto 2rem;
+            max-width: 600px;
+            font-size: 0.9rem;
+            color: #856404;
         }
 
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        .download-warning strong {
+            display: block;
+            margin-bottom: 0.25rem;
         }
 
-        .btn-secondary {
-            background: #764ba2;
-        }
-
-        .github-link {
+        /* Footer */
+        footer {
             text-align: center;
-            margin: 2rem 0;
+            padding: 3rem 2rem 2rem;
+            color: #666666;
+            margin-top: auto;
         }
 
-        .github-link a {
-            color: white;
+        footer p {
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: #8CA9FF;
             text-decoration: none;
-            font-size: 1.1rem;
-            opacity: 0.9;
         }
 
-        .github-link a:hover {
-            opacity: 1;
+        footer a:hover {
             text-decoration: underline;
         }
 
-        footer {
-            text-align: center;
-            color: white;
-            padding: 2rem;
-            opacity: 0.9;
+        .footer-divider {
+            margin: 2rem 0;
+            padding-top: 2rem;
+            border-top: 1px solid #e0e0e0;
         }
 
+        .footer-divider p {
+            font-size: 0.85rem;
+            color: #999999;
+        }
+
+        /* Responsive */
         @media (max-width: 768px) {
-            header h1 {
-                font-size: 2.5rem;
+            .hero h1 {
+                font-size: 3rem;
             }
 
-            header p {
-                font-size: 1.2rem;
-            }
-
-            .content {
-                padding: 2rem;
+            .hero-description {
+                font-size: 1.1rem;
             }
 
             .features {
+                padding: 2rem;
+            }
+
+            .features-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .btn {
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero h1 {
+                font-size: 2.25rem;
+            }
+
+            .header-badge {
+                padding: 0.4rem 1rem;
+                font-size: 12px;
+            }
+
+            .header-badge-logo {
+                width: 20px;
+                height: 20px;
             }
         }
     </style>
 </head>
 <body>
-    <header>
-        <div class="logo">
-            <img src="https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg" alt="Ploa Logo" onerror="this.style.display='none'">
-        </div>
-        <h1>Ploa</h1>
-        <p>Plone REST API GUI - Desktop application for managing Plone sites</p>
-    </header>
-
     <div class="container">
-        <div class="content">
-            <h2 style="color: #667eea; margin-bottom: 1rem;">What is Ploa?</h2>
-            <p style="font-size: 1.1rem; margin-bottom: 2rem;">
-                Ploa is a desktop application that makes managing Plone sites faster and easier. 
-                Connect to your Plone site, browse content, manage tags, and edit blocks—all from a 
-                native desktop app that stays logged in and remembers your preferences.
-            </p>
+        <!-- Header Badge -->
+        <div class="header-badge">
+            <div class="header-badge-logo">
+                <img src="https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg" alt="Ploa Logo" onerror="this.style.display='none'">
+            </div>
+            <span class="header-badge-text">Plone REST API GUI</span>
+        </div>
 
-            <h2 style="color: #667eea; margin-bottom: 1rem; margin-top: 2rem;">Key Features</h2>
-            <div class="features">
+        <!-- Hero Section -->
+        <div class="hero">
+            <h1>
+                <span class="line-1">Ploa</span>
+                <span class="line-2">Your Plone</span>
+                <span class="line-3">Desktop Companion</span>
+            </h1>
+            <p class="hero-description">
+                A native desktop application that makes managing Plone sites faster and easier. 
+                Connect to your Plone site, browse content, manage tags, and edit blocks—all from 
+                a dedicated app that stays logged in and remembers your preferences.
+            </p>
+            <div class="cta-buttons">
+                <a href="https://github.com/pigeonflight/Ploa/releases/latest" class="btn btn-primary">
+                    Download Now
+                    <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </a>
+                <a href="https://github.com/pigeonflight/Ploa" class="btn btn-secondary">
+                    <svg class="btn-icon" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path>
+                    </svg>
+                    View on GitHub
+                </a>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="features">
+            <h2>Key Features</h2>
+            <div class="features-grid">
                 <div class="feature">
                     <h3>
-                        <svg class="feature-icon-inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <svg class="feature-icon" fill="none" stroke="#8CA9FF" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg>
                         Quick Access
@@ -218,7 +429,7 @@
 
                 <div class="feature">
                     <h3>
-                        <svg class="feature-icon-inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <svg class="feature-icon" fill="none" stroke="#8CA9FF" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                         </svg>
                         Stay Logged In
@@ -228,7 +439,7 @@
 
                 <div class="feature">
                     <h3>
-                        <svg class="feature-icon-inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <svg class="feature-icon" fill="none" stroke="#8CA9FF" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
                         </svg>
                         Fast Content Browsing
@@ -238,7 +449,7 @@
 
                 <div class="feature">
                     <h3>
-                        <svg class="feature-icon-inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <svg class="feature-icon" fill="none" stroke="#8CA9FF" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
                         </svg>
                         Tag Cleanup Tools
@@ -248,7 +459,7 @@
 
                 <div class="feature">
                     <h3>
-                        <svg class="feature-icon-inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <svg class="feature-icon" fill="none" stroke="#8CA9FF" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path>
                         </svg>
                         Visual Block Editing
@@ -258,7 +469,7 @@
 
                 <div class="feature">
                     <h3>
-                        <svg class="feature-icon-inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <svg class="feature-icon" fill="none" stroke="#8CA9FF" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                         </svg>
                         Native Desktop App
@@ -266,63 +477,41 @@
                     <p>A dedicated desktop application for Plone content management. No browser tabs needed—just launch the app and connect to your Plone site.</p>
                 </div>
             </div>
+        </div>
 
-            <div class="downloads">
-                <h2>Download</h2>
-                <p style="margin-bottom: 1rem;">Get the latest version for your platform:</p>
-                <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem;">
-                    <strong style="color: #856404;">⚠️ macOS Users:</strong> If you see a "damaged" error, right-click the app and select "Open", then click "Open" in the security dialog. This is normal for unsigned apps.
-                </div>
-                <div class="download-buttons">
-                    <a href="https://github.com/pigeonflight/Ploa/releases/latest" class="btn">
-                        <svg style="width: 20px; height: 20px; display: inline-block; vertical-align: middle; margin-right: 0.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                        </svg>
-                        Download Latest Release
-                    </a>
-                    <a href="https://github.com/pigeonflight/Ploa" class="btn btn-secondary">
-                        <svg style="width: 20px; height: 20px; display: inline-block; vertical-align: middle; margin-right: 0.5rem;" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path>
-                        </svg>
-                        View on GitHub
-                    </a>
-                </div>
+        <!-- Downloads Section -->
+        <div class="downloads">
+            <h2>Download</h2>
+            <p style="margin-bottom: 1rem; color: #666666;">Get the latest version for your platform:</p>
+            <div class="download-warning">
+                <strong>⚠️ macOS Users:</strong>
+                If you see a "damaged" error, right-click the app and select "Open", then click "Open" in the security dialog. This is normal for unsigned apps.
             </div>
-
-            <div class="github-link">
-                <a href="https://github.com/pigeonflight/Ploa">
-                    <svg style="width: 20px; height: 20px; display: inline-block; vertical-align: middle; margin-right: 0.5rem;" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+            <div class="cta-buttons">
+                <a href="https://github.com/pigeonflight/Ploa/releases/latest" class="btn btn-primary">
+                    <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                     </svg>
-                    Star us on GitHub
+                    Download Latest Release
                 </a>
             </div>
         </div>
     </div>
 
     <footer>
-        <p>Ploa - Plone REST API GUI</p>
-        <p style="margin-top: 0.5rem; font-size: 0.9rem;">Built with <span style="color: #f44336;">♥</span> for the Plone community</p>
-        <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.9;">
-            Created by <a href="https://dbain.com" style="color: white; text-decoration: underline;">David Bain</a> 
-            (<a href="https://x.com/pigeonflight" style="color: white; text-decoration: underline;">@pigeonflight</a> on X)
+        <p><strong>Ploa</strong> - Plone REST API GUI</p>
+        <p>Built with <span style="color: #8CA9FF;">♥</span> for the Plone community</p>
+        <p>
+            Created by <a href="https://dbain.com">David Bain</a> 
+            (<a href="https://x.com/pigeonflight">@pigeonflight</a> on X)
         </p>
-        <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.2);">
-            <p style="font-size: 0.9rem; opacity: 0.9;">Special thanks to:</p>
-            <p style="font-size: 0.9rem; margin-top: 0.5rem;">
-                The <a href="https://plone.org/community/teams" style="color: white; text-decoration: underline;">Plone team</a> for building an amazing CMS
-            </p>
-            <p style="font-size: 0.9rem; margin-top: 0.5rem;">
-                The <a href="https://6.docs.plone.org/plone.restapi/docs/source/index.html" style="color: white; text-decoration: underline;">Plone REST API team</a> for the powerful API that makes this possible
-            </p>
-            <p style="font-size: 0.9rem; margin-top: 0.5rem;">
-                <a href="mailto:complaw@gmail.com" style="color: white; text-decoration: underline;">Ron Chichester</a> for beta testing and valuable feedback
-            </p>
-            <p style="font-size: 0.9rem; margin-top: 0.5rem;">
-                <a href="mailto:carol@cbmattick.com" style="color: white; text-decoration: underline;">Carol Mattick</a> for feedback and suggestions
-            </p>
+        <div class="footer-divider">
+            <p>Special thanks to:</p>
+            <p>The <a href="https://plone.org/community/teams">Plone team</a> for building an amazing CMS</p>
+            <p>The <a href="https://6.docs.plone.org/plone.restapi/docs/source/index.html">Plone REST API team</a> for the powerful API that makes this possible</p>
+            <p><a href="mailto:complaw@gmail.com">Ron Chichester</a> for beta testing and valuable feedback</p>
+            <p><a href="mailto:carol@cbmattick.com">Carol Mattick</a> for feedback and suggestions</p>
         </div>
     </footer>
 </body>
 </html>
-
