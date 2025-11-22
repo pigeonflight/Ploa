@@ -102,16 +102,18 @@ export async function fetch(path?: string): Promise<any> {
 }
 
 /**
- * Search for items by portal_type
+ * Search for items by portal_type, path, or full-text search
  */
 export async function search(
   portalType?: string,
-  path?: string
+  path?: string,
+  searchableText?: string
 ): Promise<SearchResponse> {
   try {
     const response = await invoke<SearchResponse>("search", {
       portalType: portalType || null,
       path: path || null,
+      searchableText: searchableText || null,
     });
     return response;
   } catch (error) {

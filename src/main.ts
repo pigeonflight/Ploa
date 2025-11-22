@@ -17,7 +17,12 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <div style="padding: 2rem; height: 100%; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: ${THEME_BG_LIGHT};">
     <header style="border-bottom: 2px solid rgba(170, 196, 245, 0.15); padding: 0.5rem 0; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
-      <img src="/PloaCircle.svg" alt="Ploa" style="height: 28px;" />
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <img src="/PloaCircle.svg" alt="Ploa" style="height: 28px;" />
+        <div id="updateIndicator" style="display: none; padding: 0.25rem 0.5rem; background: ${PLONE_BLUE}; color: white; border-radius: 4px; font-size: 11px; font-weight: 500; cursor: pointer; opacity: 0.9; transition: opacity 0.2s;" title="Update available - click to download">
+          Update available
+        </div>
+      </div>
       <div id="userStatus" style="display: flex; align-items: center; gap: 1rem;">
         <span id="statusText" style="color: #666; font-size: 14px;">Not connected</span>
         <button id="headerLoginBtn" style="display: none; padding: 0.25rem 0.75rem; background: transparent; border: 1px solid ${PLONE_BLUE}; color: ${PLONE_BLUE}; border-radius: 4px; cursor: pointer; font-size: 14px;">
@@ -274,67 +279,21 @@ document.addEventListener("DOMContentLoaded", () => {
     return 0;
   }
 
-  // Show update notification
+  // Show update indicator (discreet top-left indicator)
   function showUpdateNotification(version: string, releaseUrl: string) {
-    // Check if notification already shown (store in sessionStorage)
-    const notificationKey = `update-notification-${version}`;
-    if (sessionStorage.getItem(notificationKey)) {
-      return; // Already shown in this session
+    const updateIndicator = document.getElementById("updateIndicator");
+    if (!updateIndicator) {
+      return;
     }
 
-    const notification = document.createElement("div");
-    notification.id = "update-notification";
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: ${PLONE_BLUE};
-      color: white;
-      padding: 1rem 1.5rem;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      z-index: 10000;
-      max-width: 350px;
-      animation: slideIn 0.3s ease-out;
-    `;
-    notification.innerHTML = `
-      <style>
-        @keyframes slideIn {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-      </style>
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
-        <div style="flex: 1;">
-          <div style="font-weight: 600; margin-bottom: 0.25rem;">New Version Available!</div>
-          <div style="font-size: 0.9em; opacity: 0.95;">Ploa ${version} is now available</div>
-        </div>
-        <button id="closeUpdateNotification" style="background: transparent; border: none; color: white; font-size: 1.2em; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; opacity: 0.8;">×</button>
-      </div>
-      <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem;">
-        <button id="downloadUpdateBtn" style="flex: 1; padding: 0.5rem 1rem; background: white; color: ${PLONE_BLUE}; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 0.9em;">
-          Download
-        </button>
-        <button id="dismissUpdateNotification" style="padding: 0.5rem 1rem; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
-          Later
-        </button>
-      </div>
-    `;
+    // Show the indicator
+    updateIndicator.style.display = "block";
+    updateIndicator.setAttribute("data-version", version);
+    updateIndicator.setAttribute("data-release-url", releaseUrl);
+    updateIndicator.title = `Update available: v${version} - click to download`;
 
-    document.body.appendChild(notification);
-    sessionStorage.setItem(notificationKey, "true");
-
-    // Close handlers
-    document.getElementById("closeUpdateNotification")?.addEventListener("click", () => {
-      notification.remove();
-    });
-
-    document.getElementById("dismissUpdateNotification")?.addEventListener("click", () => {
-      notification.remove();
-    });
-
-    // Download button handler - open release URL in browser
-    document.getElementById("downloadUpdateBtn")?.addEventListener("click", async () => {
+    // Click handler to open release URL
+    updateIndicator.onclick = async () => {
       try {
         // Try with 'url' parameter first (for URLs)
         await invoke("plugin:shell|open", { url: releaseUrl });
@@ -346,15 +305,15 @@ document.addEventListener("DOMContentLoaded", () => {
           console.error("Failed to open release URL:", fallbackError);
         }
       }
-    });
+    };
 
-    // Auto-dismiss after 30 seconds
-    setTimeout(() => {
-      if (notification.parentElement) {
-        notification.style.animation = "slideOut 0.3s ease-out";
-        setTimeout(() => notification.remove(), 300);
-      }
-    }, 30000);
+    // Hover effect
+    updateIndicator.onmouseenter = () => {
+      updateIndicator.style.opacity = "1";
+    };
+    updateIndicator.onmouseleave = () => {
+      updateIndicator.style.opacity = "0.9";
+    };
   }
 
   // State

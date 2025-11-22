@@ -37,7 +37,7 @@ async fn fetch(
             .lock()
             .unwrap()
             .clone()
-            .ok_or("Not logged in. Please login first.")?
+            .ok_or("Not connected. Please connect to a Plone site first.")?
     };
     
     client
@@ -50,6 +50,7 @@ async fn fetch(
 async fn search(
     portal_type: Option<String>,
     path: Option<String>,
+    searchable_text: Option<String>,
     state: State<'_, ApiClientState>,
 ) -> Result<Value, String> {
     let client = {
@@ -57,11 +58,11 @@ async fn search(
             .lock()
             .unwrap()
             .clone()
-            .ok_or("Not logged in. Please login first.")?
+            .ok_or("Not connected. Please connect to a Plone site first.")?
     };
     
     client
-        .search(portal_type.as_deref(), path.as_deref())
+        .search(portal_type.as_deref(), path.as_deref(), searchable_text.as_deref())
         .await
         .map_err(|e| e.to_string())
 }
@@ -77,7 +78,7 @@ async fn patch(
             .lock()
             .unwrap()
             .clone()
-            .ok_or("Not logged in. Please login first.")?
+            .ok_or("Not connected. Please connect to a Plone site first.")?
     };
     
     client
@@ -97,7 +98,7 @@ async fn post(
             .lock()
             .unwrap()
             .clone()
-            .ok_or("Not logged in. Please login first.")?
+            .ok_or("Not connected. Please connect to a Plone site first.")?
     };
     
     client
@@ -152,7 +153,7 @@ async fn collect_tags(
             .lock()
             .unwrap()
             .clone()
-            .ok_or("Not logged in. Please login first.")?
+            .ok_or("Not connected. Please connect to a Plone site first.")?
     };
     
     let tags = client
@@ -175,7 +176,7 @@ async fn find_similar_tags(
             .lock()
             .unwrap()
             .clone()
-            .ok_or("Not logged in. Please login first.")?
+            .ok_or("Not connected. Please connect to a Plone site first.")?
     };
     
     // Convert Value to HashMap<String, usize>
@@ -204,7 +205,7 @@ async fn merge_tags(
             .lock()
             .unwrap()
             .clone()
-            .ok_or("Not logged in. Please login first.")?
+            .ok_or("Not connected. Please connect to a Plone site first.")?
     };
     
     let result = client

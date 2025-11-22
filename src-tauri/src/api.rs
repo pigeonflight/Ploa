@@ -304,6 +304,7 @@ impl PloneApiClient {
         &self,
         portal_type: Option<&str>,
         path: Option<&str>,
+        searchable_text: Option<&str>,
     ) -> Result<Value, ApiError> {
         let mut url = self.search_url()?;
         url.query_pairs_mut().append_pair("b_size", "1000");
@@ -314,6 +315,10 @@ impl PloneApiClient {
 
         if let Some(p) = path {
             url.query_pairs_mut().append_pair("path", p);
+        }
+
+        if let Some(st) = searchable_text {
+            url.query_pairs_mut().append_pair("SearchableText", st);
         }
 
         let response = self
