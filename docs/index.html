@@ -142,8 +142,12 @@
 
         /* Main Hero Section */
         .hero {
-            text-align: center;
+            text-align: left;
             margin-bottom: 3rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
         }
 
         .hero h1 {
@@ -167,15 +171,15 @@
         .hero-description {
             font-size: 1.25rem;
             color: #333333;
-            max-width: 700px;
-            margin: 0 auto 3rem;
+            color: #333333;
+            margin: 0 0 3rem;
             line-height: 1.6;
         }
 
         /* CTA Buttons */
         .cta-buttons {
             display: flex;
-            justify-content: center;
+            justify-content: flex-start;
             gap: 1rem;
             flex-wrap: wrap;
             margin-bottom: 4rem;
@@ -223,6 +227,25 @@
             width: 16px;
             height: 16px;
             display: inline-block;
+        }
+
+        .hero-content {
+            max-width: 600px;
+        }
+
+        .hero-video {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            background: white;
+        }
+
+        .hero-video video {
+            width: 100%;
+            height: auto;
+            display: block;
         }
 
         /* Features Section */
@@ -338,6 +361,16 @@
 
         /* Responsive */
         @media (max-width: 768px) {
+            .hero {
+                grid-template-columns: 1fr;
+                text-align: center;
+                gap: 2rem;
+            }
+
+            .hero-content {
+                margin: 0 auto;
+            }
+
             .hero h1 {
                 font-size: 3rem;
             }
@@ -355,6 +388,7 @@
             }
 
             .cta-buttons {
+                justify-content: center;
                 flex-direction: column;
                 align-items: stretch;
             }
@@ -395,32 +429,43 @@
 
         <!-- Hero Section -->
         <div class="hero">
-            <h1>
-                <span class="line-1">Ploa</span>
-                <span class="line-2">Your Plone</span>
-                <span class="line-3">Desktop Companion</span>
-            </h1>
-            <p class="hero-description">
-                A native desktop application that makes managing Plone sites faster and easier.
-                Connect to your Plone site, browse content, manage tags, and edit blocks—all from
-                a dedicated app that stays logged in and remembers your preferences.
-            </p>
-            <div class="cta-buttons">
-                <a href="https://github.com/pigeonflight/Ploa/releases/latest" class="btn btn-primary">
-                    Download Now
-                    <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
-                </a>
-                <a href="https://github.com/pigeonflight/Ploa" class="btn btn-secondary">
-                    <svg class="btn-icon" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path fill-rule="evenodd"
-                            d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-                            clip-rule="evenodd"></path>
-                    </svg>
-                    View on GitHub
-                </a>
+            <div class="hero-content">
+                <h1>
+                    <span class="line-1">Ploa</span>
+                    <span class="line-2">Your Plone</span>
+                    <span class="line-3">Desktop Companion</span>
+                </h1>
+                <p class="hero-description">
+                    A native desktop application that makes managing Plone sites faster and easier.
+                    Connect to your Plone site, browse content, manage tags, and edit blocks—all from
+                    a dedicated app that stays logged in and remembers your preferences.
+                </p>
+                <div class="cta-buttons">
+                    <a href="https://github.com/pigeonflight/Ploa/releases/latest" class="btn btn-primary">
+                        Download Now
+                        <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg>
+                    </a>
+                    <a href="https://github.com/pigeonflight/Ploa" class="btn btn-secondary">
+                        <svg class="btn-icon" fill="currentColor" viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd"
+                                d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                                clip-rule="evenodd"></path>
+                        </svg>
+                        View on GitHub
+                    </a>
+                </div>
+            </div>
+            <div class="hero-video">
+                <video autoplay loop muted playsinline
+                    poster="https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg">
+                    <source src="videos/ploa-demo.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
             </div>
         </div>
 
