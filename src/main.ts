@@ -697,10 +697,15 @@ document.addEventListener("DOMContentLoaded", () => {
                       `).join('')
       }
           </div>
-          <div style="display: flex; gap: 0.5rem;">
-            <input type="text" id="newTagInput" placeholder="Add new tag..." style="flex: 1; padding: 0.5rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px;" />
-            <button id="addTagBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer;">Add</button>
-            <button id="saveTagsBtn" style="padding: 0.5rem 1rem; background: ${THEME_SECONDARY}; color: #333; border: none; border-radius: 4px; cursor: pointer;">Save Tags</button>
+          <div style="position: relative;">
+            <div style="display: flex; gap: 0.5rem;">
+              <div style="flex: 1; position: relative;">
+                <input type="text" id="newTagInput" placeholder="Add new tag..." style="width: 100%; padding: 0.5rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px;" />
+                <div id="tagAutocomplete" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid ${THEME_SECONDARY}; border-top: none; border-radius: 0 0 4px 4px; max-height: 200px; overflow-y: auto; z-index: 1000; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
+              </div>
+              <button id="addTagBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer;">Add</button>
+              <button id="saveTagsBtn" style="padding: 0.5rem 1rem; background: ${THEME_SECONDARY}; color: #333; border: none; border-radius: 4px; cursor: pointer;">Save Tags</button>
+            </div>
           </div>
           <div id="tagStatus" style="margin-top: 0.5rem; font-size: 13px; display: none;"></div>
         </div>
@@ -782,6 +787,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const tagsContainer = document.getElementById("tagsContainer");
     const newTagInput = document.getElementById("newTagInput") as HTMLInputElement;
     const tagStatus = document.getElementById("tagStatus") as HTMLDivElement;
+    const tagAutocomplete = document.getElementById("tagAutocomplete") as HTMLDivElement;
+    
+    // Load all existing tags for autocomplete
+    let allTags: string[] = [];
+    let selectedAutocompleteTag: string | null = null;
+    let currentMatches: string[] = [];
+    
+    (async () => {
+      try {
+        const tagsData = await api.collectTags();
+        allTags = Object.keys(tagsData).sort();
+      } catch (error) {
+        console.error('Failed to load tags for autocomplete:', error);
+      }
+    })();
     
     // Validate path after tagStatus is declared
     if (!objectPath || objectPath === '/') {
@@ -792,6 +812,126 @@ document.addEventListener("DOMContentLoaded", () => {
         tagStatus.style.display = 'block';
       }
     }
+    
+    // Autocomplete functionality
+    function filterTags(query: string): string[] {
+      if (!query.trim()) return [];
+      const lowerQuery = query.toLowerCase();
+      return allTags
+        .filter(tag => 
+          tag.toLowerCase().includes(lowerQuery) && 
+          !currentTags.includes(tag)
+        )
+        .slice(0, 10); // Limit to 10 suggestions
+    }
+    
+    function renderAutocomplete(matches: string[]) {
+      if (!tagAutocomplete) return;
+      currentMatches = matches;
+      
+      if (matches.length === 0) {
+        tagAutocomplete.style.display = 'none';
+        selectedAutocompleteTag = null;
+        return;
+      }
+      
+      tagAutocomplete.innerHTML = matches.map((tag, index) => `
+        <div class="autocomplete-item" data-tag="${tag}" style="padding: 0.5rem; cursor: pointer; border-bottom: 1px solid ${THEME_BG_LIGHT}; ${tag === selectedAutocompleteTag ? `background: ${THEME_BG_LIGHT};` : ''}">
+          ${tag}
+        </div>
+      `).join('');
+      
+      tagAutocomplete.style.display = 'block';
+      
+      // Attach click and hover handlers
+      tagAutocomplete.querySelectorAll('.autocomplete-item').forEach(item => {
+        const tag = item.getAttribute('data-tag');
+        const isSelected = tag === selectedAutocompleteTag;
+        
+        item.addEventListener('click', () => {
+          if (tag) {
+            selectTag(tag);
+          }
+        });
+        
+        item.addEventListener('mouseenter', () => {
+          (item as HTMLElement).style.background = THEME_BG_LIGHT;
+        });
+        
+        item.addEventListener('mouseleave', () => {
+          (item as HTMLElement).style.background = isSelected ? THEME_BG_LIGHT : 'transparent';
+        });
+      });
+    }
+    
+    function selectTag(tag: string) {
+      if (tag && !currentTags.includes(tag)) {
+        currentTags.push(tag);
+        updateTagsDisplay();
+        newTagInput.value = '';
+        tagAutocomplete.style.display = 'none';
+        selectedAutocompleteTag = null;
+      }
+    }
+    
+    newTagInput?.addEventListener('input', (e) => {
+      const query = (e.target as HTMLInputElement).value;
+      const matches = filterTags(query);
+      selectedAutocompleteTag = matches.length > 0 ? matches[0] : null;
+      renderAutocomplete(matches);
+    });
+    
+    newTagInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        if (tagAutocomplete && tagAutocomplete.style.display !== 'none' && selectedAutocompleteTag) {
+          // If autocomplete is visible and a tag is selected, use that
+          e.preventDefault();
+          selectTag(selectedAutocompleteTag);
+        } else {
+          // Otherwise, add the tag as typed
+          document.getElementById("addTagBtn")?.click();
+        }
+        return;
+      }
+      
+      if (!tagAutocomplete || tagAutocomplete.style.display === 'none') {
+        return;
+      }
+      
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const currentIndex = selectedAutocompleteTag ? currentMatches.indexOf(selectedAutocompleteTag) : -1;
+        const nextIndex = Math.min(currentIndex + 1, currentMatches.length - 1);
+        selectedAutocompleteTag = currentMatches[nextIndex] || null;
+        renderAutocomplete(currentMatches);
+        // Scroll into view
+        if (selectedAutocompleteTag) {
+          const selectedItem = tagAutocomplete.querySelector(`[data-tag="${selectedAutocompleteTag}"]`) as HTMLElement;
+          if (selectedItem) {
+            selectedItem.scrollIntoView({ block: 'nearest' });
+          }
+        }
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const currentIndex = selectedAutocompleteTag ? currentMatches.indexOf(selectedAutocompleteTag) : currentMatches.length;
+        const prevIndex = Math.max(currentIndex - 1, -1);
+        selectedAutocompleteTag = prevIndex >= 0 ? currentMatches[prevIndex] : null;
+        renderAutocomplete(currentMatches);
+      } else if (e.key === 'Escape') {
+        tagAutocomplete.style.display = 'none';
+        selectedAutocompleteTag = null;
+      }
+    });
+    
+    // Hide autocomplete when clicking outside
+    document.addEventListener('click', (e) => {
+      if (tagAutocomplete && newTagInput && 
+          !tagAutocomplete.contains(e.target as Node) && 
+          e.target !== newTagInput) {
+        tagAutocomplete.style.display = 'none';
+        selectedAutocompleteIndex = -1;
+      }
+    });
 
     function updateTagsDisplay() {
       if (!tagsContainer) return;
@@ -823,11 +963,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    newTagInput?.addEventListener("keypress", (e) => {
-      if (e.key === 'Enter') {
-        document.getElementById("addTagBtn")?.click();
-      }
-    });
+    // Enter key handling is now in keydown handler above for autocomplete support
 
     document.getElementById("saveTagsBtn")?.addEventListener("click", async () => {
       try {

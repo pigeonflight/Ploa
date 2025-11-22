@@ -1,6 +1,6 @@
 [package]
 name = "ploa"
-version = "0.1.0"
+version = "1.1.9"
 description = "Plone REST API GUI - A Rust-based GUI application"
 authors = ["David Bain <david.bain@incrementic.com>"]
 license = "MIT"
