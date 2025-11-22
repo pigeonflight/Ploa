@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg" alt="Ploa Logo" width="176" height="176">
+</div>
+
 # Ploa - Plone REST API GUI
 
 A Rust-based GUI application for interacting with Plone REST API sites, similar to ploneapi-shell but with a graphical interface.
