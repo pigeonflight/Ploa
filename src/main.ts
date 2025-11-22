@@ -1462,7 +1462,31 @@ document.addEventListener("DOMContentLoaded", () => {
         <div style="margin-bottom: 1.5rem;">
           <h4 style="margin: 0 0 0.5rem 0;">Details</h4>
           <p><strong>Type:</strong> ${objectData['@type'] || objectData.type || "Unknown"}</p>
-          <p><strong>Path:</strong> ${path.replace(currentBaseUrl, '')}</p>
+          <p><strong>Path:</strong> ${(() => {
+            // Convert API URL to public site URL by removing ++api++ part
+            let publicUrl = path;
+            try {
+              if (path.includes('++api++')) {
+                const urlObj = new URL(path);
+                let pathname = urlObj.pathname;
+                // Remove ++api++ and everything before it
+                if (pathname.includes('++api++')) {
+                  const parts = pathname.split('++api++');
+                  pathname = parts[parts.length - 1] || '/';
+                }
+                publicUrl = `${urlObj.protocol}//${urlObj.host}${pathname}`;
+              } else if (path.startsWith('http')) {
+                publicUrl = path;
+              } else {
+                // Relative path, construct from base URL
+                publicUrl = currentBaseUrl ? `${currentBaseUrl.replace('/++api++', '')}${path.startsWith('/') ? path : '/' + path}` : path;
+              }
+            } catch (e) {
+              // Fallback to just showing the path
+              publicUrl = path.replace(currentBaseUrl, '');
+            }
+            return `<a href="${publicUrl}" target="_blank" style="color: ${PLONE_BLUE}; text-decoration: underline;">${publicUrl}</a>`;
+          })()}</p>
         </div>
 
         <!--Tags Section-->
