@@ -16,7 +16,7 @@ const PLONE_BLUE = THEME_PRIMARY;
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <div style="padding: 2rem; height: 100%; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: ${THEME_BG_LIGHT};">
-    <header style="border-bottom: 2px solid ${THEME_SECONDARY}; padding: 0.5rem 0; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+    <header style="border-bottom: 2px solid rgba(170, 196, 245, 0.05); padding: 0.5rem 0; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
       <img src="/PloaCircle.svg" alt="Ploa" style="height: 28px;" />
       <div id="userStatus" style="display: flex; align-items: center; gap: 1rem;">
         <span id="statusText" style="color: #666; font-size: 14px;">Not connected</span>
