@@ -2,17 +2,18 @@
   <img src="https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg" alt="Ploa Logo" width="176" height="176">
 </div>
 
-# Ploa - Plone REST API GUI
+# Ploa - Your Plone Desktop Companion
 
-A Rust-based GUI application for interacting with Plone REST API sites, similar to ploneapi-shell but with a graphical interface.
+A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app that stays logged in and remembers your preferences.
 
 ## Features
 
-- Interactive GUI for exploring Plone sites
-- Navigate content hierarchy
-- Manage tags and metadata
-- Manipulate Plone 6 blocks
-- Native macOS application with DMG packaging
+- **Quick Access:** Instantly connect to your Plone site without browser clutter.
+- **Remember Last Site:** Automatically reconnects to where you left off.
+- **Fast Content Browsing:** Navigate folders and view item details quickly.
+- **Tag Cleanup:** Find and merge duplicate tags across your site.
+- **Visual Block Editing:** Drag-and-drop block management.
+- **Native Experience:** Fast, responsive, and built for macOS.
 
 ## Development
 
@@ -43,23 +44,9 @@ bun run tauri:build
 
 The DMG will be created in `src-tauri/target/release/bundle/dmg/`
 
-## Installation (macOS)
+## Installation
 
-If you see a "damaged" or "cannot be opened" error when launching Ploa from the DMG, this is because the app is unsigned (macOS Gatekeeper security). To fix this:
-
-**Option 1: Right-click to open (Recommended)**
-1. Right-click on the Ploa.app in the DMG
-2. Select "Open" from the context menu
-3. Click "Open" in the security dialog
-4. The app will now launch and be added to your exceptions list
-
-**Option 2: Remove quarantine attribute**
-Open Terminal and run:
-```bash
-xattr -cr /Applications/Ploa.app
-```
-
-**Note:** For production releases, the app should be code-signed with an Apple Developer certificate. Currently, Ploa is distributed unsigned for open-source releases.
+Download the latest release from the [Releases page](https://github.com/pigeonflight/Ploa/releases).
 
 ## Project Structure
 
