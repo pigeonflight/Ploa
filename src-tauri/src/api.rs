@@ -627,7 +627,7 @@ impl PloneApiClient {
                         .iter()
                         .any(|s| s.trim().eq_ignore_ascii_case(source_trimmed));
                     
-                    let has_target = subjects
+                    let _has_target = subjects
                         .iter()
                         .any(|s| s.trim().eq_ignore_ascii_case(target_trimmed));
                     
