@@ -332,3 +332,25 @@ export async function mergeTags(
     );
   }
 }
+
+/**
+ * Move an item to a new parent folder
+ * @param sourcePath - Path to the item to move (e.g., "/plone/front-page")
+ * @param destinationPath - Path to the destination folder (e.g., "/plone/folder")
+ */
+export async function moveItem(
+  sourcePath: string,
+  destinationPath: string
+): Promise<any> {
+  try {
+    const response = await invoke("move_item", {
+      sourcePath,
+      destinationPath,
+    });
+    return response;
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to move item"
+    );
+  }
+}

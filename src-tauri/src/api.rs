@@ -300,6 +300,68 @@ impl PloneApiClient {
         }
     }
 
+    pub async fn move_item(
+        &self,
+        source_path: &str,
+        destination_path: &str,
+    ) -> Result<Value, ApiError> {
+        // POST to destination/@move with source in body
+        let move_url = self.resolve_url(Some(&format!("{}/@move", destination_path.trim_end_matches('/'))));
+        let move_data = json!({
+            "source": source_path
+        });
+
+        let response = self
+            .build_request(reqwest::Method::POST, &move_url)
+            .json(&move_data)
+            .send()
+            .await
+            .map_err(|e| ApiError {
+                message: format!("Move request failed: {}", e),
+                status: None,
+            })?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| format!("Move failed with status {}", status.as_u16()));
+            
+            // Try to extract error message from JSON
+            let error_msg = if let Ok(error_json) = serde_json::from_str::<Value>(&error_text) {
+                error_json
+                    .get("message")
+                    .or_else(|| error_json.get("error"))
+                    .or_else(|| error_json.get("type"))
+                    .and_then(|v| v.as_str())
+                    .map(|s| format!("{}: {}", status.as_u16(), s))
+                    .unwrap_or_else(|| error_text)
+            } else {
+                error_text
+            };
+
+            return Err(ApiError {
+                message: error_msg,
+                status: Some(status.as_u16()),
+            });
+        }
+
+        let content = response.text().await.map_err(|e| ApiError {
+            message: format!("Failed to read move response: {}", e),
+            status: Some(status.as_u16()),
+        })?;
+
+        if content.is_empty() {
+            Ok(Value::Object(serde_json::Map::new()))
+        } else {
+            serde_json::from_str(&content).map_err(|e| ApiError {
+                message: format!("Failed to parse move response: {}", e),
+                status: Some(status.as_u16()),
+            })
+        }
+    }
+
     pub async fn search(
         &self,
         portal_type: Option<&str>,

@@ -216,6 +216,26 @@ async fn merge_tags(
     Ok(serde_json::to_value(result).map_err(|e| e.to_string())?)
 }
 
+#[tauri::command]
+async fn move_item(
+    source_path: String,
+    destination_path: String,
+    state: State<'_, ApiClientState>,
+) -> Result<Value, String> {
+    let client = {
+        state
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or("Not connected. Please connect to a Plone site first.")?
+    };
+    
+    client
+        .move_item(&source_path, &destination_path)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -231,6 +251,7 @@ fn main() {
             collect_tags,
             find_similar_tags,
             merge_tags,
+            move_item,
             get_app_version
         ])
         .run(tauri::generate_context!())

@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
   <div style="padding: 2rem; height: 100%; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: ${THEME_BG_LIGHT};">
     <header style="border-bottom: 2px solid rgba(170, 196, 245, 0.15); padding: 0.5rem 0; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
       <div style="display: flex; align-items: center; gap: 0.75rem;">
-        <img src="/PloaCircle.svg" alt="Ploa" style="height: 28px;" />
+      <img src="/PloaCircle.svg" alt="Ploa" style="height: 28px;" />
         <div id="updateIndicator" style="display: none; padding: 0.25rem 0.5rem; background: ${PLONE_BLUE}; color: white; border-radius: 4px; font-size: 11px; font-weight: 500; cursor: pointer; opacity: 0.9; transition: opacity 0.2s;" title="Update available - click to download">
           Update available
         </div>
@@ -101,8 +101,12 @@ document.addEventListener("DOMContentLoaded", () => {
         <div id="app-content" style="display: none;">
           <div id="browser" style="display: flex; flex-direction: column; gap: 1rem;">
             <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-              <button id="backBtn" style="padding: 0.5rem 1rem; background: ${THEME_BG_LIGHT}; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; cursor: pointer; color: #333;">
-                ← Up
+              <button id="backBtn" style="padding: 0.5rem 1rem; background: ${THEME_BG_LIGHT}; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; cursor: pointer; color: #333; display: flex; align-items: center; gap: 0.5rem;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="19" x2="12" y2="5"></line>
+                  <polyline points="5 12 12 5 19 12"></polyline>
+                </svg>
+                Up
               </button>
               <button id="browseBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer;">
                 Browse Root
@@ -134,8 +138,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 Clear
               </button>
             </div>
-            <div id="itemsList" style="border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; padding: 1rem; min-height: 200px; background: ${THEME_BG_LIGHT};">
-              <p style="color: #666;">Click "Browse Root" to load items</p>
+            <div id="breadcrumb" style="margin-bottom: 0.5rem; padding: 0.5rem; background: ${THEME_BG_ACCENT}; border-radius: 4px; font-size: 13px; color: #666; display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap;">
+              <span style="color: ${PLONE_BLUE}; cursor: pointer;" data-path="" class="breadcrumb-item">Root</span>
+            </div>
+            <div id="itemsList" style="border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; padding: 0.5rem; min-height: 200px; background: ${THEME_BG_LIGHT}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+              <p style="color: #666; padding: 1rem;">Click "Browse Root" to load items</p>
             </div>
           </div>
         </div>
@@ -188,6 +195,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.querySelector<HTMLInputElement>("#searchInput")!;
   const itemsList = document.querySelector<HTMLDivElement>("#itemsList")!;
   const currentPathSpan = document.querySelector<HTMLSpanElement>("#currentPath")!;
+  const breadcrumb = document.querySelector<HTMLDivElement>("#breadcrumb")!;
   const statusText = document.querySelector<HTMLSpanElement>("#statusText")!;
   const headerLoginBtn = document.querySelector<HTMLButtonElement>("#headerLoginBtn")!;
   const disconnectBtn = document.querySelector<HTMLButtonElement>("#disconnectBtn")!;
@@ -227,7 +235,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (versionSpan) {
       versionSpan.textContent = version;
     }
-
+    
     // Check for updates in the background
     checkForUpdates(version);
   }).catch((error) => {
@@ -246,14 +254,14 @@ document.addEventListener("DOMContentLoaded", () => {
           "Accept": "application/vnd.github.v3+json"
         }
       });
-
+      
       if (!response.ok) {
         return; // Silently fail - don't bother user if check fails
       }
-
+      
       const release = await response.json();
       const latestVersion = release.tag_name.replace(/^v/, ""); // Remove 'v' prefix if present
-
+      
       // Compare versions (simple string comparison should work for semantic versioning)
       if (compareVersions(latestVersion, currentVersion) > 0) {
         // New version available - show notification
@@ -269,7 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function compareVersions(v1: string, v2: string): number {
     const parts1 = v1.split('.').map(Number);
     const parts2 = v2.split('.').map(Number);
-
+    
     for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
       const part1 = parts1[i] || 0;
       const part2 = parts2[i] || 0;
@@ -319,6 +327,20 @@ document.addEventListener("DOMContentLoaded", () => {
   // State
   let currentBaseUrl = "";
   let currentPath = "";
+  
+  // Tree state for hierarchical browsing
+  interface TreeNode {
+    item: api.ItemMetadata;
+    path: string;
+    children: TreeNode[];
+    expanded: boolean;
+    loaded: boolean;
+    hasChildren: boolean; // Track if we know this item has children
+    depth: number;
+  }
+  
+  let treeRoot: TreeNode[] = [];
+  let expandedPaths: Set<string> = new Set();
 
   // Helper to extract item ID from @id field
   function extractItemId(item: any): string {
@@ -347,6 +369,42 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     // Fallback to id field if available
     return item.id || item.title || 'unknown';
+  }
+
+  // Helper to get full path of an item (for API calls)
+  function getItemFullPath(item: any): string {
+    // Try @id first (full URL from Plone REST API)
+    if (item['@id']) {
+      const url = item['@id'];
+      try {
+        const urlObj = new URL(url);
+        let path = urlObj.pathname;
+        // Remove ++api++ prefix if present
+        if (path.includes('++api++')) {
+          const parts = path.split('++api++');
+          if (parts.length > 1) {
+            path = parts[1];
+          }
+        }
+        // Return path without leading slash
+        return path.replace(/^\//, '');
+      } catch {
+        // If URL parsing fails, try to extract from string
+        if (url.includes('++api++')) {
+          const parts = url.split('++api++');
+          if (parts.length > 1) {
+            return parts[1].replace(/^\//, '');
+          }
+        }
+        return url;
+      }
+    }
+    // Fallback: construct path from currentPath and item ID
+    if (item.path) {
+      return item.path.replace(/^\//, '');
+    }
+    const itemId = extractItemId(item);
+    return currentPath ? `${currentPath}/${itemId}` : itemId;
   }
 
   // Load history
@@ -403,6 +461,8 @@ document.addEventListener("DOMContentLoaded", () => {
       statusText.style.color = THEME_PRIMARY;
       headerLoginBtn.style.display = "none";
       disconnectBtn.style.display = "block";
+      // Automatically load root items when app content is shown
+      loadTreeItems("");
     } else {
       loginForm.style.display = "block";
       appContent.style.display = "none";
@@ -497,156 +557,442 @@ document.addEventListener("DOMContentLoaded", () => {
     updateAuthState(false);
   });
 
-  // Browse button handler
-  browseBtn.addEventListener("click", async () => {
-    console.log("Browse button clicked, currentPath:", currentPath);
-    try {
-      itemsList.innerHTML = "<p>Loading...</p>";
-      console.log("Calling api.getItems with path:", currentPath || undefined);
-      const items = await api.getItems(currentPath || undefined);
-      console.log("Received items:", items);
+  // Tree rendering functions
+  function updateBreadcrumb(path: string) {
+    if (!breadcrumb) return;
+    breadcrumb.innerHTML = "";
+    const parts = path ? path.split("/").filter(p => p) : [];
+    
+    // Add Root
+    const rootSpan = document.createElement("span");
+    rootSpan.style.color = PLONE_BLUE;
+    rootSpan.style.cursor = "pointer";
+    rootSpan.className = "breadcrumb-item";
+    rootSpan.setAttribute("data-path", "");
+    rootSpan.textContent = "Root";
+    rootSpan.onclick = () => loadTreeItems("");
+    breadcrumb.appendChild(rootSpan);
+    
+    // Add path segments
+    let currentPathSeg = "";
+    parts.forEach((part, index) => {
+      const separator = document.createElement("span");
+      separator.textContent = " / ";
+      separator.style.color = "#999";
+      separator.style.pointerEvents = "none"; // Prevent separator from blocking clicks
+      breadcrumb.appendChild(separator);
+      
+      currentPathSeg = currentPathSeg ? `${currentPathSeg}/${part}` : part;
+      const pathSpan = document.createElement("span");
+      const isLast = index === parts.length - 1;
+      pathSpan.style.color = isLast ? "#333" : PLONE_BLUE;
+      pathSpan.style.cursor = isLast ? "default" : "pointer";
+      pathSpan.style.textDecoration = isLast ? "none" : "none";
+      pathSpan.className = "breadcrumb-item";
+      pathSpan.setAttribute("data-path", currentPathSeg);
+      pathSpan.textContent = part;
+      
+      // Make all breadcrumb items clickable except the last one
+      if (!isLast) {
+        pathSpan.style.textDecoration = "underline";
+        pathSpan.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          loadTreeItems(currentPathSeg);
+        });
+      }
+      breadcrumb.appendChild(pathSpan);
+    });
+  }
 
-      if (items.length === 0) {
-        itemsList.innerHTML = "<p style='color: #666;'>No items found</p>";
+  function createTreeNode(item: api.ItemMetadata, path: string, depth: number = 0, hasChildren: boolean = false): TreeNode {
+    return {
+      item,
+      path,
+      children: [],
+      expanded: expandedPaths.has(path),
+      loaded: false,
+      hasChildren,
+      depth
+    };
+  }
+
+  function renderTreeNode(node: TreeNode, container: HTMLElement) {
+    const isFolder = node.item.is_folderish || node.item['@type'] === 'Folder';
+    // Show arrow if: has loaded children, OR we know it has children, OR is a folder (might have children), OR already expanded
+    const hasChildren = node.children.length > 0 || node.hasChildren || isFolder || node.expanded;
+    
+    const treeNode = document.createElement("div");
+    treeNode.className = "tree-node";
+    treeNode.style.display = "flex";
+    treeNode.style.alignItems = "center";
+    treeNode.style.padding = "0.5rem";
+    treeNode.style.paddingLeft = `${0.5 + node.depth * 1.5}rem`;
+    treeNode.style.cursor = "pointer";
+    treeNode.style.transition = "background-color 0.2s, border-color 0.2s";
+    // Add visual indicator (left border) for items with children
+    if (hasChildren) {
+      treeNode.style.borderLeft = `3px solid ${PLONE_BLUE}`;
+      treeNode.style.paddingLeft = `${0.5 + node.depth * 1.5}rem`;
+    }
+    treeNode.setAttribute("data-path", node.path);
+    treeNode.setAttribute("data-depth", String(node.depth));
+
+    // Expand/collapse button - only show for items that have or might have children
+    const expandContainer = document.createElement("div");
+    expandContainer.style.width = "24px";
+    expandContainer.style.display = "flex";
+    expandContainer.style.alignItems = "center";
+    expandContainer.style.justifyContent = "center";
+    expandContainer.style.marginRight = "0.5rem";
+    expandContainer.style.minWidth = "24px";
+    
+    // Only show arrow if item has children (loaded) or is a folder (might have children)
+    if (hasChildren) {
+      const expandBtn = document.createElement("button");
+      expandBtn.style.background = "none";
+      expandBtn.style.border = "none";
+      expandBtn.style.cursor = "pointer";
+      expandBtn.style.padding = "0.25rem";
+      expandBtn.style.display = "flex";
+      expandBtn.style.alignItems = "center";
+      expandBtn.style.justifyContent = "center";
+      expandBtn.style.color = PLONE_BLUE;
+      expandBtn.style.width = "20px";
+      expandBtn.style.height = "20px";
+      expandBtn.style.minWidth = "20px";
+      expandBtn.style.minHeight = "20px";
+      
+      // Larger triangle arrows
+      expandBtn.innerHTML = node.expanded 
+        ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 9 12 15 18 9"/></svg>`
+        : `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="9 6 15 12 9 18"/></svg>`;
+      
+      expandBtn.onclick = async (e) => {
+        e.stopPropagation();
+        await toggleTreeNode(node);
+      };
+      expandBtn.onmouseover = (e) => {
+        e.stopPropagation();
+        expandBtn.style.opacity = "1";
+        expandBtn.style.transform = "scale(1.15)";
+        expandBtn.style.backgroundColor = THEME_BG_ACCENT;
+        expandBtn.style.borderRadius = "4px";
+        expandBtn.style.color = "#5A7FFF"; // Darker blue for distinction
+      };
+      expandBtn.onmouseout = (e) => {
+        e.stopPropagation();
+        expandBtn.style.opacity = "0.8";
+        expandBtn.style.transform = "scale(1)";
+        expandBtn.style.backgroundColor = "transparent";
+        expandBtn.style.color = PLONE_BLUE;
+      };
+      expandBtn.style.opacity = "0.8";
+      expandBtn.style.transition = "opacity 0.2s, transform 0.2s, background-color 0.2s, color 0.2s";
+      expandContainer.appendChild(expandBtn);
+    } else {
+      // Spacer for items without children
+      const spacer = document.createElement("div");
+      spacer.style.width = "24px";
+      expandContainer.appendChild(spacer);
+    }
+    treeNode.appendChild(expandContainer);
+
+    // Icon
+    const iconSpan = document.createElement("span");
+    iconSpan.style.marginRight = "0.5rem";
+    iconSpan.style.display = "flex";
+    iconSpan.style.alignItems = "center";
+    iconSpan.style.width = "18px";
+    iconSpan.style.height = "18px";
+    iconSpan.style.color = PLONE_BLUE;
+    if (isFolder) {
+      iconSpan.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 6.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
+      </svg>`;
+    } else {
+      iconSpan.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+      </svg>`;
+    }
+    treeNode.appendChild(iconSpan);
+
+    // Title and type
+    const contentDiv = document.createElement("div");
+    contentDiv.style.flex = "1";
+    contentDiv.style.minWidth = "0";
+    const titleDiv = document.createElement("div");
+    titleDiv.style.fontWeight = "500";
+    titleDiv.style.fontSize = "14px";
+    const titleText = node.item.title || extractItemId(node.item) || "Untitled";
+    const reviewState = node.item.review_state || node.item['review_state'];
+    if (reviewState) {
+      titleDiv.innerHTML = `${titleText} <span style="color: #999; font-weight: normal; font-size: 0.85em;">[${reviewState}]</span>`;
+    } else {
+      titleDiv.textContent = titleText;
+    }
+    const typeDiv = document.createElement("div");
+    typeDiv.style.fontSize = "0.75rem";
+    typeDiv.style.color = "#666";
+    typeDiv.textContent = node.item['@type'] || node.item.type || "Unknown";
+    contentDiv.appendChild(titleDiv);
+    contentDiv.appendChild(typeDiv);
+    treeNode.appendChild(contentDiv);
+
+    // Action buttons
+    const buttonContainer = document.createElement("div");
+    buttonContainer.style.display = "flex";
+    buttonContainer.style.alignItems = "center";
+    buttonContainer.style.gap = "0.25rem";
+    buttonContainer.style.marginLeft = "0.5rem";
+
+    // Browse button (only for folders or items that might have children)
+    if (isFolder || hasChildren) {
+      const browseBtn = document.createElement("button");
+      browseBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 6.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
+      </svg>`;
+      browseBtn.title = "Browse Contents";
+      browseBtn.style.background = "none";
+      browseBtn.style.border = "none";
+      browseBtn.style.cursor = "pointer";
+      browseBtn.style.padding = "0.4rem";
+      browseBtn.style.borderRadius = "50%";
+      browseBtn.style.display = "flex";
+      browseBtn.style.alignItems = "center";
+      browseBtn.style.justifyContent = "center";
+      browseBtn.style.color = PLONE_BLUE;
+      browseBtn.style.opacity = "0.6";
+      browseBtn.onmouseover = () => {
+        browseBtn.style.backgroundColor = THEME_SECONDARY;
+        browseBtn.style.opacity = "1";
+      };
+      browseBtn.onmouseout = () => {
+        browseBtn.style.backgroundColor = "transparent";
+        browseBtn.style.opacity = "0.6";
+      };
+      browseBtn.onclick = async (e) => {
+        e.stopPropagation();
+        await loadTreeItems(node.path);
+      };
+      buttonContainer.appendChild(browseBtn);
+    }
+
+    // Info button - ALWAYS visible for all items
+    const infoBtn = document.createElement("button");
+    infoBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>`;
+    infoBtn.title = "View Details & Tags";
+    infoBtn.style.background = "none";
+    infoBtn.style.border = "none";
+    infoBtn.style.cursor = "pointer";
+    infoBtn.style.padding = "0.4rem";
+    infoBtn.style.borderRadius = "50%";
+    infoBtn.style.display = "flex";
+    infoBtn.style.alignItems = "center";
+    infoBtn.style.justifyContent = "center";
+    infoBtn.style.color = PLONE_BLUE;
+    infoBtn.style.opacity = "0.6";
+    infoBtn.onmouseover = () => {
+      infoBtn.style.backgroundColor = THEME_SECONDARY;
+      infoBtn.style.opacity = "1";
+    };
+    infoBtn.onmouseout = () => {
+      infoBtn.style.backgroundColor = "transparent";
+      infoBtn.style.opacity = "0.6";
+    };
+    infoBtn.onclick = async (e) => {
+      e.stopPropagation();
+      itemsList.innerHTML = "<p>Loading...</p>";
+      try {
+        const objectData = await api.fetch(node.path);
+        showObjectDetails(objectData);
+      } catch (error) {
+        console.error("Error fetching object details:", error);
+        itemsList.innerHTML = `<p style='color: #d32f2f;'>Error loading details: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
+      }
+    };
+    buttonContainer.appendChild(infoBtn);
+    treeNode.appendChild(buttonContainer);
+
+    // Drag and drop
+    treeNode.draggable = true;
+    treeNode.addEventListener("dragstart", (e: DragEvent) => {
+      if (!e.dataTransfer) return;
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", node.path);
+      treeNode.style.opacity = "0.5";
+    });
+    treeNode.addEventListener("dragend", () => {
+      treeNode.style.opacity = "1";
+      document.querySelectorAll(".drag-over").forEach(el => {
+        el.classList.remove("drag-over");
+        (el as HTMLElement).style.borderColor = "";
+        (el as HTMLElement).style.backgroundColor = "";
+      });
+    });
+    treeNode.addEventListener("dragover", (e: DragEvent) => {
+      e.preventDefault();
+      if (!e.dataTransfer) return;
+      e.dataTransfer.dropEffect = "move";
+      const draggedPath = e.dataTransfer.getData("text/plain");
+      if (draggedPath === node.path) return;
+      treeNode.classList.add("drag-over");
+      treeNode.style.borderLeft = `3px solid ${PLONE_BLUE}`;
+      treeNode.style.backgroundColor = THEME_BG_ACCENT;
+    });
+    treeNode.addEventListener("dragleave", () => {
+      treeNode.classList.remove("drag-over");
+      treeNode.style.borderLeft = "";
+      treeNode.style.backgroundColor = "";
+    });
+    treeNode.addEventListener("drop", async (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      treeNode.classList.remove("drag-over");
+      treeNode.style.borderLeft = "";
+      treeNode.style.backgroundColor = "";
+      const sourcePath = e.dataTransfer?.getData("text/plain");
+      if (!sourcePath || sourcePath === node.path) return;
+      try {
+        await api.moveItem(sourcePath, node.path);
+        await loadTreeItems(currentPath);
+      } catch (error) {
+        alert(`Failed to move item: ${error instanceof Error ? error.message : "Unknown error"}`);
+      }
+    });
+
+    // Click to view details
+    treeNode.onclick = async (e) => {
+      if ((e.target as HTMLElement).closest("button")) return;
+      itemsList.innerHTML = "<p>Loading...</p>";
+      try {
+        const objectData = await api.fetch(node.path);
+        showObjectDetails(objectData);
+      } catch (error) {
+        console.error("Error fetching object details:", error);
+        itemsList.innerHTML = `<p style='color: #d32f2f;'>Error loading details: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
+      }
+    };
+
+    treeNode.onmouseover = (e) => {
+      // Don't highlight if hovering over the expand button
+      if ((e.target as HTMLElement).closest('button') && (e.target as HTMLElement).closest('button')?.parentElement === expandContainer) {
         return;
       }
+      if (!treeNode.classList.contains("drag-over")) {
+        treeNode.style.backgroundColor = THEME_BG_ACCENT;
+      }
+    };
+    treeNode.onmouseout = (e) => {
+      // Don't remove highlight if mouse moved to expand button
+      if ((e.relatedTarget as HTMLElement)?.closest('button') && (e.relatedTarget as HTMLElement)?.closest('button')?.parentElement === expandContainer) {
+        return;
+      }
+      if (!treeNode.classList.contains("drag-over")) {
+        treeNode.style.backgroundColor = "transparent";
+      }
+    };
 
-      // Clear list
-      itemsList.innerHTML = "";
+    container.appendChild(treeNode);
 
-      items.forEach((item) => {
-        const isFolder = item.is_folderish || item['@type'] === 'Folder';
-
-        const li = document.createElement("div");
-        li.style.padding = "0.75rem";
-        li.style.borderBottom = `1px solid ${THEME_SECONDARY}`;
-        li.style.display = "flex";
-        li.style.alignItems = "center";
-        li.style.justifyContent = "space-between";
-        li.style.cursor = "pointer";
-        li.style.transition = "background-color 0.2s";
-
-        li.onmouseover = () => { li.style.backgroundColor = THEME_BG_ACCENT; };
-        li.onmouseout = () => { li.style.backgroundColor = "transparent"; };
-
-        // Main click area (navigate or view)
-        const mainContent = document.createElement("div");
-        mainContent.style.display = "flex";
-        mainContent.style.alignItems = "center";
-        mainContent.style.flex = "1";
-
-        const iconSpan = document.createElement("span");
-        iconSpan.style.marginRight = "0.5rem";
-        iconSpan.style.display = "flex";
-        iconSpan.style.alignItems = "center";
-        iconSpan.style.width = "20px";
-        iconSpan.style.height = "20px";
-        iconSpan.style.color = PLONE_BLUE;
-        if (isFolder) {
-          iconSpan.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 6.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
-          </svg>`;
-        } else {
-          iconSpan.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-          </svg>`;
-        }
-
-        const textDiv = document.createElement("div");
-        const titleDiv = document.createElement("div");
-        titleDiv.style.fontWeight = "500";
-        titleDiv.textContent = item.title || extractItemId(item) || "Untitled";
-        const typeDiv = document.createElement("div");
-        typeDiv.style.fontSize = "0.8rem";
-        typeDiv.style.color = "#666";
-        typeDiv.textContent = item['@type'] || item.type || "Unknown";
-
-        textDiv.appendChild(titleDiv);
-        textDiv.appendChild(typeDiv);
-        mainContent.appendChild(iconSpan);
-        mainContent.appendChild(textDiv);
-
-        // Info button for details/tags (especially for folders)
-        const infoBtn = document.createElement("button");
-        infoBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="16" x2="12" y2="12"></line>
-          <line x1="12" y1="8" x2="12.01" y2="8"></line>
-        </svg>`;
-        infoBtn.title = "View Details & Tags";
-        infoBtn.style.background = "none";
-        infoBtn.style.border = "none";
-        infoBtn.style.cursor = "pointer";
-        infoBtn.style.padding = "0.5rem";
-        infoBtn.style.borderRadius = "50%";
-        infoBtn.style.display = "flex";
-        infoBtn.style.alignItems = "center";
-        infoBtn.style.justifyContent = "center";
-        infoBtn.style.color = PLONE_BLUE;
-        infoBtn.style.marginLeft = "0.5rem";
-        infoBtn.style.opacity = "0.6";
-        infoBtn.onmouseover = () => {
-          infoBtn.style.backgroundColor = THEME_SECONDARY;
-          infoBtn.style.opacity = "1";
-        };
-        infoBtn.onmouseout = () => {
-          infoBtn.style.backgroundColor = "transparent";
-          infoBtn.style.opacity = "0.6";
-        };
-
-        // Handle info button click - always show details
-        infoBtn.onclick = async (e) => {
-          e.stopPropagation(); // Prevent row click
-          itemsList.innerHTML = "<p>Loading...</p>";
-          try {
-            const itemId = extractItemId(item);
-            const objectPath = currentPath ? `${currentPath}/${itemId}` : itemId;
-            const objectData = await api.fetch(objectPath);
-            showObjectDetails(objectData);
-          } catch (error) {
-            console.error("Error fetching object details:", error);
-            itemsList.innerHTML = `<p style='color: #d32f2f;'>Error loading details: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
-          }
-        };
-
-        // Handle row click - navigate if folder, show details if not
-        mainContent.onclick = async () => {
-          const itemId = extractItemId(item);
-          if (isFolder) {
-            // It's a folderish item, navigate into it
-            const newPath = currentPath ? `${currentPath}/${itemId}` : itemId;
-            await loadItems(newPath);
-          } else {
-            // It's a leaf node, fetch full object to check if it has items (smart container check)
-            try {
-              const objectPath = currentPath ? `${currentPath}/${itemId}` : itemId;
-              const objectData = await api.fetch(objectPath);
-
-              if (objectData.items && Array.isArray(objectData.items) && objectData.items.length > 0) {
-                // It has items, treat as container
-                await loadItems(objectPath);
-              } else {
-                // Show details
-                showObjectDetails(objectData);
-              }
-            } catch (error) {
-              console.error("Error fetching object details:", error);
-            }
-          }
-        };
-
-        li.appendChild(mainContent);
-        li.appendChild(infoBtn);
-        itemsList.appendChild(li);
-      });
-      // End of items.forEach loop
-
-    } catch (error) {
-      console.error("Error in browse button handler:", error);
-      itemsList.innerHTML = `<p style='color: #d32f2f;'>Error loading items: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
-      console.error("Error browsing:", error);
+    // Render children if expanded
+    if (node.expanded && node.children.length > 0) {
+      node.children.forEach(child => renderTreeNode(child, container));
     }
+  }
+
+  async function toggleTreeNode(node: TreeNode) {
+    if (!node.loaded) {
+      // Load children for any item (in Plone, any item can contain children)
+      try {
+        // Fetch the full item data to check if it has an items array
+        const itemData = await api.fetch(node.path);
+        const children = itemData.items && Array.isArray(itemData.items) ? itemData.items : [];
+        
+        // Update hasChildren flag based on actual data
+        node.hasChildren = children.length > 0;
+        
+        node.children = children.map((item: api.ItemMetadata) => {
+          const itemId = extractItemId(item);
+          const childPath = node.path ? `${node.path}/${itemId}` : itemId;
+          // We'll check for children when rendering, not here
+          return createTreeNode(item, childPath, node.depth + 1, false);
+        });
+        node.loaded = true;
+      } catch (error) {
+        console.error("Error loading children:", error);
+        // If loading fails, it might mean the item has no children
+        node.loaded = true;
+        node.hasChildren = false;
+        node.children = [];
+        return;
+      }
+    }
+    
+    node.expanded = !node.expanded;
+    if (node.expanded) {
+      expandedPaths.add(node.path);
+    } else {
+      expandedPaths.delete(node.path);
+    }
+    
+    renderTree();
+  }
+
+  function renderTree() {
+      itemsList.innerHTML = "";
+    if (treeRoot.length === 0) {
+      itemsList.innerHTML = "<p style='color: #666; padding: 1rem;'>No items</p>";
+      return;
+    }
+    treeRoot.forEach(node => renderTreeNode(node, itemsList));
+  }
+
+  async function loadTreeItems(path: string) {
+    currentPath = path;
+    updateBreadcrumb(path);
+    if (currentPathSpan) {
+      currentPathSpan.textContent = path === "" ? "/" : `/${path}`;
+    }
+    
+    try {
+      itemsList.innerHTML = "<p>Loading...</p>";
+      const items = await api.getItems(path || undefined);
+      
+      // Build tree structure for current level
+      // Check ALL items in parallel to see which ones have children
+      treeRoot = await Promise.all(items.map(async (item) => {
+        const itemId = extractItemId(item);
+        const itemPath = path ? `${path}/${itemId}` : itemId;
+        
+        // Check if item has children by fetching it and looking for items array
+        let hasChildren = false;
+        try {
+          const itemData = await api.fetch(itemPath);
+          hasChildren = itemData.items && Array.isArray(itemData.items) && itemData.items.length > 0;
+        } catch (error) {
+          // If fetch fails, assume no children
+          hasChildren = false;
+        }
+        
+        return createTreeNode(item, itemPath, 0, hasChildren);
+      }));
+      
+      renderTree();
+    } catch (error) {
+      console.error("Error loading tree items:", error);
+      itemsList.innerHTML = `<p style='color: #d32f2f;'>Error loading items: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
+    }
+  }
+
+  // Browse button handler
+  browseBtn.addEventListener("click", async () => {
+    await loadTreeItems("");
   });
 
   // Back button handler
@@ -655,7 +1001,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const pathParts = currentPath.split("/");
       pathParts.pop(); // Remove last segment
       const newPath = pathParts.join("/");
-      await loadItems(newPath);
+      await loadTreeItems(newPath);
     } else {
       // Already at root, maybe show a message or do nothing
       console.log("Already at root.");
@@ -675,7 +1021,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     itemsList.innerHTML = "";
-
+    
     // Add a header showing search results
     const header = document.createElement("div");
     header.style.padding = "0.75rem";
@@ -696,10 +1042,109 @@ document.addEventListener("DOMContentLoaded", () => {
       li.style.alignItems = "center";
       li.style.justifyContent = "space-between";
       li.style.cursor = "pointer";
-      li.style.transition = "background-color 0.2s";
+      li.style.transition = "background-color 0.2s, border-color 0.2s";
 
-      li.onmouseover = () => { li.style.backgroundColor = THEME_BG_ACCENT; };
-      li.onmouseout = () => { li.style.backgroundColor = "transparent"; };
+      // Make items draggable
+      li.draggable = true;
+      li.setAttribute("data-item-path", getItemFullPath(item));
+      li.setAttribute("data-is-folder", String(isFolder));
+
+      // Drag and drop event handlers
+      li.addEventListener("dragstart", (e: DragEvent) => {
+        if (!e.dataTransfer) return;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", getItemFullPath(item));
+        li.style.opacity = "0.5";
+      });
+
+      li.addEventListener("dragend", () => {
+        li.style.opacity = "1";
+        // Remove all drop indicators
+        document.querySelectorAll(".drag-over").forEach(el => {
+          el.classList.remove("drag-over");
+          (el as HTMLElement).style.borderColor = "";
+          (el as HTMLElement).style.backgroundColor = "";
+        });
+      });
+
+      // Make all items accept drops (folders and documents can both be containers)
+      li.addEventListener("dragover", (e: DragEvent) => {
+        e.preventDefault();
+        if (!e.dataTransfer) return;
+        e.dataTransfer.dropEffect = "move";
+        
+        // Don't highlight if dragging over itself
+        const draggedPath = e.dataTransfer.getData("text/plain");
+        const targetPath = getItemFullPath(item);
+        if (draggedPath === targetPath) {
+          return;
+        }
+
+        li.classList.add("drag-over");
+        li.style.borderColor = PLONE_BLUE;
+        li.style.borderWidth = "2px";
+        li.style.borderStyle = "dashed";
+        li.style.backgroundColor = THEME_BG_ACCENT;
+      });
+
+      li.addEventListener("dragleave", () => {
+        li.classList.remove("drag-over");
+        li.style.borderColor = "";
+        li.style.borderWidth = "";
+        li.style.borderStyle = "";
+        li.style.backgroundColor = "";
+      });
+
+      li.addEventListener("drop", async (e: DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        li.classList.remove("drag-over");
+        li.style.borderColor = "";
+        li.style.borderWidth = "";
+        li.style.borderStyle = "";
+        li.style.backgroundColor = "";
+
+        const sourcePath = e.dataTransfer?.getData("text/plain");
+        if (!sourcePath) return;
+
+        const destinationPath = getItemFullPath(item);
+        
+        // Don't allow dropping on itself
+        if (sourcePath === destinationPath) {
+          return;
+        }
+
+        // Show loading state
+        const originalContent = itemsList.innerHTML;
+        itemsList.innerHTML = "<p>Moving item...</p>";
+
+        try {
+          await api.moveItem(sourcePath, destinationPath);
+          // Refresh search results - trigger search button click to refresh
+          const query = searchInput.value.trim();
+          if (query) {
+            searchBtn.click();
+          } else {
+            await loadTreeItems(currentPath);
+          }
+        } catch (error) {
+          console.error("Error moving item:", error);
+          itemsList.innerHTML = originalContent;
+          alert(`Failed to move item: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
+      });
+
+      li.onmouseover = () => { 
+        if (!li.classList.contains("drag-over")) {
+          li.style.backgroundColor = THEME_BG_ACCENT; 
+        }
+      };
+      li.onmouseout = () => { 
+        if (!li.classList.contains("drag-over")) {
+          li.style.backgroundColor = "transparent"; 
+        }
+      };
 
       // Main click area
       const mainContent = document.createElement("div");
@@ -728,12 +1173,18 @@ document.addEventListener("DOMContentLoaded", () => {
       const textDiv = document.createElement("div");
       const titleDiv = document.createElement("div");
       titleDiv.style.fontWeight = "500";
-      titleDiv.textContent = item.title || extractItemId(item) || "Untitled";
+      const titleText = item.title || extractItemId(item) || "Untitled";
+      const reviewState = item.review_state || item['review_state'];
+      if (reviewState) {
+        titleDiv.innerHTML = `${titleText} <span style="color: #999; font-weight: normal; font-size: 0.85em;">[${reviewState}]</span>`;
+      } else {
+        titleDiv.textContent = titleText;
+      }
       const typeDiv = document.createElement("div");
       typeDiv.style.fontSize = "0.8rem";
       typeDiv.style.color = "#666";
       typeDiv.textContent = item['@type'] || item.type || "Unknown";
-
+      
       // Show path for search results
       const pathDiv = document.createElement("div");
       pathDiv.style.fontSize = "0.75rem";
@@ -765,7 +1216,6 @@ document.addEventListener("DOMContentLoaded", () => {
       infoBtn.style.alignItems = "center";
       infoBtn.style.justifyContent = "center";
       infoBtn.style.color = PLONE_BLUE;
-      infoBtn.style.marginLeft = "0.5rem";
       infoBtn.style.opacity = "0.6";
       infoBtn.onmouseover = () => {
         infoBtn.style.backgroundColor = THEME_SECONDARY;
@@ -780,7 +1230,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const getItemPath = (item: api.ItemMetadata): string => {
         const itemPath = item["@id"] || item.path || "";
         if (!itemPath) return "";
-
+        
         try {
           if (itemPath.startsWith('http://') || itemPath.startsWith('https://')) {
             const urlObj = new URL(itemPath);
@@ -797,6 +1247,47 @@ document.addEventListener("DOMContentLoaded", () => {
           return itemPath.replace(/^.*\/\+\+api\+\+\//, '').replace(/^\//, '');
         }
       };
+
+      // Button container for actions
+      const buttonContainer = document.createElement("div");
+      buttonContainer.style.display = "flex";
+      buttonContainer.style.alignItems = "center";
+      buttonContainer.style.gap = "0.25rem";
+
+      // Browse button (for all items - folders and documents can both contain items)
+      const browseBtn = document.createElement("button");
+      browseBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 6.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
+      </svg>`;
+      browseBtn.title = "Browse Contents";
+      browseBtn.style.background = "none";
+      browseBtn.style.border = "none";
+      browseBtn.style.cursor = "pointer";
+      browseBtn.style.padding = "0.5rem";
+      browseBtn.style.borderRadius = "50%";
+      browseBtn.style.display = "flex";
+      browseBtn.style.alignItems = "center";
+      browseBtn.style.justifyContent = "center";
+      browseBtn.style.color = PLONE_BLUE;
+      browseBtn.style.opacity = "0.6";
+      browseBtn.onmouseover = () => {
+        browseBtn.style.backgroundColor = THEME_SECONDARY;
+        browseBtn.style.opacity = "1";
+      };
+      browseBtn.onmouseout = () => {
+        browseBtn.style.backgroundColor = "transparent";
+        browseBtn.style.opacity = "0.6";
+      };
+      browseBtn.onclick = async (e) => {
+        e.stopPropagation();
+        const objectPath = getItemPath(item);
+        if (!objectPath) {
+          return;
+        }
+        await loadTreeItems(objectPath);
+        clearSearchBtn.style.display = "none";
+      };
+      buttonContainer.appendChild(browseBtn);
 
       // Handle info button click
       infoBtn.onclick = async (e) => {
@@ -823,19 +1314,21 @@ document.addEventListener("DOMContentLoaded", () => {
           itemsList.innerHTML = `<p style='color: #d32f2f;'>Error: Could not determine item path</p>`;
           return;
         }
-
+        
         try {
           const objectData = await api.fetch(objectPath);
           showObjectDetails(objectData);
           clearSearchBtn.style.display = "none";
         } catch (error) {
-          console.error("Error fetching object details:", error);
+          console.error("Error loading item:", error);
           itemsList.innerHTML = `<p style='color: #d32f2f;'>Error loading item: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
         }
       };
 
+      buttonContainer.appendChild(infoBtn);
+
       li.appendChild(mainContent);
-      li.appendChild(infoBtn);
+      li.appendChild(buttonContainer);
       itemsList.appendChild(li);
     });
   }
@@ -849,7 +1342,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       itemsList.innerHTML = "<p>Searching...</p>";
       clearSearchBtn.style.display = "block";
-
+      
       const searchResults = await api.search(undefined, undefined, query);
       const items = searchResults.items || [];
       displaySearchResults(items);
@@ -873,12 +1366,6 @@ document.addEventListener("DOMContentLoaded", () => {
     browseBtn.click(); // Refresh browse view
   });
 
-  // Helper to load items and update UI
-  async function loadItems(path: string) {
-    currentPath = path;
-    currentPathSpan.textContent = currentPath === "" ? "/" : `/${currentPath}`;
-    browseBtn.click(); // Trigger browse to refresh list
-  }
 
   // Helper to display object details
   function showObjectDetails(objectData: any) {
@@ -892,13 +1379,85 @@ document.addEventListener("DOMContentLoaded", () => {
     } = objectData;
     const hasBlocks = blocks && blocksLayout && Object.keys(blocks).length > 0;
 
+    // Check if this is an image and get the image URL
+    const isImage = objectData['@type'] === 'Image' || objectData.type === 'Image' || 
+                    (objectData.image && objectData.image.download);
+    // Use image.download for full-size, or @@images/image/thumb for thumbnail
+    let imageUrl = null;
+    if (isImage && objectData.image) {
+      // Use the download URL from the API response
+      imageUrl = objectData.image.download;
+      // If it's a relative URL, make it absolute using the base URL
+      if (imageUrl && !imageUrl.startsWith('http')) {
+        const baseUrl = objectData['@id'] ? new URL(objectData['@id']).origin : currentBaseUrl;
+        imageUrl = baseUrl + imageUrl;
+      }
+    }
+
+    // Check if this is a PDF file (could be File type or any content with a file field)
+    let pdfUrl = null;
+    let isPDF = false;
+    
+    // Check for File type with file field
+    if (objectData['@type'] === 'File' || objectData.type === 'File') {
+      if (objectData.file && objectData.file.download) {
+        const contentType = objectData.file['content-type'] || '';
+        const filename = objectData.file.filename || '';
+        if (contentType === 'application/pdf' || filename.toLowerCase().endsWith('.pdf')) {
+          isPDF = true;
+          pdfUrl = objectData.file.download;
+        }
+      }
+    } else {
+      // Check for file fields in other content types (e.g., attachment, file, etc.)
+      const fileFields = ['file', 'attachment', 'document', 'pdf'];
+      for (const fieldName of fileFields) {
+        if (objectData[fieldName] && objectData[fieldName].download) {
+          const contentType = objectData[fieldName]['content-type'] || '';
+          const filename = objectData[fieldName].filename || '';
+          if (contentType === 'application/pdf' || filename.toLowerCase().endsWith('.pdf')) {
+            isPDF = true;
+            pdfUrl = objectData[fieldName].download;
+            break;
+          }
+        }
+      }
+    }
+    
+    // Make PDF URL absolute if needed
+    if (pdfUrl && !pdfUrl.startsWith('http')) {
+      const baseUrl = objectData['@id'] ? new URL(objectData['@id']).origin : currentBaseUrl;
+      pdfUrl = baseUrl + pdfUrl;
+    }
+
     itemsList.innerHTML = `
-      <div style="padding: 1rem;">
-        <button id="detailBackBtn" style="padding: 0.5rem 1rem; background: ${THEME_BG_LIGHT}; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; cursor: pointer; margin-bottom: 1rem; color: #333; font-weight: 500;">
-          ← Back to List
+      <div style="padding: 1rem; position: relative;">
+        <button id="detailBackBtn" style="padding: 0.5rem; background: ${THEME_BG_LIGHT}; border: 1px solid ${THEME_SECONDARY}; border-radius: 50%; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; position: absolute; top: 1rem; right: 1rem; color: #333;" title="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
         </button>
-        <h3 style="margin-top: 0; margin-bottom: 0.5rem;">${title || objectData.id || "Untitled"}</h3>
+        <h3 style="margin-top: 0; margin-bottom: 0.5rem; padding-right: 3rem;">${title || objectData.id || "Untitled"}</h3>
         <p style="color: #666; margin-bottom: 1rem;">${description || "No description."}</p>
+        
+        ${isImage && imageUrl ? `
+        <div style="margin-bottom: 1.5rem;">
+          <img src="${imageUrl}" alt="${title || 'Image'}" style="max-width: 100%; max-height: 600px; height: auto; border-radius: 4px; border: 1px solid ${THEME_SECONDARY}; object-fit: contain;" 
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+          <p style="display: none; color: #666; font-style: italic;">Image could not be loaded. URL: ${imageUrl}</p>
+        </div>
+        ` : ''}
+        
+        ${isPDF && pdfUrl ? `
+        <div style="margin-bottom: 1.5rem;">
+          <h4 style="margin: 0 0 0.5rem 0;">PDF Preview</h4>
+          <iframe src="${pdfUrl}" style="width: 100%; height: 600px; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px;" title="PDF Preview"></iframe>
+          <p style="margin-top: 0.5rem; font-size: 13px; color: #666;">
+            <a href="${pdfUrl}" target="_blank" style="color: ${PLONE_BLUE}; text-decoration: underline;">Open PDF in new tab</a>
+          </p>
+        </div>
+        ` : ''}
 
         <div style="margin-bottom: 1.5rem;">
           <h4 style="margin: 0 0 0.5rem 0;">Details</h4>
@@ -937,8 +1496,13 @@ document.addEventListener("DOMContentLoaded", () => {
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
             <h4 style="margin: 0;">Blocks</h4>
             <div style="display: flex; gap: 0.5rem;">
-              <button id="visualModeBtn" style="padding: 0.4rem 0.8rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">Visual</button>
-              <button id="jsonModeBtn" style="padding: 0.4rem 0.8rem; background: ${THEME_SECONDARY}; color: #333; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">JSON</button>
+              <button id="modeToggleBtn" style="padding: 0.4rem 0.8rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 0.5rem;">
+                <svg id="modeToggleIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="9" y1="3" x2="9" y2="21"></line>
+                </svg>
+                <span id="modeToggleText">Visual</span>
+              </button>
             </div>
           </div>
           
@@ -1015,12 +1579,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const newTagInput = document.getElementById("newTagInput") as HTMLInputElement;
     const tagStatus = document.getElementById("tagStatus") as HTMLDivElement;
     const tagAutocomplete = document.getElementById("tagAutocomplete") as HTMLDivElement;
-
+    
     // Load all existing tags for autocomplete
     let allTags: string[] = [];
     let selectedAutocompleteTag: string | null = null;
     let currentMatches: string[] = [];
-
+    
     (async () => {
       try {
         const tagsData = await api.collectTags();
@@ -1029,7 +1593,7 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error('Failed to load tags for autocomplete:', error);
       }
     })();
-
+    
     // Validate path after tagStatus is declared
     if (!objectPath || objectPath === '/') {
       console.error('Invalid path extracted from:', path);
@@ -1039,58 +1603,58 @@ document.addEventListener("DOMContentLoaded", () => {
         tagStatus.style.display = 'block';
       }
     }
-
+    
     // Autocomplete functionality
     function filterTags(query: string): string[] {
       if (!query.trim()) return [];
       const lowerQuery = query.toLowerCase();
       return allTags
-        .filter(tag =>
-          tag.toLowerCase().includes(lowerQuery) &&
+        .filter(tag => 
+          tag.toLowerCase().includes(lowerQuery) && 
           !currentTags.includes(tag)
         )
         .slice(0, 10); // Limit to 10 suggestions
     }
-
+    
     function renderAutocomplete(matches: string[]) {
       if (!tagAutocomplete) return;
       currentMatches = matches;
-
+      
       if (matches.length === 0) {
         tagAutocomplete.style.display = 'none';
         selectedAutocompleteTag = null;
         return;
       }
-
+      
       tagAutocomplete.innerHTML = matches.map((tag) => `
         <div class="autocomplete-item" data-tag="${tag}" style="padding: 0.5rem; cursor: pointer; border-bottom: 1px solid ${THEME_BG_LIGHT}; ${tag === selectedAutocompleteTag ? `background: ${THEME_BG_LIGHT};` : ''}">
           ${tag}
         </div>
       `).join('');
-
+      
       tagAutocomplete.style.display = 'block';
-
+      
       // Attach click and hover handlers
       tagAutocomplete.querySelectorAll('.autocomplete-item').forEach(item => {
         const tag = item.getAttribute('data-tag');
         const isSelected = tag === selectedAutocompleteTag;
-
+        
         item.addEventListener('click', () => {
           if (tag) {
             selectTag(tag);
           }
         });
-
+        
         item.addEventListener('mouseenter', () => {
           (item as HTMLElement).style.background = THEME_BG_LIGHT;
         });
-
+        
         item.addEventListener('mouseleave', () => {
           (item as HTMLElement).style.background = isSelected ? THEME_BG_LIGHT : 'transparent';
         });
       });
     }
-
+    
     function selectTag(tag: string) {
       if (tag && !currentTags.includes(tag)) {
         currentTags.push(tag);
@@ -1100,14 +1664,14 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedAutocompleteTag = null;
       }
     }
-
+    
     newTagInput?.addEventListener('input', (e) => {
       const query = (e.target as HTMLInputElement).value;
       const matches = filterTags(query);
       selectedAutocompleteTag = matches.length > 0 ? matches[0] : null;
       renderAutocomplete(matches);
     });
-
+    
     newTagInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         if (tagAutocomplete && tagAutocomplete.style.display !== 'none' && selectedAutocompleteTag) {
@@ -1120,11 +1684,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         return;
       }
-
+      
       if (!tagAutocomplete || tagAutocomplete.style.display === 'none') {
         return;
       }
-
+      
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         const currentIndex = selectedAutocompleteTag ? currentMatches.indexOf(selectedAutocompleteTag) : -1;
@@ -1149,12 +1713,12 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedAutocompleteTag = null;
       }
     });
-
+    
     // Hide autocomplete when clicking outside
     document.addEventListener('click', (e) => {
-      if (tagAutocomplete && newTagInput &&
-        !tagAutocomplete.contains(e.target as Node) &&
-        e.target !== newTagInput) {
+      if (tagAutocomplete && newTagInput && 
+          !tagAutocomplete.contains(e.target as Node) && 
+          e.target !== newTagInput) {
         tagAutocomplete.style.display = 'none';
         selectedAutocompleteTag = null;
       }
@@ -1228,19 +1792,31 @@ document.addEventListener("DOMContentLoaded", () => {
       let currentBlocks = { ...blocks };
       let currentBlocksLayout = { ...blocksLayout };
 
-      const jsonModeBtn = document.getElementById("jsonModeBtn");
-      const visualModeBtn = document.getElementById("visualModeBtn");
+      const modeToggleBtn = document.getElementById("modeToggleBtn");
+      const modeToggleIcon = document.getElementById("modeToggleIcon");
+      const modeToggleText = document.getElementById("modeToggleText");
       const jsonModeDiv = document.getElementById("jsonMode");
       const visualModeDiv = document.getElementById("visualMode");
       const blocksList = document.getElementById("blocksList");
 
-      // Mode toggle handlers
-      jsonModeBtn?.addEventListener("click", () => {
+      // Update toggle button appearance based on current mode
+      function updateToggleButton() {
+        if (!modeToggleBtn || !modeToggleIcon || !modeToggleText) return;
+        
+        if (currentMode === 'visual') {
+          modeToggleText.textContent = 'Visual';
+          modeToggleIcon.innerHTML = `<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line>`;
+        } else {
+          modeToggleText.textContent = 'JSON';
+          modeToggleIcon.innerHTML = `<polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline>`;
+        }
+      }
+
+      // Mode toggle handler - single button that toggles between modes
+      modeToggleBtn?.addEventListener("click", () => {
+        if (currentMode === 'visual') {
+          // Switch to JSON mode
         currentMode = 'json';
-        jsonModeBtn.style.background = PLONE_BLUE;
-        jsonModeBtn.style.color = 'white';
-        visualModeBtn!.style.background = THEME_SECONDARY;
-        visualModeBtn!.style.color = '#333';
         jsonModeDiv!.style.display = 'block';
         visualModeDiv!.style.display = 'none';
 
@@ -1249,14 +1825,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const blocksLayoutEditor = document.getElementById("blocksLayoutEditor") as HTMLTextAreaElement;
         blocksEditor.value = JSON.stringify(currentBlocks, null, 2);
         blocksLayoutEditor.value = JSON.stringify(currentBlocksLayout, null, 2);
-      });
-
-      visualModeBtn?.addEventListener("click", () => {
+        } else {
+          // Switch to Visual mode
         currentMode = 'visual';
-        visualModeBtn.style.background = PLONE_BLUE;
-        visualModeBtn.style.color = 'white';
-        jsonModeBtn!.style.background = THEME_SECONDARY;
-        jsonModeBtn!.style.color = '#333';
         jsonModeDiv!.style.display = 'none';
         visualModeDiv!.style.display = 'block';
 
@@ -1270,24 +1841,31 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
           console.error("Error parsing JSON:", error);
           alert("Invalid JSON in editor. Please fix syntax errors before switching to Visual mode.");
-          // Revert toggle UI
+            // Revert to JSON mode
           currentMode = 'json';
-          jsonModeBtn!.click();
+            jsonModeDiv!.style.display = 'block';
+            visualModeDiv!.style.display = 'none';
+            updateToggleButton();
           return;
         }
+        }
+        updateToggleButton();
       });
+
+      // Initialize toggle button appearance
+      updateToggleButton();
 
       // Simple markdown to HTML converter
       function markdownToHtml(markdown: string): string {
         if (!markdown) return '';
-
+        
         // Escape HTML to prevent XSS
         const escapeHtml = (text: string) => {
           const div = document.createElement('div');
           div.textContent = text;
           return div.innerHTML;
         };
-
+        
         let html = markdown;
         const lines = html.split('\n');
         const output: string[] = [];
@@ -1297,15 +1875,15 @@ document.addEventListener("DOMContentLoaded", () => {
         let listItems: string[] = [];
         let listOrdered = false;
         let currentParagraph: string[] = [];
-
+        
         // Track notes for footnotes section
         const notes: Array<{ id: string; content: string; index: number }> = [];
         let noteCounter = 0;
-
+        
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           const trimmed = line.trim();
-
+          
           // Code blocks
           if (trimmed.startsWith('```')) {
             if (inCodeBlock) {
@@ -1330,12 +1908,12 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             continue;
           }
-
+          
           if (inCodeBlock) {
             codeBlockContent.push(line);
             continue;
           }
-
+          
           // Headers - match # through ###### (h1 through h6)
           const headerMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
           if (headerMatch) {
@@ -1355,7 +1933,7 @@ document.addEventListener("DOMContentLoaded", () => {
             output.push(`<h${Math.min(level, 6)} style="margin: ${1.5 - (level - 1) * 0.2}rem 0 ${0.75 + (level - 1) * 0.1}rem 0; font-size: ${size}rem; font-weight: 600;">${processInlineMarkdown(text, notes)}</h${Math.min(level, 6)}>`);
             continue;
           }
-
+          
           // Horizontal rule
           if (trimmed.match(/^[-*_]{3,}$/)) {
             if (currentParagraph.length > 0) {
@@ -1371,33 +1949,33 @@ document.addEventListener("DOMContentLoaded", () => {
             output.push('<hr style="margin: 1rem 0; border: none; border-top: 1px solid #ddd;">');
             continue;
           }
-
+          
           // Lists
           const ulMatch = trimmed.match(/^[-*] (.+)$/);
           const olMatch = trimmed.match(/^\d+\. (.+)$/);
-
+          
           if (ulMatch || olMatch) {
             const isOrdered = !!olMatch;
             const itemText = ulMatch ? ulMatch[1] : olMatch![1];
-
+            
             if (currentParagraph.length > 0) {
               output.push(`<p style="margin: 0.75rem 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
               currentParagraph = [];
             }
-
+            
             if (inList && listOrdered !== isOrdered) {
               // Different list type, close previous
               const tag = listOrdered ? 'ol' : 'ul';
               output.push(`<${tag} style="margin: 0.5rem 0; padding-left: 1.5rem;">${listItems.map(li => `<li style="margin: 0.25rem 0;">${li}</li>`).join('')}</${tag}>`);
               listItems = [];
             }
-
+            
             inList = true;
             listOrdered = isOrdered;
             listItems.push(processInlineMarkdown(itemText, notes));
             continue;
           }
-
+          
           // End of list
           if (inList && trimmed === '') {
             const tag = listOrdered ? 'ol' : 'ul';
@@ -1406,11 +1984,11 @@ document.addEventListener("DOMContentLoaded", () => {
             inList = false;
             continue;
           }
-
+          
           // Note definitions (markdown style: [^1]: content or HTML style: <note id="...">content</note>)
           const noteDefMatch = trimmed.match(/^\[\^([^\]]+)\]:\s*(.+)$/);
           const noteHtmlMatch = trimmed.match(/^<note\s+id=["']([^"']+)["']>(.*?)<\/note>$/i);
-
+          
           if (noteDefMatch || noteHtmlMatch) {
             if (currentParagraph.length > 0) {
               output.push(`<p style="margin: 0.75rem 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
@@ -1422,7 +2000,7 @@ document.addEventListener("DOMContentLoaded", () => {
               listItems = [];
               inList = false;
             }
-
+            
             const noteId = noteDefMatch ? noteDefMatch[1] : noteHtmlMatch![1];
             const noteContent = noteDefMatch ? noteDefMatch[2] : noteHtmlMatch![2];
             noteCounter++;
@@ -1433,7 +2011,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             continue;
           }
-
+          
           // Regular paragraph
           if (trimmed === '') {
             if (currentParagraph.length > 0) {
@@ -1450,7 +2028,7 @@ document.addEventListener("DOMContentLoaded", () => {
             currentParagraph.push(processInlineMarkdown(trimmed, notes));
           }
         }
-
+        
         // Close any open blocks
         if (inCodeBlock && codeBlockContent.length > 0) {
           const code = codeBlockContent.join('\n');
@@ -1463,7 +2041,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const tag = listOrdered ? 'ol' : 'ul';
           output.push(`<${tag} style="margin: 0.5rem 0; padding-left: 1.5rem;">${listItems.map(li => `<li style="margin: 0.25rem 0;">${li}</li>`).join('')}</${tag}>`);
         }
-
+        
         // Add footnotes section if there are any notes
         if (notes.length > 0) {
           output.push('<hr style="margin: 2rem 0 1rem 0; border: none; border-top: 1px solid #ddd;">');
@@ -1480,10 +2058,10 @@ document.addEventListener("DOMContentLoaded", () => {
           output.push('</ol>');
           output.push('</div>');
         }
-
+        
         return output.join('\n');
       }
-
+      
       // Process inline markdown (bold, italic, links, code, noterefs)
       function processInlineMarkdown(text: string, notes: Array<{ id: string; content: string; index: number }> = []): string {
         // Escape HTML first
@@ -1492,9 +2070,9 @@ document.addEventListener("DOMContentLoaded", () => {
           div.textContent = text;
           return div.innerHTML;
         };
-
+        
         let html = escapeHtml(text);
-
+        
         // Note references (markdown style: [^1] or HTML style: <noteref ref="note1">)
         // Process noterefs before other inline elements
         html = html.replace(/\[\^([^\]]+)\]/g, (match, noteId) => {
@@ -1504,7 +2082,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           return match; // Return as-is if note not found
         });
-
+        
         // HTML-style noterefs: <noteref ref="note1"> or <noteref ref="note1">text</noteref>
         html = html.replace(/<noteref\s+ref=["']([^"']+)["'](?:\s*\/>|>([^<]*)<\/noteref>)/gi, (match, noteId, text) => {
           const note = notes.find(n => n.id === noteId);
@@ -1514,21 +2092,21 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           return match;
         });
-
+        
         // Code blocks are handled separately, so we process inline code
         // Inline code (`code`) - but not inside code blocks
         html = html.replace(/`([^`]+)`/g, (_match, code) => {
           return `<code style="background: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-family: monospace; font-size: 0.9em;">${escapeHtml(code)}</code>`;
         });
-
+        
         // Bold (**text** or __text__) - but not inside code
         html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
         html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
-
+        
         // Italic (*text* or _text_) - but not inside code or bold
         html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
         html = html.replace(/(?<!_)_([^_]+)_(?!_)/g, '<em>$1</em>');
-
+        
         // Links [text](url) - but not note references
         html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, linkText, url) => {
           // Check if it's an internal anchor (starts with #)
@@ -1537,7 +2115,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           return `<a href="${url}" style="color: #1976d2; text-decoration: none;" target="_blank" rel="noopener noreferrer">${linkText}</a>`;
         });
-
+        
         return html;
       }
 
@@ -1552,11 +2130,11 @@ document.addEventListener("DOMContentLoaded", () => {
             // Render Markdown block
             const markdownContainer = document.createElement('div');
             markdownContainer.style.cssText = 'line-height: 1.6; color: #333;';
-
+            
             if (block.markdown) {
               const html = markdownToHtml(block.markdown);
               markdownContainer.innerHTML = html || '<p style="color: #999; font-style: italic;">Empty markdown block</p>';
-
+              
               // Add smooth scrolling for internal anchor links
               markdownContainer.querySelectorAll('a[href^="#"]').forEach((link) => {
                 link.addEventListener('click', (e) => {
@@ -1589,7 +2167,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (block.value && Array.isArray(block.value)) {
               const textContainer = document.createElement('div');
               textContainer.style.cssText = 'line-height: 1.6; color: #333;';
-
+              
               const extractAndRenderText = (nodes: any[]): string => {
                 return nodes.map(node => {
                   if (node.text !== undefined) {
@@ -1616,7 +2194,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   return '';
                 }).join('');
               };
-
+              
               const html = extractAndRenderText(block.value);
               textContainer.innerHTML = html || '<p style="color: #999; font-style: italic;">Empty text block</p>';
               contentContainer.appendChild(textContainer);
@@ -1635,7 +2213,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Render Image block
             const imageContainer = document.createElement('div');
             imageContainer.style.cssText = 'text-align: center; margin: 0.5rem 0;';
-
+            
             if (block.url) {
               const img = document.createElement('img');
               img.src = block.url;
@@ -1649,7 +2227,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 imageContainer.appendChild(errorDiv);
               };
               imageContainer.appendChild(img);
-
+              
               if (block.title) {
                 const caption = document.createElement('p');
                 caption.style.cssText = 'margin-top: 0.5rem; font-size: 0.9rem; color: #666; font-style: italic;';
@@ -1666,7 +2244,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Render Listing block preview
             const listingContainer = document.createElement('div');
             listingContainer.style.cssText = 'padding: 1rem; background: #f5f5f5; border-radius: 4px;';
-
+            
             if (block.query && Array.isArray(block.query)) {
               listingContainer.innerHTML = `
                 <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #333;">Content Listing</p>
@@ -1682,14 +2260,14 @@ document.addEventListener("DOMContentLoaded", () => {
             // Render Video block
             const videoContainer = document.createElement('div');
             videoContainer.style.cssText = 'margin: 0.5rem 0;';
-
+            
             if (block.url) {
               const video = document.createElement('video');
               video.src = block.url;
               video.controls = true;
               video.style.cssText = 'width: 100%; max-width: 100%; border-radius: 4px;';
               videoContainer.appendChild(video);
-
+              
               if (block.title) {
                 const title = document.createElement('p');
                 title.style.cssText = 'margin-top: 0.5rem; font-weight: 600; color: #333;';
@@ -1706,21 +2284,21 @@ document.addEventListener("DOMContentLoaded", () => {
             // Render Teaser block
             const teaserContainer = document.createElement('div');
             teaserContainer.style.cssText = 'padding: 1rem; background: #f9f9f9; border-left: 3px solid #ff9800; border-radius: 4px;';
-
+            
             if (block.title) {
               const title = document.createElement('h4');
               title.style.cssText = 'margin: 0 0 0.5rem 0; color: #333;';
               title.textContent = block.title;
               teaserContainer.appendChild(title);
             }
-
+            
             if (block.description) {
               const desc = document.createElement('p');
               desc.style.cssText = 'margin: 0 0 0.5rem 0; color: #666; line-height: 1.5;';
               desc.textContent = block.description;
               teaserContainer.appendChild(desc);
             }
-
+            
             if (block.href) {
               const link = document.createElement('a');
               link.href = block.href;
@@ -1729,7 +2307,7 @@ document.addEventListener("DOMContentLoaded", () => {
               link.target = '_blank';
               teaserContainer.appendChild(link);
             }
-
+            
             if (!block.title && !block.description && !block.href) {
               teaserContainer.innerHTML = '<p style="margin: 0; color: #999; font-style: italic;">Empty teaser block</p>';
             }
@@ -1740,11 +2318,11 @@ document.addEventListener("DOMContentLoaded", () => {
             // Render Table block
             const tableContainer = document.createElement('div');
             tableContainer.style.cssText = 'overflow-x: auto; margin: 0.5rem 0;';
-
+            
             if (block.table && block.table.rows) {
               const table = document.createElement('table');
               table.style.cssText = 'width: 100%; border-collapse: collapse; background: white;';
-
+              
               block.table.rows.forEach((row: any, rowIdx: number) => {
                 const tr = document.createElement('tr');
                 if (row.cells) {
@@ -1761,7 +2339,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 table.appendChild(tr);
               });
-
+              
               tableContainer.appendChild(table);
             } else {
               tableContainer.innerHTML = '<p style="color: #999; font-style: italic;">Empty table block</p>';
@@ -2076,15 +2654,15 @@ document.addEventListener("DOMContentLoaded", () => {
           blockStatus.textContent = "✓ Blocks saved successfully!";
           blockStatus.style.color = "#4caf50";
           blockStatus.style.display = "block";
-
+          
           // Update original blocks to reflect saved state
           originalBlocks = JSON.stringify(newBlocks);
           originalBlocksLayout = JSON.stringify(newBlocksLayout);
-
+          
           // Also update currentBlocks to match saved state
           currentBlocks = newBlocks;
           currentBlocksLayout = newBlocksLayout;
-
+          
           setTimeout(() => { blockStatus.style.display = "none"; }, 3000);
         } catch (error) {
           console.error("Error saving blocks:", error);
@@ -2207,21 +2785,21 @@ document.addEventListener("DOMContentLoaded", () => {
     // Light caching for keywords (5 minute cache)
     let keywordsCache: { data: Record<string, number>; timestamp: number } | null = null;
     const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
+    
     async function getCachedTags(forceRefresh = false): Promise<Record<string, number>> {
       const now = Date.now();
-
+      
       // Return cached data if it's still valid and not forcing refresh
       if (!forceRefresh && keywordsCache && (now - keywordsCache.timestamp) < CACHE_DURATION) {
         return keywordsCache.data;
       }
-
+      
       // Fetch fresh data
       const tags = await api.collectTags();
       keywordsCache = { data: tags, timestamp: now };
       return tags;
     }
-
+    
     function invalidateKeywordsCache() {
       keywordsCache = null;
     }
@@ -2230,7 +2808,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function showAllKeywordsView() {
       // Check if we have cached data
       const hasCache = keywordsCache && (Date.now() - keywordsCache.timestamp) < CACHE_DURATION;
-
+      
       if (!hasCache) {
         // Show loading state only if we don't have cache
         kwContent.innerHTML = `
@@ -2262,7 +2840,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const sortedTags = Object.entries(allTags)
         .sort((a, b) => b[1] - a[1]); // Sort by count descending
 
-      kwContent.innerHTML = `
+        kwContent.innerHTML = `
         <div style="max-width: 1200px; margin: 0 auto;">
           <div style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
             <input type="text" id="keywordFilterInput" placeholder="Filter keywords..." style="flex: 1; padding: 0.75rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px; background-color: ${THEME_BG_ACCENT};" />
@@ -2402,7 +2980,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const bulkActionsBar = document.getElementById("bulkActionsBar");
         const selectedCountSpan = document.getElementById("selectedCount");
         const selectedCountPlural = document.getElementById("selectedCountPlural");
-
+        
         if (bulkActionsBar && selectedCountSpan && selectedCountPlural) {
           if (selectedCount > 0) {
             bulkActionsBar.style.display = "flex";
@@ -2412,7 +2990,7 @@ document.addEventListener("DOMContentLoaded", () => {
             bulkActionsBar.style.display = "none";
           }
         }
-
+        
         // Update select all button state
         const visibleCheckboxes = Array.from(document.querySelectorAll(".keyword-checkbox") as NodeListOf<HTMLInputElement>)
           .filter(cb => {
@@ -2420,7 +2998,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return item && item.style.display !== "none";
           });
         const checkedVisible = visibleCheckboxes.filter(cb => cb.checked).length;
-
+        
         if (selectAllBtn && deselectAllBtn) {
           if (checkedVisible === visibleCheckboxes.length && visibleCheckboxes.length > 0) {
             selectAllBtn.style.display = "none";
@@ -2430,7 +3008,7 @@ document.addEventListener("DOMContentLoaded", () => {
             deselectAllBtn.style.display = "none";
           }
         }
-
+        
         // Update selected state on items
         document.querySelectorAll(".keyword-item").forEach((item) => {
           const checkbox = item.querySelector(".keyword-checkbox") as HTMLInputElement;
@@ -2452,7 +3030,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Select All / Deselect All
       const selectAllBtn = document.getElementById("selectAllKeywordsBtn");
       const deselectAllBtn = document.getElementById("deselectAllKeywordsBtn");
-
+      
       selectAllBtn?.addEventListener("click", () => {
         document.querySelectorAll(".keyword-checkbox").forEach((checkbox) => {
           const item = (checkbox as HTMLInputElement).closest(".keyword-item") as HTMLElement;
@@ -2479,12 +3057,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const selected = Array.from(document.querySelectorAll(".keyword-checkbox:checked") as NodeListOf<HTMLInputElement>)
           .map(cb => cb.getAttribute("data-keyword"))
           .filter(Boolean) as string[];
-
+        
         if (selected.length === 0) {
           alert("Please select at least one keyword to rename.");
           return;
         }
-
+        
         showBulkRenameDialog(selected);
       });
 
@@ -2493,12 +3071,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const selected = Array.from(document.querySelectorAll(".keyword-checkbox:checked") as NodeListOf<HTMLInputElement>)
           .map(cb => cb.getAttribute("data-keyword"))
           .filter(Boolean) as string[];
-
+        
         if (selected.length === 0) {
           alert("Please select at least one keyword to delete.");
           return;
         }
-
+        
         showBulkDeleteDialog(selected);
       });
     }
@@ -2563,14 +3141,14 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           // Merge old keyword into new keyword
           await api.mergeTags(newName, [oldKeyword]);
-
+          
           // Reload keywords and show the renamed keyword in All Keywords view
           invalidateKeywordsCache(); // Invalidate cache after rename
           allTags = await getCachedTags(true);
           currentTab = 'all';
           updateTabs();
           showAllKeywordsView();
-
+          
           // Scroll to the renamed keyword if it exists
           setTimeout(() => {
             const keywordItem = document.querySelector(`[data-keyword="${newName}"]`);
@@ -2633,7 +3211,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const result = await api.mergeTags(tempTarget, [keyword]);
           const updated = result.updated;
           const errors = result.errors || [];
-
+          
           // Note: The tempTarget will remain on items, but it's unique and won't appear
           // in normal keyword lists since it starts with __DELETE_. This is acceptable
           // for now. A proper solution would require a backend delete_keyword function.
@@ -2642,13 +3220,13 @@ document.addEventListener("DOMContentLoaded", () => {
           // Invalidate cache and refresh - the keyword should be gone if it had 0 items
           invalidateKeywordsCache();
           allTags = await getCachedTags(true);
-
+          
           // If the keyword still exists in allTags but had 0 items, it was likely a cache artifact
           // Remove it from the local state
           if (allTags[keyword] === 0) {
             delete allTags[keyword];
           }
-
+          
           kwContent.innerHTML = `
             <div style="max-width: 600px; margin: 0 auto;">
               <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -2770,14 +3348,14 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           // Merge all selected keywords into the new keyword
           await api.mergeTags(newName, keywords);
-
+          
           // Reload keywords
           invalidateKeywordsCache();
           allTags = await getCachedTags(true);
           currentTab = 'all';
           updateTabs();
           showAllKeywordsView();
-
+          
           // Scroll to the renamed keyword
           setTimeout(() => {
             const keywordItem = document.querySelector(`[data-keyword="${newName}"]`);
@@ -2839,7 +3417,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           let totalUpdated = 0;
           const allErrors: string[] = [];
-
+          
           // Delete each keyword
           for (const keyword of keywords) {
             try {
@@ -2860,7 +3438,7 @@ document.addEventListener("DOMContentLoaded", () => {
           currentTab = 'all';
           updateTabs();
           showAllKeywordsView();
-
+          
           // Show success message
           if (allErrors.length === 0) {
             setTimeout(() => {
@@ -2892,7 +3470,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function showCreateKeywordUI() {
       // Use current browser path as default if available
       const defaultPath = currentPath || "";
-
+      
       kwContent.innerHTML = `
         <div style="max-width: 800px; margin: 0 auto;">
           <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -2935,7 +3513,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
       `;
-
+      
       // Add path option button handlers
       document.querySelectorAll(".path-option-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -3008,7 +3586,7 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
               const currentSubjects = item.Subject || item.subjects || [];
               const subjectsArray = Array.isArray(currentSubjects) ? currentSubjects : [];
-
+              
               // Check if keyword already exists (case-insensitive)
               if (!subjectsArray.some((s: string) => s.trim().toLowerCase() === keyword.toLowerCase())) {
                 const newSubjects = [...subjectsArray, keyword];
@@ -3026,7 +3604,7 @@ document.addEventListener("DOMContentLoaded", () => {
           invalidateKeywordsCache(); // Invalidate cache after create
           allTags = await getCachedTags(true);
           const keywordCount = allTags[keyword] || 0;
-
+          
           kwContent.innerHTML = `
             <div style="max-width: 800px; margin: 0 auto;">
               <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -3247,17 +3825,17 @@ document.addEventListener("DOMContentLoaded", () => {
       // 2. Find Similar (Default 90%)
       const loadingMsg = document.getElementById("loadingMsg");
 
-      // Witty loading messages
-      const messages = [
-        "Consulting the thesaurus...",
-        "Asking the librarian...",
-        "Comparing apples to appples...",
-        "Hunting for typos...",
-        "Measuring Levenshtein distances...",
-        "Untangling the tag spaghetti...",
-        "Reading the dictionary backwards...",
-        "Squinting at similar words...",
-        "Doing the alphabet dance...",
+            // Witty loading messages
+            const messages = [
+              "Consulting the thesaurus...",
+              "Asking the librarian...",
+              "Comparing apples to appples...",
+              "Hunting for typos...",
+              "Measuring Levenshtein distances...",
+              "Untangling the tag spaghetti...",
+              "Reading the dictionary backwards...",
+              "Squinting at similar words...",
+              "Doing the alphabet dance...",
         "Grouping the flock...",
         "Ron, Carol, and David are sorting keywords...",
         "Playing word association games...",
@@ -3310,15 +3888,15 @@ document.addEventListener("DOMContentLoaded", () => {
         "Ron's organizing by similarity...",
         "Carol is checking for variations...",
         "David's computing Levenshtein distances..."
-      ];
+            ];
 
-      let msgIndex = 0;
+            let msgIndex = 0;
       if (loadingMsg) {
         loadingMsg.innerHTML = `<span style="font-style: italic;">Found ${tagCount} keywords. ${messages[0]}</span>`;
       }
 
-      const intervalId = setInterval(() => {
-        msgIndex = (msgIndex + 1) % messages.length;
+            const intervalId = setInterval(() => {
+              msgIndex = (msgIndex + 1) % messages.length;
         if (loadingMsg) {
           loadingMsg.innerHTML = `<span style="font-style: italic;">Found ${tagCount} keywords. ${messages[msgIndex]}</span>`;
         }
@@ -3326,7 +3904,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         similarPairs = await api.findSimilarTags(allTags, 90, 100);
-        clearInterval(intervalId);
+              clearInterval(intervalId);
       } catch (error) {
         clearInterval(intervalId);
         throw error;
@@ -3346,7 +3924,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderResults(tagCount: number, currentThreshold: number) {
-      if (similarPairs.length === 0) {
+            if (similarPairs.length === 0) {
         kwContent.innerHTML = `
           <div style="text-align: center; padding: 2rem;">
             <p style="font-size: 1.2em; margin-bottom: 0.5rem;">No similar keywords found at ${currentThreshold}% similarity.</p>
@@ -3366,8 +3944,8 @@ document.addEventListener("DOMContentLoaded", () => {
           similarPairs = await api.findSimilarTags(allTags, 80, 100);
           renderResults(tagCount, 80);
         });
-        return;
-      }
+              return;
+            }
 
       kwContent.innerHTML = `
         <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; background: #e8f5e9; padding: 1rem; border-radius: 4px;">
@@ -3408,41 +3986,41 @@ document.addEventListener("DOMContentLoaded", () => {
         renderResults(tagCount, newThreshold);
       });
 
-      // Helper to manage merge plan with mutual exclusivity
-      const toggleMerge = (keepTag: string, discardTag: string) => {
-        // 1. Remove any existing plan where 'keepTag' was going to be discarded
-        if (mergePlan.has(discardTag)) {
-          const sources = mergePlan.get(discardTag)!;
-          const index = sources.indexOf(keepTag);
-          if (index > -1) {
-            sources.splice(index, 1);
-            if (sources.length === 0) {
-              mergePlan.delete(discardTag);
-            }
-          }
-        }
+            // Helper to manage merge plan with mutual exclusivity
+            const toggleMerge = (keepTag: string, discardTag: string) => {
+              // 1. Remove any existing plan where 'keepTag' was going to be discarded
+              if (mergePlan.has(discardTag)) {
+                const sources = mergePlan.get(discardTag)!;
+                const index = sources.indexOf(keepTag);
+                if (index > -1) {
+                  sources.splice(index, 1);
+                  if (sources.length === 0) {
+                    mergePlan.delete(discardTag);
+                  }
+                }
+              }
 
-        // 2. Add 'discardTag' to be merged into 'keepTag'
-        if (!mergePlan.has(keepTag)) {
-          mergePlan.set(keepTag, []);
-        }
-        const sources = mergePlan.get(keepTag)!;
-        if (!sources.includes(discardTag)) {
-          sources.push(discardTag);
-        }
+              // 2. Add 'discardTag' to be merged into 'keepTag'
+              if (!mergePlan.has(keepTag)) {
+                mergePlan.set(keepTag, []);
+              }
+              const sources = mergePlan.get(keepTag)!;
+              if (!sources.includes(discardTag)) {
+                sources.push(discardTag);
+              }
 
-        updateMergePlan();
-      };
+              updateMergePlan();
+            };
 
       const pairsList = document.getElementById("pairsList")!;
 
-      similarPairs.forEach((pair, index) => {
-        const row = document.createElement("div");
-        row.className = "similarity-row";
-        row.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.75rem; transition: all 0.3s;";
-        row.id = `pair-row-${index}`;
+            similarPairs.forEach((pair, index) => {
+              const row = document.createElement("div");
+              row.className = "similarity-row";
+              row.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.75rem; transition: all 0.3s;";
+              row.id = `pair-row-${index}`;
 
-        row.innerHTML = `
+              row.innerHTML = `
                 <div style="flex: 1; display: flex; align-items: center; gap: 1rem;">
                   <div class="tag-option" id="tag-left-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s;">
                     <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
@@ -3466,82 +4044,82 @@ document.addEventListener("DOMContentLoaded", () => {
 
         pairsList.appendChild(row);
 
-        const leftCard = row.querySelector(`#tag-left-${index}`) as HTMLElement;
-        const rightCard = row.querySelector(`#tag-right-${index}`) as HTMLElement;
-        const statusText = row.querySelector(`.status-text`) as HTMLElement;
+              const leftCard = row.querySelector(`#tag-left-${index}`) as HTMLElement;
+              const rightCard = row.querySelector(`#tag-right-${index}`) as HTMLElement;
+              const statusText = row.querySelector(`.status-text`) as HTMLElement;
 
-        const updateRowVisuals = (keepLeft: boolean) => {
-          // Reset styles
-          leftCard.style.borderColor = "transparent";
-          leftCard.style.background = "#f8f9fa";
-          leftCard.style.opacity = "1";
-          leftCard.innerHTML = `
+              const updateRowVisuals = (keepLeft: boolean) => {
+                // Reset styles
+                leftCard.style.borderColor = "transparent";
+                leftCard.style.background = "#f8f9fa";
+                leftCard.style.opacity = "1";
+                leftCard.innerHTML = `
                   <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
                   <div style="font-size: 0.85em; color: #666;">${pair.count} items</div>
                 `;
 
-          rightCard.style.borderColor = "transparent";
-          rightCard.style.background = "#f8f9fa";
-          rightCard.style.opacity = "1";
-          rightCard.innerHTML = `
+                rightCard.style.borderColor = "transparent";
+                rightCard.style.background = "#f8f9fa";
+                rightCard.style.opacity = "1";
+                rightCard.innerHTML = `
                   <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.matched}</div>
                   <div style="font-size: 0.85em; color: #666;">${pair.matched_count} items</div>
                 `;
 
-          if (keepLeft) {
-            // Keep Left
-            leftCard.style.borderColor = "#4caf50";
-            leftCard.style.background = "#e8f5e9";
-            leftCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
+                if (keepLeft) {
+                  // Keep Left
+                  leftCard.style.borderColor = "#4caf50";
+                  leftCard.style.background = "#e8f5e9";
+                  leftCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
 
-            // Discard Right
-            rightCard.style.opacity = "0.6";
-            rightCard.style.background = "#ffebee";
-            rightCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
+                  // Discard Right
+                  rightCard.style.opacity = "0.6";
+                  rightCard.style.background = "#ffebee";
+                  rightCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
 
             statusText.textContent = "←";
-            statusText.style.color = PLONE_BLUE;
+                  statusText.style.color = PLONE_BLUE;
             statusText.style.fontSize = "2rem";
             statusText.style.textAlign = "center";
             statusText.style.fontWeight = "bold";
-          } else {
-            // Keep Right
-            rightCard.style.borderColor = "#4caf50";
-            rightCard.style.background = "#e8f5e9";
-            rightCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
+                } else {
+                  // Keep Right
+                  rightCard.style.borderColor = "#4caf50";
+                  rightCard.style.background = "#e8f5e9";
+                  rightCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
 
-            // Discard Left
-            leftCard.style.opacity = "0.6";
-            leftCard.style.background = "#ffebee";
-            leftCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
+                  // Discard Left
+                  leftCard.style.opacity = "0.6";
+                  leftCard.style.background = "#ffebee";
+                  leftCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
 
             statusText.textContent = "→";
-            statusText.style.color = PLONE_BLUE;
+                  statusText.style.color = PLONE_BLUE;
             statusText.style.fontSize = "2rem";
             statusText.style.textAlign = "center";
             statusText.style.fontWeight = "bold";
+                }
+              };
+
+              leftCard.onclick = () => {
+                updateRowVisuals(true);
+                toggleMerge(pair.tag, pair.matched);
+              };
+
+              rightCard.onclick = () => {
+                updateRowVisuals(false);
+                toggleMerge(pair.matched, pair.tag);
+              };
+            });
           }
-        };
 
-        leftCard.onclick = () => {
-          updateRowVisuals(true);
-          toggleMerge(pair.tag, pair.matched);
-        };
-
-        rightCard.onclick = () => {
-          updateRowVisuals(false);
-          toggleMerge(pair.matched, pair.tag);
-        };
-      });
-    }
-
-    function updateMergePlan() {
-      // Create sticky footer if it doesn't exist
-      let stickyFooter = document.getElementById("stickyMergeFooter");
-      if (!stickyFooter) {
-        stickyFooter = document.createElement("div");
-        stickyFooter.id = "stickyMergeFooter";
-        stickyFooter.style.cssText = `
+        function updateMergePlan() {
+          // Create sticky footer if it doesn't exist
+          let stickyFooter = document.getElementById("stickyMergeFooter");
+          if (!stickyFooter) {
+            stickyFooter = document.createElement("div");
+            stickyFooter.id = "stickyMergeFooter";
+            stickyFooter.style.cssText = `
               position: fixed;
               bottom: 0;
               left: 0;
@@ -3555,26 +4133,26 @@ document.addEventListener("DOMContentLoaded", () => {
               transform: translateY(100%);
               transition: transform 0.3s ease-out;
             `;
-        document.body.appendChild(stickyFooter);
-      }
+            document.body.appendChild(stickyFooter);
+          }
 
-      let totalMerges = 0;
-      mergePlan.forEach(sources => totalMerges += sources.length);
+          let totalMerges = 0;
+          mergePlan.forEach(sources => totalMerges += sources.length);
 
-      if (totalMerges === 0) {
-        stickyFooter.style.transform = "translateY(100%)";
-        setTimeout(() => { stickyFooter!.style.display = "none"; }, 300);
-        return;
-      }
+          if (totalMerges === 0) {
+            stickyFooter.style.transform = "translateY(100%)";
+            setTimeout(() => { stickyFooter!.style.display = "none"; }, 300);
+            return;
+          }
 
-      stickyFooter.style.display = "flex";
-      stickyFooter.style.justifyContent = "space-between";
-      stickyFooter.style.alignItems = "center";
-      // Force reflow
-      stickyFooter.offsetHeight;
-      stickyFooter.style.transform = "translateY(0)";
+          stickyFooter.style.display = "flex";
+          stickyFooter.style.justifyContent = "space-between";
+          stickyFooter.style.alignItems = "center";
+          // Force reflow
+          stickyFooter.offsetHeight;
+          stickyFooter.style.transform = "translateY(0)";
 
-      stickyFooter.innerHTML = `
+          stickyFooter.innerHTML = `
             <div style="display: flex; align-items: center; gap: 1rem;">
               <div style="background: ${PLONE_BLUE}; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${totalMerges}</div>
               <div>
@@ -3598,8 +4176,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const newViewBtn = viewPlanBtn.cloneNode(true) as HTMLElement;
         viewPlanBtn.parentNode?.replaceChild(newViewBtn, viewPlanBtn);
         newViewBtn.addEventListener("click", () => {
-          document.getElementById("mergePlanSection")?.scrollIntoView({ behavior: 'smooth' });
-        });
+            document.getElementById("mergePlanSection")?.scrollIntoView({ behavior: 'smooth' });
+          });
       }
 
       const executeMergeBtn = document.getElementById("executeMergeBtn");
@@ -3614,7 +4192,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (typeof executeMergeHandler === 'function') {
             try {
               await executeMergeHandler();
-            } catch (error) {
+              } catch (error) {
               console.error("Error in executeMergeHandler:", error);
               alert(`Error executing merge: ${error instanceof Error ? error.message : "Unknown error"}`);
             }
@@ -3625,21 +4203,21 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
 
-      // Also update the detailed list at the bottom (hidden by default now, maybe?)
+          // Also update the detailed list at the bottom (hidden by default now, maybe?)
       const mergePlanSection = document.getElementById("mergePlanSection");
       const mergePlanList = document.getElementById("mergePlanList");
 
       if (mergePlanSection && mergePlanList) {
-        if (mergePlan.size > 0) {
-          mergePlanSection.style.display = "block";
-          mergePlanList.innerHTML = "";
+          if (mergePlan.size > 0) {
+            mergePlanSection.style.display = "block";
+            mergePlanList.innerHTML = "";
           mergePlan.forEach((_sources, _target) => {
-            // ... (existing code to render list items if needed) ...
-          });
-        } else {
-          mergePlanSection.style.display = "none";
+              // ... (existing code to render list items if needed) ...
+            });
+          } else {
+            mergePlanSection.style.display = "none";
+          }
         }
-      }
     }
   }
 });
