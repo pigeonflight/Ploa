@@ -48,6 +48,10 @@ The DMG will be created in `src-tauri/target/release/bundle/dmg/`
 
 Download the latest release from the [Releases page](https://github.com/pigeonflight/Ploa/releases).
 
+## Feedback & Support
+
+Found a bug or have a suggestion? Please report it on our [GitHub Issues page](https://github.com/pigeonflight/Ploa/issues).
+
 ## Project Structure
 
 - `src/` - Frontend code (HTML/CSS/JavaScript or framework)

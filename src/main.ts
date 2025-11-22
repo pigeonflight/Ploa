@@ -15,7 +15,7 @@ const PLONE_BLUE = THEME_PRIMARY;
 // Wait for DOM and Tauri to be ready
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
-  <div style="padding: 2rem; height: 100%; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <div style="padding: 2rem; height: 100%; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: ${THEME_BG_LIGHT};">
     <header style="border-bottom: 2px solid ${THEME_SECONDARY}; padding: 0.5rem 0; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
       <img src="/PloaCircle.svg" alt="Ploa" style="height: 28px;" />
       <div id="userStatus" style="display: flex; align-items: center; gap: 1rem;">
@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 list="urlHistory"
                 placeholder="https://demo.plone.org/++api++/"
                 value="https://demo.plone.org/++api++/"
-                style="width: 100%; padding: 0.5rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px;"
+                style="width: 100%; padding: 0.5rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px; background-color: ${THEME_BG_ACCENT};"
               />
               <datalist id="urlHistory"></datalist>
               <div id="credentialsHint" style="display: none; margin-top: 0.5rem; padding: 0.5rem; background: ${THEME_BG_ACCENT}; border-radius: 4px; font-size: 13px; color: #333;">
@@ -58,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   id="username" 
                   name="username" 
                   placeholder="admin"
-                  style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+                  style="width: 100%; padding: 0.5rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px; background-color: ${THEME_BG_ACCENT};"
                 />
               </div>
               <div>
@@ -68,7 +68,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   id="password" 
                   name="password" 
                   placeholder="admin"
-                  style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+                  style="width: 100%; padding: 0.5rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px; background-color: ${THEME_BG_ACCENT};"
                 />
               </div>
             </div>
@@ -102,10 +102,32 @@ document.addEventListener("DOMContentLoaded", () => {
               <button id="browseBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer;">
                 Browse Root
               </button>
-              <button id="keywordsBtn" style="padding: 0.5rem 1rem; background: ${THEME_SECONDARY}; color: #333; border: none; border-radius: 4px; cursor: pointer;">
-                🏷️ Keywords Manager
+              <button id="keywordsBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                  <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                </svg>
+                Keywords Manager
               </button>
               <span id="currentPath" style="color: #666; font-family: monospace;">/</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Search content items..." 
+                style="flex: 1; padding: 0.5rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px;"
+              />
+              <button id="searchBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                Search
+              </button>
+              <button id="clearSearchBtn" style="padding: 0.5rem 1rem; background: ${THEME_SECONDARY}; color: #333; border: none; border-radius: 4px; cursor: pointer; display: none;">
+                Clear
+              </button>
             </div>
             <div id="itemsList" style="border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; padding: 1rem; min-height: 200px; background: ${THEME_BG_LIGHT};">
               <p style="color: #666;">Click "Browse Root" to load items</p>
@@ -123,7 +145,6 @@ document.addEventListener("DOMContentLoaded", () => {
           text-decoration: none;
           color: #999;
           font-size: 10px;
-          opacity: 0.5;
           transition: opacity 0.2s;
         }
         #incrementic-credit:hover {
@@ -132,7 +153,6 @@ document.addEventListener("DOMContentLoaded", () => {
         #incrementic-credit img {
           height: 12px;
           width: auto;
-          opacity: 0.6;
           transition: opacity 0.2s;
         }
         #incrementic-credit:hover img {
@@ -143,7 +163,8 @@ document.addEventListener("DOMContentLoaded", () => {
         <span>Built with ❤️ by</span>
         <img src="/incrementic-logo.svg" alt="Incrementic" />
         <span>🇯🇲</span>
-        <span style="margin-left: 0.5rem; opacity: 0.6;">v<span id="app-version">-</span></span>
+        <span style="margin-left: 0.5rem;">v<span id="app-version">-</span></span>
+        <span id="feedback-link" style="margin-left: 1rem; cursor: pointer; text-decoration: underline;">Feedback</span>
       </span>
     </footer>
     </div>
@@ -157,6 +178,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const browseBtn = document.querySelector<HTMLButtonElement>("#browseBtn")!;
   const backBtn = document.querySelector<HTMLButtonElement>("#backBtn")!;
   const keywordsBtn = document.querySelector<HTMLButtonElement>("#keywordsBtn")!;
+  const searchBtn = document.querySelector<HTMLButtonElement>("#searchBtn")!;
+  const clearSearchBtn = document.querySelector<HTMLButtonElement>("#clearSearchBtn")!;
+  const searchInput = document.querySelector<HTMLInputElement>("#searchInput")!;
   const itemsList = document.querySelector<HTMLDivElement>("#itemsList")!;
   const currentPathSpan = document.querySelector<HTMLSpanElement>("#currentPath")!;
   const statusText = document.querySelector<HTMLSpanElement>("#statusText")!;
@@ -179,13 +203,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Handle Feedback link
+  const feedbackLink = document.querySelector<HTMLSpanElement>("#feedback-link");
+  if (feedbackLink) {
+    feedbackLink.addEventListener("click", async (e) => {
+      e.stopPropagation(); // Prevent triggering the incrementic credit click
+      try {
+        await invoke("plugin:shell|open", { path: "https://github.com/pigeonflight/Ploa/issues" });
+      } catch (error) {
+        console.error("Failed to open feedback URL:", error);
+      }
+    });
+  }
+
   // Load and display app version
   invoke<string>("get_app_version").then(async (version) => {
     const versionSpan = document.getElementById("app-version");
     if (versionSpan) {
       versionSpan.textContent = version;
     }
-    
+
     // Check for updates in the background
     checkForUpdates(version);
   }).catch((error) => {
@@ -204,14 +241,14 @@ document.addEventListener("DOMContentLoaded", () => {
           "Accept": "application/vnd.github.v3+json"
         }
       });
-      
+
       if (!response.ok) {
         return; // Silently fail - don't bother user if check fails
       }
-      
+
       const release = await response.json();
       const latestVersion = release.tag_name.replace(/^v/, ""); // Remove 'v' prefix if present
-      
+
       // Compare versions (simple string comparison should work for semantic versioning)
       if (compareVersions(latestVersion, currentVersion) > 0) {
         // New version available - show notification
@@ -227,7 +264,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function compareVersions(v1: string, v2: string): number {
     const parts1 = v1.split('.').map(Number);
     const parts2 = v2.split('.').map(Number);
-    
+
     for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
       const part1 = parts1[i] || 0;
       const part2 = parts2[i] || 0;
@@ -244,7 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (sessionStorage.getItem(notificationKey)) {
       return; // Already shown in this session
     }
-    
+
     const notification = document.createElement("div");
     notification.id = "update-notification";
     notification.style.cssText = `
@@ -283,19 +320,19 @@ document.addEventListener("DOMContentLoaded", () => {
         </button>
       </div>
     `;
-    
+
     document.body.appendChild(notification);
     sessionStorage.setItem(notificationKey, "true");
-    
+
     // Close handlers
     document.getElementById("closeUpdateNotification")?.addEventListener("click", () => {
       notification.remove();
     });
-    
+
     document.getElementById("dismissUpdateNotification")?.addEventListener("click", () => {
       notification.remove();
     });
-    
+
     // Download button handler - open release URL in browser
     document.getElementById("downloadUpdateBtn")?.addEventListener("click", async () => {
       try {
@@ -310,7 +347,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     });
-    
+
     // Auto-dismiss after 30 seconds
     setTimeout(() => {
       if (notification.parentElement) {
@@ -520,7 +557,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       items.forEach((item) => {
         const isFolder = item.is_folderish || item['@type'] === 'Folder';
-        const icon = isFolder ? "📁" : "📄";
 
         const li = document.createElement("div");
         li.style.padding = "0.75rem";
@@ -542,8 +578,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const iconSpan = document.createElement("span");
         iconSpan.style.marginRight = "0.5rem";
-        iconSpan.style.fontSize = "1.2rem";
-        iconSpan.textContent = icon;
+        iconSpan.style.display = "flex";
+        iconSpan.style.alignItems = "center";
+        iconSpan.style.width = "20px";
+        iconSpan.style.height = "20px";
+        iconSpan.style.color = PLONE_BLUE;
+        if (isFolder) {
+          iconSpan.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 6.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
+          </svg>`;
+        } else {
+          iconSpan.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>`;
+        }
 
         const textDiv = document.createElement("div");
         const titleDiv = document.createElement("div");
@@ -561,14 +610,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Info button for details/tags (especially for folders)
         const infoBtn = document.createElement("button");
-        infoBtn.innerHTML = "ℹ️";
+        infoBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>`;
         infoBtn.title = "View Details & Tags";
         infoBtn.style.background = "none";
         infoBtn.style.border = "none";
         infoBtn.style.cursor = "pointer";
         infoBtn.style.padding = "0.5rem";
         infoBtn.style.borderRadius = "50%";
-        infoBtn.style.fontSize = "1.1rem";
+        infoBtn.style.display = "flex";
+        infoBtn.style.alignItems = "center";
+        infoBtn.style.justifyContent = "center";
+        infoBtn.style.color = PLONE_BLUE;
         infoBtn.style.marginLeft = "0.5rem";
         infoBtn.style.opacity = "0.6";
         infoBtn.onmouseover = () => {
@@ -652,6 +708,212 @@ document.addEventListener("DOMContentLoaded", () => {
     await showKeywordsManager();
   });
 
+  // Search functionality
+  function displaySearchResults(items: api.ItemMetadata[]) {
+    if (items.length === 0) {
+      itemsList.innerHTML = "<p style='color: #666;'>No items found</p>";
+      return;
+    }
+
+    itemsList.innerHTML = "";
+
+    // Add a header showing search results
+    const header = document.createElement("div");
+    header.style.padding = "0.75rem";
+    header.style.borderBottom = `2px solid ${PLONE_BLUE}`;
+    header.style.marginBottom = "0.5rem";
+    header.style.fontWeight = "500";
+    header.style.color = "#333";
+    header.textContent = `Search Results (${items.length} found)`;
+    itemsList.appendChild(header);
+
+    items.forEach((item) => {
+      const isFolder = item.is_folderish || item['@type'] === 'Folder';
+
+      const li = document.createElement("div");
+      li.style.padding = "0.75rem";
+      li.style.borderBottom = `1px solid ${THEME_SECONDARY}`;
+      li.style.display = "flex";
+      li.style.alignItems = "center";
+      li.style.justifyContent = "space-between";
+      li.style.cursor = "pointer";
+      li.style.transition = "background-color 0.2s";
+
+      li.onmouseover = () => { li.style.backgroundColor = THEME_BG_ACCENT; };
+      li.onmouseout = () => { li.style.backgroundColor = "transparent"; };
+
+      // Main click area
+      const mainContent = document.createElement("div");
+      mainContent.style.display = "flex";
+      mainContent.style.alignItems = "center";
+      mainContent.style.flex = "1";
+
+      const iconSpan = document.createElement("span");
+      iconSpan.style.marginRight = "0.5rem";
+      iconSpan.style.display = "flex";
+      iconSpan.style.alignItems = "center";
+      iconSpan.style.width = "20px";
+      iconSpan.style.height = "20px";
+      iconSpan.style.color = PLONE_BLUE;
+      if (isFolder) {
+        iconSpan.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 6.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
+        </svg>`;
+      } else {
+        iconSpan.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>`;
+      }
+
+      const textDiv = document.createElement("div");
+      const titleDiv = document.createElement("div");
+      titleDiv.style.fontWeight = "500";
+      titleDiv.textContent = item.title || extractItemId(item) || "Untitled";
+      const typeDiv = document.createElement("div");
+      typeDiv.style.fontSize = "0.8rem";
+      typeDiv.style.color = "#666";
+      typeDiv.textContent = item['@type'] || item.type || "Unknown";
+
+      // Show path for search results
+      const pathDiv = document.createElement("div");
+      pathDiv.style.fontSize = "0.75rem";
+      pathDiv.style.color = "#999";
+      pathDiv.style.fontFamily = "monospace";
+      const itemPath = item["@id"] || item.path || "";
+      pathDiv.textContent = itemPath.replace(currentBaseUrl, '') || "/";
+
+      textDiv.appendChild(titleDiv);
+      textDiv.appendChild(typeDiv);
+      textDiv.appendChild(pathDiv);
+      mainContent.appendChild(iconSpan);
+      mainContent.appendChild(textDiv);
+
+      // Info button for details
+      const infoBtn = document.createElement("button");
+      infoBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>`;
+      infoBtn.title = "View Details & Tags";
+      infoBtn.style.background = "none";
+      infoBtn.style.border = "none";
+      infoBtn.style.cursor = "pointer";
+      infoBtn.style.padding = "0.5rem";
+      infoBtn.style.borderRadius = "50%";
+      infoBtn.style.display = "flex";
+      infoBtn.style.alignItems = "center";
+      infoBtn.style.justifyContent = "center";
+      infoBtn.style.color = PLONE_BLUE;
+      infoBtn.style.marginLeft = "0.5rem";
+      infoBtn.style.opacity = "0.6";
+      infoBtn.onmouseover = () => {
+        infoBtn.style.backgroundColor = THEME_SECONDARY;
+        infoBtn.style.opacity = "1";
+      };
+      infoBtn.onmouseout = () => {
+        infoBtn.style.backgroundColor = "transparent";
+        infoBtn.style.opacity = "0.6";
+      };
+
+      // Helper function to extract path from item
+      const getItemPath = (item: api.ItemMetadata): string => {
+        const itemPath = item["@id"] || item.path || "";
+        if (!itemPath) return "";
+
+        try {
+          if (itemPath.startsWith('http://') || itemPath.startsWith('https://')) {
+            const urlObj = new URL(itemPath);
+            let pathname = urlObj.pathname;
+            if (pathname.includes('++api++')) {
+              const parts = pathname.split('++api++');
+              pathname = parts[parts.length - 1] || '/';
+            }
+            return pathname.replace(/^\//, '');
+          } else {
+            return itemPath.replace(/^.*\/\+\+api\+\+\//, '').replace(/^\//, '');
+          }
+        } catch (e) {
+          return itemPath.replace(/^.*\/\+\+api\+\+\//, '').replace(/^\//, '');
+        }
+      };
+
+      // Handle info button click
+      infoBtn.onclick = async (e) => {
+        e.stopPropagation();
+        itemsList.innerHTML = "<p>Loading...</p>";
+        try {
+          const objectPath = getItemPath(item);
+          if (!objectPath) {
+            throw new Error("Could not determine item path");
+          }
+          const objectData = await api.fetch(objectPath);
+          showObjectDetails(objectData);
+          clearSearchBtn.style.display = "none";
+        } catch (error) {
+          console.error("Error fetching object details:", error);
+          itemsList.innerHTML = `<p style='color: #d32f2f;'>Error loading details: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
+        }
+      };
+
+      // Handle row click - navigate to item
+      mainContent.onclick = async () => {
+        const objectPath = getItemPath(item);
+        if (!objectPath) {
+          itemsList.innerHTML = `<p style='color: #d32f2f;'>Error: Could not determine item path</p>`;
+          return;
+        }
+
+        try {
+          const objectData = await api.fetch(objectPath);
+          showObjectDetails(objectData);
+          clearSearchBtn.style.display = "none";
+        } catch (error) {
+          console.error("Error fetching object details:", error);
+          itemsList.innerHTML = `<p style='color: #d32f2f;'>Error loading item: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
+        }
+      };
+
+      li.appendChild(mainContent);
+      li.appendChild(infoBtn);
+      itemsList.appendChild(li);
+    });
+  }
+
+  searchBtn.addEventListener("click", async () => {
+    const query = searchInput.value.trim();
+    if (!query) {
+      return;
+    }
+
+    try {
+      itemsList.innerHTML = "<p>Searching...</p>";
+      clearSearchBtn.style.display = "block";
+
+      const searchResults = await api.search(undefined, undefined, query);
+      const items = searchResults.items || [];
+      displaySearchResults(items);
+    } catch (error) {
+      console.error("Search error:", error);
+      itemsList.innerHTML = `<p style='color: #d32f2f;'>Search failed: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
+    }
+  });
+
+  // Allow Enter key to trigger search
+  searchInput.addEventListener("keypress", (e) => {
+    if (e.key === 'Enter') {
+      searchBtn.click();
+    }
+  });
+
+  // Clear search button
+  clearSearchBtn.addEventListener("click", () => {
+    searchInput.value = '';
+    clearSearchBtn.style.display = "none";
+    browseBtn.click(); // Refresh browse view
+  });
+
   // Helper to load items and update UI
   async function loadItems(path: string) {
     currentPath = path;
@@ -700,7 +962,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div style="position: relative;">
             <div style="display: flex; gap: 0.5rem;">
               <div style="flex: 1; position: relative;">
-                <input type="text" id="newTagInput" placeholder="Add new tag..." style="width: 100%; padding: 0.5rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px;" />
+                <input type="text" id="newTagInput" placeholder="Add new tag..." style="width: 100%; padding: 0.5rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px; background-color: ${THEME_BG_ACCENT};" />
                 <div id="tagAutocomplete" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid ${THEME_SECONDARY}; border-top: none; border-radius: 0 0 4px 4px; max-height: 200px; overflow-y: auto; z-index: 1000; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
               </div>
               <button id="addTagBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer;">Add</button>
@@ -716,29 +978,35 @@ document.addEventListener("DOMContentLoaded", () => {
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
             <h4 style="margin: 0;">Blocks</h4>
             <div style="display: flex; gap: 0.5rem;">
-              <button id="jsonModeBtn" style="padding: 0.4rem 0.8rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">JSON</button>
-              <button id="visualModeBtn" style="padding: 0.4rem 0.8rem; background: ${THEME_SECONDARY}; color: #333; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">Visual</button>
-            </div>
-          </div>
-          
-          <!-- JSON Mode -->
-          <div id="jsonMode" style="display: block;">
-            <p style="font-size: 13px; color: #666; margin: 0 0 0.5rem 0;">Edit the blocks structure. Both blocks and blocks_layout must be consistent.</p>
-            
-            <div style="margin-bottom: 1rem;">
-              <label style="font-weight: bold; font-size: 13px; display: block; margin-bottom: 0.25rem;">blocks:</label>
-              <textarea id="blocksEditor" style="width: 100%; min-height: 200px; font-family: monospace; font-size: 12px; border: 1px solid ${THEME_SECONDARY}; padding: 0.5rem; border-radius: 4px;">${JSON.stringify(blocks, null, 2)}</textarea>
-            </div>
-            
-            <div style="margin-bottom: 1rem;">
-              <label style="font-weight: bold; font-size: 13px; display: block; margin-bottom: 0.25rem;">blocks_layout:</label>
-              <textarea id="blocksLayoutEditor" style="width: 100%; min-height: 100px; font-family: monospace; font-size: 12px; border: 1px solid ${THEME_SECONDARY}; padding: 0.5rem; border-radius: 4px;">${JSON.stringify(blocksLayout, null, 2)}</textarea>
+              <button id="visualModeBtn" style="padding: 0.4rem 0.8rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">Visual</button>
+              <button id="jsonModeBtn" style="padding: 0.4rem 0.8rem; background: ${THEME_SECONDARY}; color: #333; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">JSON</button>
             </div>
           </div>
           
           <!-- Visual Mode -->
-          <div id="visualMode" style="display: none;">
-            <p style="font-size: 13px; color: #666; margin: 0 0 0.5rem 0;">Drag blocks to reorder them. Changes sync with JSON automatically.</p>
+          <div id="visualMode" style="display: block;">
+            <p style="font-size: 13px; color: #666; margin: 0 0 0.5rem 0;">View and edit blocks visually. Drag blocks to reorder them. Changes sync with JSON automatically.</p>
+            <div id="blocksList" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+              <!-- Blocks will be rendered here -->
+            </div>
+            <button id="addBlockBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">+ Add Block</button>
+          </div>
+          
+          <!-- JSON Mode -->
+          <div id="jsonMode" style="display: none;">
+            <p style="font-size: 13px; color: #666; margin: 0 0 0.5rem 0;">Edit the blocks structure. Both blocks and blocks_layout must be consistent.</p>
+            
+            <div style="margin-bottom: 1rem;">
+              <label style="font-weight: bold; font-size: 13px; display: block; margin-bottom: 0.25rem;">blocks:</label>
+              <textarea id="blocksEditor" style="width: 100%; min-height: 200px; font-family: monospace; font-size: 12px; border: 1px solid ${THEME_SECONDARY}; padding: 0.5rem; border-radius: 4px; background-color: ${THEME_BG_ACCENT};">${JSON.stringify(blocks, null, 2)}</textarea>
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+              <label style="font-weight: bold; font-size: 13px; display: block; margin-bottom: 0.25rem;">blocks_layout:</label>
+              <textarea id="blocksLayoutEditor" style="width: 100%; min-height: 100px; font-family: monospace; font-size: 12px; border: 1px solid ${THEME_SECONDARY}; padding: 0.5rem; border-radius: 4px; background-color: ${THEME_BG_ACCENT};">${JSON.stringify(blocksLayout, null, 2)}</textarea>
+            </div>
+          </div>
+            <p style="font-size: 13px; color: #666; margin: 0 0 0.5rem 0;">View and edit blocks visually. Drag blocks to reorder them. Changes sync with JSON automatically.</p>
             <div id="blocksList" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
               <!-- Blocks will be rendered here -->
             </div>
@@ -788,12 +1056,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const newTagInput = document.getElementById("newTagInput") as HTMLInputElement;
     const tagStatus = document.getElementById("tagStatus") as HTMLDivElement;
     const tagAutocomplete = document.getElementById("tagAutocomplete") as HTMLDivElement;
-    
+
     // Load all existing tags for autocomplete
     let allTags: string[] = [];
     let selectedAutocompleteTag: string | null = null;
     let currentMatches: string[] = [];
-    
+
     (async () => {
       try {
         const tagsData = await api.collectTags();
@@ -802,7 +1070,7 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error('Failed to load tags for autocomplete:', error);
       }
     })();
-    
+
     // Validate path after tagStatus is declared
     if (!objectPath || objectPath === '/') {
       console.error('Invalid path extracted from:', path);
@@ -812,58 +1080,58 @@ document.addEventListener("DOMContentLoaded", () => {
         tagStatus.style.display = 'block';
       }
     }
-    
+
     // Autocomplete functionality
     function filterTags(query: string): string[] {
       if (!query.trim()) return [];
       const lowerQuery = query.toLowerCase();
       return allTags
-        .filter(tag => 
-          tag.toLowerCase().includes(lowerQuery) && 
+        .filter(tag =>
+          tag.toLowerCase().includes(lowerQuery) &&
           !currentTags.includes(tag)
         )
         .slice(0, 10); // Limit to 10 suggestions
     }
-    
+
     function renderAutocomplete(matches: string[]) {
       if (!tagAutocomplete) return;
       currentMatches = matches;
-      
+
       if (matches.length === 0) {
         tagAutocomplete.style.display = 'none';
         selectedAutocompleteTag = null;
         return;
       }
-      
-      tagAutocomplete.innerHTML = matches.map((tag, index) => `
+
+      tagAutocomplete.innerHTML = matches.map((tag) => `
         <div class="autocomplete-item" data-tag="${tag}" style="padding: 0.5rem; cursor: pointer; border-bottom: 1px solid ${THEME_BG_LIGHT}; ${tag === selectedAutocompleteTag ? `background: ${THEME_BG_LIGHT};` : ''}">
           ${tag}
         </div>
       `).join('');
-      
+
       tagAutocomplete.style.display = 'block';
-      
+
       // Attach click and hover handlers
       tagAutocomplete.querySelectorAll('.autocomplete-item').forEach(item => {
         const tag = item.getAttribute('data-tag');
         const isSelected = tag === selectedAutocompleteTag;
-        
+
         item.addEventListener('click', () => {
           if (tag) {
             selectTag(tag);
           }
         });
-        
+
         item.addEventListener('mouseenter', () => {
           (item as HTMLElement).style.background = THEME_BG_LIGHT;
         });
-        
+
         item.addEventListener('mouseleave', () => {
           (item as HTMLElement).style.background = isSelected ? THEME_BG_LIGHT : 'transparent';
         });
       });
     }
-    
+
     function selectTag(tag: string) {
       if (tag && !currentTags.includes(tag)) {
         currentTags.push(tag);
@@ -873,14 +1141,14 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedAutocompleteTag = null;
       }
     }
-    
+
     newTagInput?.addEventListener('input', (e) => {
       const query = (e.target as HTMLInputElement).value;
       const matches = filterTags(query);
       selectedAutocompleteTag = matches.length > 0 ? matches[0] : null;
       renderAutocomplete(matches);
     });
-    
+
     newTagInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         if (tagAutocomplete && tagAutocomplete.style.display !== 'none' && selectedAutocompleteTag) {
@@ -893,11 +1161,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         return;
       }
-      
+
       if (!tagAutocomplete || tagAutocomplete.style.display === 'none') {
         return;
       }
-      
+
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         const currentIndex = selectedAutocompleteTag ? currentMatches.indexOf(selectedAutocompleteTag) : -1;
@@ -922,14 +1190,14 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedAutocompleteTag = null;
       }
     });
-    
+
     // Hide autocomplete when clicking outside
     document.addEventListener('click', (e) => {
-      if (tagAutocomplete && newTagInput && 
-          !tagAutocomplete.contains(e.target as Node) && 
-          e.target !== newTagInput) {
+      if (tagAutocomplete && newTagInput &&
+        !tagAutocomplete.contains(e.target as Node) &&
+        e.target !== newTagInput) {
         tagAutocomplete.style.display = 'none';
-        selectedAutocompleteIndex = -1;
+        selectedAutocompleteTag = null;
       }
     });
 
@@ -993,11 +1261,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // Block management handlers
     if (hasBlocks) {
       const blockStatus = document.getElementById("blockStatus") as HTMLDivElement;
-      const originalBlocks = JSON.stringify(blocks);
-      const originalBlocksLayout = JSON.stringify(blocksLayout);
+      let originalBlocks = JSON.stringify(blocks);
+      let originalBlocksLayout = JSON.stringify(blocksLayout);
 
-      // Mode toggle state
-      let currentMode: 'json' | 'visual' = 'json';
+      // Mode toggle state - default to visual mode
+      let currentMode: 'json' | 'visual' = 'visual';
       let currentBlocks = { ...blocks };
       let currentBlocksLayout = { ...blocksLayout };
 
@@ -1050,6 +1318,512 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
+      // Simple markdown to HTML converter
+      function markdownToHtml(markdown: string): string {
+        if (!markdown) return '';
+
+        // Escape HTML to prevent XSS
+        const escapeHtml = (text: string) => {
+          const div = document.createElement('div');
+          div.textContent = text;
+          return div.innerHTML;
+        };
+
+        let html = markdown;
+        const lines = html.split('\n');
+        const output: string[] = [];
+        let inCodeBlock = false;
+        let codeBlockContent: string[] = [];
+        let inList = false;
+        let listItems: string[] = [];
+        let listOrdered = false;
+        let currentParagraph: string[] = [];
+
+        // Track notes for footnotes section
+        const notes: Array<{ id: string; content: string; index: number }> = [];
+        let noteCounter = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const trimmed = line.trim();
+
+          // Code blocks
+          if (trimmed.startsWith('```')) {
+            if (inCodeBlock) {
+              // End code block
+              const code = codeBlockContent.join('\n');
+              output.push(`<pre style="background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto; margin: 0.5rem 0; font-family: monospace; font-size: 0.9rem;"><code>${escapeHtml(code)}</code></pre>`);
+              codeBlockContent = [];
+              inCodeBlock = false;
+            } else {
+              // Start code block
+              if (currentParagraph.length > 0) {
+                output.push(`<p style="margin: 0.75rem 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+                currentParagraph = [];
+              }
+              if (listItems.length > 0) {
+                const tag = listOrdered ? 'ol' : 'ul';
+                output.push(`<${tag} style="margin: 0.5rem 0; padding-left: 1.5rem;">${listItems.map(li => `<li style="margin: 0.25rem 0;">${li}</li>`).join('')}</${tag}>`);
+                listItems = [];
+                inList = false;
+              }
+              inCodeBlock = true;
+            }
+            continue;
+          }
+
+          if (inCodeBlock) {
+            codeBlockContent.push(line);
+            continue;
+          }
+
+          // Headers - match # through ###### (h1 through h6)
+          const headerMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+          if (headerMatch) {
+            if (currentParagraph.length > 0) {
+              output.push(`<p style="margin: 0.75rem 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+              currentParagraph = [];
+            }
+            if (listItems.length > 0) {
+              const tag = listOrdered ? 'ol' : 'ul';
+              output.push(`<${tag} style="margin: 0.5rem 0; padding-left: 1.5rem;">${listItems.map(li => `<li style="margin: 0.25rem 0;">${li}</li>`).join('')}</${tag}>`);
+              listItems = [];
+              inList = false;
+            }
+            const level = headerMatch[1].length;
+            const text = headerMatch[2];
+            const size = 2 - (level - 1) * 0.2;
+            output.push(`<h${Math.min(level, 6)} style="margin: ${1.5 - (level - 1) * 0.2}rem 0 ${0.75 + (level - 1) * 0.1}rem 0; font-size: ${size}rem; font-weight: 600;">${processInlineMarkdown(text, notes)}</h${Math.min(level, 6)}>`);
+            continue;
+          }
+
+          // Horizontal rule
+          if (trimmed.match(/^[-*_]{3,}$/)) {
+            if (currentParagraph.length > 0) {
+              output.push(`<p style="margin: 0.75rem 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+              currentParagraph = [];
+            }
+            if (listItems.length > 0) {
+              const tag = listOrdered ? 'ol' : 'ul';
+              output.push(`<${tag} style="margin: 0.5rem 0; padding-left: 1.5rem;">${listItems.map(li => `<li style="margin: 0.25rem 0;">${li}</li>`).join('')}</${tag}>`);
+              listItems = [];
+              inList = false;
+            }
+            output.push('<hr style="margin: 1rem 0; border: none; border-top: 1px solid #ddd;">');
+            continue;
+          }
+
+          // Lists
+          const ulMatch = trimmed.match(/^[-*] (.+)$/);
+          const olMatch = trimmed.match(/^\d+\. (.+)$/);
+
+          if (ulMatch || olMatch) {
+            const isOrdered = !!olMatch;
+            const itemText = ulMatch ? ulMatch[1] : olMatch![1];
+
+            if (currentParagraph.length > 0) {
+              output.push(`<p style="margin: 0.75rem 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+              currentParagraph = [];
+            }
+
+            if (inList && listOrdered !== isOrdered) {
+              // Different list type, close previous
+              const tag = listOrdered ? 'ol' : 'ul';
+              output.push(`<${tag} style="margin: 0.5rem 0; padding-left: 1.5rem;">${listItems.map(li => `<li style="margin: 0.25rem 0;">${li}</li>`).join('')}</${tag}>`);
+              listItems = [];
+            }
+
+            inList = true;
+            listOrdered = isOrdered;
+            listItems.push(processInlineMarkdown(itemText, notes));
+            continue;
+          }
+
+          // End of list
+          if (inList && trimmed === '') {
+            const tag = listOrdered ? 'ol' : 'ul';
+            output.push(`<${tag} style="margin: 0.5rem 0; padding-left: 1.5rem;">${listItems.map(li => `<li style="margin: 0.25rem 0;">${li}</li>`).join('')}</${tag}>`);
+            listItems = [];
+            inList = false;
+            continue;
+          }
+
+          // Note definitions (markdown style: [^1]: content or HTML style: <note id="...">content</note>)
+          const noteDefMatch = trimmed.match(/^\[\^([^\]]+)\]:\s*(.+)$/);
+          const noteHtmlMatch = trimmed.match(/^<note\s+id=["']([^"']+)["']>(.*?)<\/note>$/i);
+
+          if (noteDefMatch || noteHtmlMatch) {
+            if (currentParagraph.length > 0) {
+              output.push(`<p style="margin: 0.75rem 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+              currentParagraph = [];
+            }
+            if (listItems.length > 0) {
+              const tag = listOrdered ? 'ol' : 'ul';
+              output.push(`<${tag} style="margin: 0.5rem 0; padding-left: 1.5rem;">${listItems.map(li => `<li style="margin: 0.25rem 0;">${li}</li>`).join('')}</${tag}>`);
+              listItems = [];
+              inList = false;
+            }
+
+            const noteId = noteDefMatch ? noteDefMatch[1] : noteHtmlMatch![1];
+            const noteContent = noteDefMatch ? noteDefMatch[2] : noteHtmlMatch![2];
+            noteCounter++;
+            notes.push({
+              id: noteId,
+              content: noteContent,
+              index: noteCounter
+            });
+            continue;
+          }
+
+          // Regular paragraph
+          if (trimmed === '') {
+            if (currentParagraph.length > 0) {
+              output.push(`<p style="margin: 0.75rem 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+              currentParagraph = [];
+            }
+            if (listItems.length > 0) {
+              const tag = listOrdered ? 'ol' : 'ul';
+              output.push(`<${tag} style="margin: 0.5rem 0; padding-left: 1.5rem;">${listItems.map(li => `<li style="margin: 0.25rem 0;">${li}</li>`).join('')}</${tag}>`);
+              listItems = [];
+              inList = false;
+            }
+          } else {
+            currentParagraph.push(processInlineMarkdown(trimmed, notes));
+          }
+        }
+
+        // Close any open blocks
+        if (inCodeBlock && codeBlockContent.length > 0) {
+          const code = codeBlockContent.join('\n');
+          output.push(`<pre style="background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto; margin: 0.5rem 0; font-family: monospace; font-size: 0.9rem;"><code>${escapeHtml(code)}</code></pre>`);
+        }
+        if (currentParagraph.length > 0) {
+          output.push(`<p style="margin: 0.75rem 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+        }
+        if (listItems.length > 0) {
+          const tag = listOrdered ? 'ol' : 'ul';
+          output.push(`<${tag} style="margin: 0.5rem 0; padding-left: 1.5rem;">${listItems.map(li => `<li style="margin: 0.25rem 0;">${li}</li>`).join('')}</${tag}>`);
+        }
+
+        // Add footnotes section if there are any notes
+        if (notes.length > 0) {
+          output.push('<hr style="margin: 2rem 0 1rem 0; border: none; border-top: 1px solid #ddd;">');
+          output.push('<div style="margin-top: 2rem; padding-top: 1rem; border-top: 2px solid #eee;">');
+          output.push('<h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; font-weight: 600; color: #666;">Notes</h3>');
+          output.push('<ol style="margin: 0; padding-left: 1.5rem; list-style: decimal;">');
+          notes.forEach((note) => {
+            const noteId = `note-${note.id}`;
+            output.push(`<li id="${noteId}" style="margin: 0.5rem 0; line-height: 1.6;">`);
+            output.push(processInlineMarkdown(note.content, notes));
+            output.push(` <a href="#noteref-${note.id}" style="color: #1976d2; text-decoration: none; font-size: 0.9em; margin-left: 0.25rem;">↩</a>`);
+            output.push('</li>');
+          });
+          output.push('</ol>');
+          output.push('</div>');
+        }
+
+        return output.join('\n');
+      }
+
+      // Process inline markdown (bold, italic, links, code, noterefs)
+      function processInlineMarkdown(text: string, notes: Array<{ id: string; content: string; index: number }> = []): string {
+        // Escape HTML first
+        const escapeHtml = (text: string) => {
+          const div = document.createElement('div');
+          div.textContent = text;
+          return div.innerHTML;
+        };
+
+        let html = escapeHtml(text);
+
+        // Note references (markdown style: [^1] or HTML style: <noteref ref="note1">)
+        // Process noterefs before other inline elements
+        html = html.replace(/\[\^([^\]]+)\]/g, (match, noteId) => {
+          const note = notes.find(n => n.id === noteId);
+          if (note) {
+            return `<sup><a id="noteref-${noteId}" href="#note-${noteId}" style="color: #1976d2; text-decoration: none; font-weight: 600; padding: 0 2px;" title="${escapeHtml(note.content.substring(0, 50))}...">[${note.index}]</a></sup>`;
+          }
+          return match; // Return as-is if note not found
+        });
+
+        // HTML-style noterefs: <noteref ref="note1"> or <noteref ref="note1">text</noteref>
+        html = html.replace(/<noteref\s+ref=["']([^"']+)["'](?:\s*\/>|>([^<]*)<\/noteref>)/gi, (match, noteId, text) => {
+          const note = notes.find(n => n.id === noteId);
+          if (note) {
+            const displayText = text || `[${note.index}]`;
+            return `<sup><a id="noteref-${noteId}" href="#note-${noteId}" style="color: #1976d2; text-decoration: none; font-weight: 600; padding: 0 2px;" title="${escapeHtml(note.content.substring(0, 50))}...">${displayText}</a></sup>`;
+          }
+          return match;
+        });
+
+        // Code blocks are handled separately, so we process inline code
+        // Inline code (`code`) - but not inside code blocks
+        html = html.replace(/`([^`]+)`/g, (_match, code) => {
+          return `<code style="background: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-family: monospace; font-size: 0.9em;">${escapeHtml(code)}</code>`;
+        });
+
+        // Bold (**text** or __text__) - but not inside code
+        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+
+        // Italic (*text* or _text_) - but not inside code or bold
+        html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+        html = html.replace(/(?<!_)_([^_]+)_(?!_)/g, '<em>$1</em>');
+
+        // Links [text](url) - but not note references
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, linkText, url) => {
+          // Check if it's an internal anchor (starts with #)
+          if (url.startsWith('#')) {
+            return `<a href="${url}" style="color: #1976d2; text-decoration: none;">${linkText}</a>`;
+          }
+          return `<a href="${url}" style="color: #1976d2; text-decoration: none;" target="_blank" rel="noopener noreferrer">${linkText}</a>`;
+        });
+
+        return html;
+      }
+
+      // Render block content based on type
+      function renderBlockContent(block: any, type: string): HTMLElement {
+        const contentContainer = document.createElement('div');
+        contentContainer.style.cssText = 'width: 100%;';
+
+        switch (type) {
+          case 'markdownBlock':
+          case 'markdown':
+            // Render Markdown block
+            const markdownContainer = document.createElement('div');
+            markdownContainer.style.cssText = 'line-height: 1.6; color: #333;';
+
+            if (block.markdown) {
+              const html = markdownToHtml(block.markdown);
+              markdownContainer.innerHTML = html || '<p style="color: #999; font-style: italic;">Empty markdown block</p>';
+
+              // Add smooth scrolling for internal anchor links
+              markdownContainer.querySelectorAll('a[href^="#"]').forEach((link) => {
+                link.addEventListener('click', (e) => {
+                  const href = (link as HTMLAnchorElement).getAttribute('href');
+                  if (href && href.startsWith('#')) {
+                    const targetId = href.substring(1);
+                    const target = document.getElementById(targetId);
+                    if (target) {
+                      e.preventDefault();
+                      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      // Highlight the target briefly
+                      const originalBg = target.style.backgroundColor;
+                      target.style.backgroundColor = '#fff9c4';
+                      setTimeout(() => {
+                        target.style.backgroundColor = originalBg;
+                      }, 1000);
+                    }
+                  }
+                });
+              });
+            } else {
+              markdownContainer.innerHTML = '<p style="color: #999; font-style: italic;">Empty markdown block</p>';
+            }
+            contentContainer.appendChild(markdownContainer);
+            break;
+
+          case 'slate':
+          case 'text':
+            // Render Slate/Text block content
+            if (block.value && Array.isArray(block.value)) {
+              const textContainer = document.createElement('div');
+              textContainer.style.cssText = 'line-height: 1.6; color: #333;';
+
+              const extractAndRenderText = (nodes: any[]): string => {
+                return nodes.map(node => {
+                  if (node.text !== undefined) {
+                    let text = node.text;
+                    // Apply formatting
+                    if (node.bold) text = `<strong>${text}</strong>`;
+                    if (node.italic) text = `<em>${text}</em>`;
+                    if (node.underline) text = `<u>${text}</u>`;
+                    if (node.code) text = `<code style="background: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-family: monospace;">${text}</code>`;
+                    return text;
+                  } else if (node.type === 'paragraph' && node.children) {
+                    return `<p style="margin: 0.5rem 0;">${extractAndRenderText(node.children)}</p>`;
+                  } else if (node.type === 'heading' && node.children) {
+                    const level = node.level || 1;
+                    return `<h${level} style="margin: 0.75rem 0 0.5rem 0; font-size: ${1.5 - (level - 1) * 0.2}rem;">${extractAndRenderText(node.children)}</h${level}>`;
+                  } else if (node.type === 'list' && node.children) {
+                    const tag = node.ordered ? 'ol' : 'ul';
+                    return `<${tag} style="margin: 0.5rem 0; padding-left: 1.5rem;">${extractAndRenderText(node.children).split('\n').filter(l => l.trim()).map(l => `<li>${l}</li>`).join('')}</${tag}>`;
+                  } else if (node.type === 'list-item' && node.children) {
+                    return extractAndRenderText(node.children);
+                  } else if (node.children) {
+                    return extractAndRenderText(node.children);
+                  }
+                  return '';
+                }).join('');
+              };
+
+              const html = extractAndRenderText(block.value);
+              textContainer.innerHTML = html || '<p style="color: #999; font-style: italic;">Empty text block</p>';
+              contentContainer.appendChild(textContainer);
+            } else if (block.text) {
+              // Plain text block
+              const textContainer = document.createElement('div');
+              textContainer.style.cssText = 'line-height: 1.6; color: #333; white-space: pre-wrap;';
+              textContainer.innerHTML = block.text.replace(/\n/g, '<br>');
+              contentContainer.appendChild(textContainer);
+            } else {
+              contentContainer.innerHTML = '<p style="color: #999; font-style: italic;">Empty text block</p>';
+            }
+            break;
+
+          case 'image':
+            // Render Image block
+            const imageContainer = document.createElement('div');
+            imageContainer.style.cssText = 'text-align: center; margin: 0.5rem 0;';
+
+            if (block.url) {
+              const img = document.createElement('img');
+              img.src = block.url;
+              img.alt = block.alt || 'Image';
+              img.style.cssText = 'max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);';
+              img.onerror = () => {
+                img.style.display = 'none';
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = 'padding: 1rem; background: #ffebee; color: #c62828; border-radius: 4px;';
+                errorDiv.textContent = `Image not found: ${block.url}`;
+                imageContainer.appendChild(errorDiv);
+              };
+              imageContainer.appendChild(img);
+
+              if (block.title) {
+                const caption = document.createElement('p');
+                caption.style.cssText = 'margin-top: 0.5rem; font-size: 0.9rem; color: #666; font-style: italic;';
+                caption.textContent = block.title;
+                imageContainer.appendChild(caption);
+              }
+            } else {
+              imageContainer.innerHTML = '<p style="color: #999; font-style: italic;">No image URL provided</p>';
+            }
+            contentContainer.appendChild(imageContainer);
+            break;
+
+          case 'listing':
+            // Render Listing block preview
+            const listingContainer = document.createElement('div');
+            listingContainer.style.cssText = 'padding: 1rem; background: #f5f5f5; border-radius: 4px;';
+
+            if (block.query && Array.isArray(block.query)) {
+              listingContainer.innerHTML = `
+                <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #333;">Content Listing</p>
+                <p style="margin: 0; font-size: 0.9rem; color: #666;">${block.query.length} search criteria configured</p>
+              `;
+            } else {
+              listingContainer.innerHTML = '<p style="margin: 0; color: #666;">Content listing block (no query configured)</p>';
+            }
+            contentContainer.appendChild(listingContainer);
+            break;
+
+          case 'video':
+            // Render Video block
+            const videoContainer = document.createElement('div');
+            videoContainer.style.cssText = 'margin: 0.5rem 0;';
+
+            if (block.url) {
+              const video = document.createElement('video');
+              video.src = block.url;
+              video.controls = true;
+              video.style.cssText = 'width: 100%; max-width: 100%; border-radius: 4px;';
+              videoContainer.appendChild(video);
+
+              if (block.title) {
+                const title = document.createElement('p');
+                title.style.cssText = 'margin-top: 0.5rem; font-weight: 600; color: #333;';
+                title.textContent = block.title;
+                videoContainer.appendChild(title);
+              }
+            } else {
+              videoContainer.innerHTML = '<p style="color: #999; font-style: italic;">No video URL provided</p>';
+            }
+            contentContainer.appendChild(videoContainer);
+            break;
+
+          case 'teaser':
+            // Render Teaser block
+            const teaserContainer = document.createElement('div');
+            teaserContainer.style.cssText = 'padding: 1rem; background: #f9f9f9; border-left: 3px solid #ff9800; border-radius: 4px;';
+
+            if (block.title) {
+              const title = document.createElement('h4');
+              title.style.cssText = 'margin: 0 0 0.5rem 0; color: #333;';
+              title.textContent = block.title;
+              teaserContainer.appendChild(title);
+            }
+
+            if (block.description) {
+              const desc = document.createElement('p');
+              desc.style.cssText = 'margin: 0 0 0.5rem 0; color: #666; line-height: 1.5;';
+              desc.textContent = block.description;
+              teaserContainer.appendChild(desc);
+            }
+
+            if (block.href) {
+              const link = document.createElement('a');
+              link.href = block.href;
+              link.textContent = block.linkTitle || 'Read more →';
+              link.style.cssText = 'color: #ff9800; text-decoration: none; font-weight: 500;';
+              link.target = '_blank';
+              teaserContainer.appendChild(link);
+            }
+
+            if (!block.title && !block.description && !block.href) {
+              teaserContainer.innerHTML = '<p style="margin: 0; color: #999; font-style: italic;">Empty teaser block</p>';
+            }
+            contentContainer.appendChild(teaserContainer);
+            break;
+
+          case 'table':
+            // Render Table block
+            const tableContainer = document.createElement('div');
+            tableContainer.style.cssText = 'overflow-x: auto; margin: 0.5rem 0;';
+
+            if (block.table && block.table.rows) {
+              const table = document.createElement('table');
+              table.style.cssText = 'width: 100%; border-collapse: collapse; background: white;';
+
+              block.table.rows.forEach((row: any, rowIdx: number) => {
+                const tr = document.createElement('tr');
+                if (row.cells) {
+                  row.cells.forEach((cell: any) => {
+                    const tag = (rowIdx === 0 && block.table.header) ? 'th' : 'td';
+                    const td = document.createElement(tag);
+                    td.style.cssText = 'padding: 0.5rem; border: 1px solid #ddd; text-align: left;';
+                    if (tag === 'th') {
+                      td.style.cssText += 'background: #f5f5f5; font-weight: 600;';
+                    }
+                    td.textContent = cell.value || '';
+                    tr.appendChild(td);
+                  });
+                }
+                table.appendChild(tr);
+              });
+
+              tableContainer.appendChild(table);
+            } else {
+              tableContainer.innerHTML = '<p style="color: #999; font-style: italic;">Empty table block</p>';
+            }
+            contentContainer.appendChild(tableContainer);
+            break;
+
+          default:
+            // Generic block renderer
+            const genericContainer = document.createElement('div');
+            genericContainer.style.cssText = 'padding: 1rem; background: #f5f5f5; border-radius: 4px; font-family: monospace; font-size: 0.85rem; color: #666;';
+            genericContainer.textContent = JSON.stringify(block, null, 2).substring(0, 200);
+            if (JSON.stringify(block).length > 200) {
+              genericContainer.textContent += '...';
+            }
+            contentContainer.appendChild(genericContainer);
+        }
+
+        return contentContainer;
+      }
+
       // Render block cards in visual mode
       function renderBlockCards() {
         if (!blocksList) return;
@@ -1067,76 +1841,53 @@ document.addEventListener("DOMContentLoaded", () => {
           card.style.cssText = `
             background: white;
             border: 1px solid ${THEME_SECONDARY};
-            border-radius: 6px;
-            padding: 0.75rem;
-            cursor: move;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            position: relative;
+          `;
+
+          // Block header with type label and actions
+          const header = document.createElement('div');
+          header.style.cssText = `
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: all 0.2s;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #eee;
           `;
 
-          // Block info container
-          const info = document.createElement('div');
-          info.style.flex = '1';
-          info.style.display = 'flex';
-          info.style.alignItems = 'center';
-          info.style.gap = '0.75rem';
-          info.style.overflow = 'hidden';
-
-          // Icon based on type
           const type = block['@type'] || 'unknown';
-          let icon = '🧩';
           let color = '#757575';
 
           switch (type) {
             case 'slate':
             case 'text':
-              icon = '📝';
               color = PLONE_BLUE;
               break;
+            case 'markdownBlock':
+            case 'markdown':
+              color = '#9c27b0';
+              break;
             case 'image':
-              icon = '🖼️';
               color = '#f06292';
               break;
             case 'listing':
-              icon = '📋';
               color = '#4caf50';
               break;
             case 'video':
-              icon = '🎥';
               color = '#f44336';
               break;
             case 'teaser':
-              icon = '🔗';
               color = '#ff9800';
               break;
             case 'table':
-              icon = '▦';
               color = '#795548';
               break;
           }
-
-          const iconSpan = document.createElement('div');
-          iconSpan.style.cssText = `
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 32px;
-            height: 32px;
-            background: ${color}20;
-            color: ${color};
-            border-radius: 6px;
-            font-size: 16px;
-            flex-shrink: 0;
-          `;
-          iconSpan.textContent = icon;
-
-          // Content Preview
-          const contentDiv = document.createElement('div');
-          contentDiv.style.cssText = 'display: flex; flex-direction: column; overflow: hidden;';
 
           const typeLabel = document.createElement('span');
           typeLabel.style.cssText = `
@@ -1145,52 +1896,19 @@ document.addEventListener("DOMContentLoaded", () => {
             color: ${color};
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 2px;
+            padding: 0.25rem 0.5rem;
+            background: ${color}15;
+            border-radius: 4px;
           `;
           typeLabel.textContent = type;
 
-          const previewText = document.createElement('span');
-          previewText.style.cssText = 'font-size: 13px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
-
-          // Generate preview based on type
-          let previewStr = '';
-          if (type === 'slate' && block.value) {
-            // Extract text from Slate JSON
-            try {
-              const extractText = (nodes: any[]): string => {
-                return nodes.map(n => n.text || (n.children ? extractText(n.children) : '')).join(' ');
-              };
-              previewStr = extractText(block.value) || 'Empty text block';
-            } catch (e) {
-              previewStr = 'Text block';
-            }
-          } else if (type === 'image') {
-            previewStr = block.url ? block.url.split('/').pop() : (block.alt || 'Image block');
-          } else if (type === 'listing') {
-            previewStr = block.query ? `Query: ${block.query.length} criteria` : 'Content Listing';
-          } else if (type === 'video') {
-            previewStr = block.url || 'Video block';
-          } else if (type === 'teaser') {
-            previewStr = block.title || block.href || 'Teaser';
-          } else {
-            previewStr = block.title || JSON.stringify(block).substring(0, 50);
-          }
-
-          previewText.textContent = previewStr;
-
-          contentDiv.appendChild(typeLabel);
-          contentDiv.appendChild(previewText);
-
-          info.appendChild(iconSpan);
-          info.appendChild(contentDiv);
-
-          // Drag handle and delete button
+          // Actions container
           const actions = document.createElement('div');
-          actions.style.cssText = 'display: flex; gap: 0.5rem; align-items: center; margin-left: 0.5rem;';
+          actions.style.cssText = 'display: flex; gap: 0.5rem; align-items: center;';
 
           const dragHandle = document.createElement('span');
           dragHandle.innerHTML = '⋮⋮';
-          dragHandle.style.cssText = 'font-size: 18px; color: #bdbdbd; cursor: move; padding: 0 4px;';
+          dragHandle.style.cssText = 'font-size: 18px; color: #bdbdbd; cursor: move; padding: 0 4px; user-select: none;';
           dragHandle.title = "Drag to reorder";
 
           const deleteBtn = document.createElement('button');
@@ -1217,15 +1935,23 @@ document.addEventListener("DOMContentLoaded", () => {
           deleteBtn.onclick = (e) => {
             e.stopPropagation();
             e.preventDefault();
-            // Delete immediately (confirm dialogs don't work well in Tauri)
-              deleteBlock(blockId);
+            deleteBlock(blockId);
           };
 
           actions.appendChild(dragHandle);
           actions.appendChild(deleteBtn);
 
-          card.appendChild(info);
-          card.appendChild(actions);
+          header.appendChild(typeLabel);
+          header.appendChild(actions);
+
+          // Block content
+          const contentWrapper = document.createElement('div');
+          contentWrapper.style.cssText = 'min-height: 2rem;';
+          const blockContent = renderBlockContent(block, type);
+          contentWrapper.appendChild(blockContent);
+
+          card.appendChild(header);
+          card.appendChild(contentWrapper);
 
           // Drag and drop handlers
           card.addEventListener('dragstart', handleDragStart);
@@ -1307,6 +2033,11 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       document.getElementById("saveBlocksBtn")?.addEventListener("click", async () => {
+        if (!blockStatus) {
+          console.error("blockStatus element not found");
+          return;
+        }
+
         try {
           const blocksEditor = document.getElementById("blocksEditor") as HTMLTextAreaElement;
           const blocksLayoutEditor = document.getElementById("blocksLayoutEditor") as HTMLTextAreaElement;
@@ -1315,12 +2046,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
           if (currentMode === 'json') {
             // Parse from JSON editors
-            newBlocks = JSON.parse(blocksEditor.value);
-            newBlocksLayout = JSON.parse(blocksLayoutEditor.value);
+            try {
+              newBlocks = JSON.parse(blocksEditor.value);
+              newBlocksLayout = JSON.parse(blocksLayoutEditor.value);
+            } catch (parseError) {
+              throw new Error(`Invalid JSON: ${parseError instanceof Error ? parseError.message : "Parse error"}`);
+            }
           } else {
-            // Use current visual state
-            newBlocks = currentBlocks;
-            newBlocksLayout = currentBlocksLayout;
+            // Use current visual state - create copies to avoid reference issues
+            newBlocks = JSON.parse(JSON.stringify(currentBlocks));
+            newBlocksLayout = JSON.parse(JSON.stringify(currentBlocksLayout));
           }
 
           // Validate consistency
@@ -1339,6 +2074,7 @@ document.addEventListener("DOMContentLoaded", () => {
             console.warn('Blocks not in layout (will be saved but not displayed):', unusedBlocks);
           }
 
+          // Show saving status
           blockStatus.textContent = "Saving...";
           blockStatus.style.color = "#666";
           blockStatus.style.display = "block";
@@ -1347,19 +2083,24 @@ document.addEventListener("DOMContentLoaded", () => {
           const blocksChanged = JSON.stringify(newBlocks) !== originalBlocks;
           const layoutChanged = JSON.stringify(newBlocksLayout) !== originalBlocksLayout;
 
+          console.log("Save check:", { blocksChanged, layoutChanged, blockCount: blockIds.length, layoutCount: layoutItems.length });
+
           if (blocksChanged && layoutChanged) {
             // Both changed - send both
+            console.log("Saving both blocks and layout");
             await api.patch(objectPath, {
               blocks: newBlocks,
               blocks_layout: newBlocksLayout
             });
           } else if (layoutChanged) {
             // Only layout changed (reordering/hiding) - send only layout
+            console.log("Saving only layout");
             await api.patch(objectPath, {
               blocks_layout: newBlocksLayout
             });
           } else if (blocksChanged) {
             // Only blocks changed - send both for safety
+            console.log("Saving blocks (sending both for safety)");
             await api.patch(objectPath, {
               blocks: newBlocks,
               blocks_layout: newBlocksLayout
@@ -1367,18 +2108,38 @@ document.addEventListener("DOMContentLoaded", () => {
           } else {
             blockStatus.textContent = "No changes detected";
             blockStatus.style.color = "#666";
+            blockStatus.style.display = "block";
             setTimeout(() => { blockStatus.style.display = "none"; }, 2000);
             return;
           }
 
+          // Success
           blockStatus.textContent = "✓ Blocks saved successfully!";
           blockStatus.style.color = "#4caf50";
+          blockStatus.style.display = "block";
+
+          // Update original blocks to reflect saved state
+          originalBlocks = JSON.stringify(newBlocks);
+          originalBlocksLayout = JSON.stringify(newBlocksLayout);
+
+          // Also update currentBlocks to match saved state
+          currentBlocks = newBlocks;
+          currentBlocksLayout = newBlocksLayout;
+
           setTimeout(() => { blockStatus.style.display = "none"; }, 3000);
         } catch (error) {
+          console.error("Error saving blocks:", error);
           blockStatus.textContent = `✗ Error: ${error instanceof Error ? error.message : "Failed to save"}`;
           blockStatus.style.color = "#d32f2f";
+          blockStatus.style.display = "block";
+          // Don't hide error message automatically - let user see it
         }
       });
+
+      // Initialize visual mode - render blocks on load (after all handlers are set up)
+      if (blocksList && currentMode === 'visual') {
+        renderBlockCards();
+      }
     }
 
     // Initialize remove tag handlers
@@ -1398,18 +2159,16 @@ document.addEventListener("DOMContentLoaded", () => {
     itemsList.innerHTML = `
       <div style="padding: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <h3 style="margin: 0;">🏷️ Keywords Manager</h3>
+          <h3 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${PLONE_BLUE}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+              <line x1="7" y1="7" x2="7.01" y2="7"></line>
+            </svg>
+            Keywords Manager
+          </h3>
           <div style="display: flex; gap: 0.5rem;">
             <button id="createKeywordBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
               + Create Keyword
-            </button>
-            <button id="bulkImportBtn" style="padding: 0.5rem 1rem; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 0.5rem;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-              </svg>
-              Bulk Import
             </button>
             <button id="kwBackBtn" style="padding: 0.5rem 1rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333; font-weight: 500;">
             ← Back to Browser
@@ -1445,10 +2204,6 @@ document.addEventListener("DOMContentLoaded", () => {
       showCreateKeywordUI();
     });
 
-    // Bulk Import handler
-    document.getElementById("bulkImportBtn")?.addEventListener("click", () => {
-      showBulkImportUI();
-    });
 
     // Tab switching
     let currentTab: 'similar' | 'all' = 'similar';
@@ -1493,21 +2248,21 @@ document.addEventListener("DOMContentLoaded", () => {
     // Light caching for keywords (5 minute cache)
     let keywordsCache: { data: Record<string, number>; timestamp: number } | null = null;
     const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-    
+
     async function getCachedTags(forceRefresh = false): Promise<Record<string, number>> {
       const now = Date.now();
-      
+
       // Return cached data if it's still valid and not forcing refresh
       if (!forceRefresh && keywordsCache && (now - keywordsCache.timestamp) < CACHE_DURATION) {
         return keywordsCache.data;
       }
-      
+
       // Fetch fresh data
       const tags = await api.collectTags();
       keywordsCache = { data: tags, timestamp: now };
       return tags;
     }
-    
+
     function invalidateKeywordsCache() {
       keywordsCache = null;
     }
@@ -1516,7 +2271,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function showAllKeywordsView() {
       // Check if we have cached data
       const hasCache = keywordsCache && (Date.now() - keywordsCache.timestamp) < CACHE_DURATION;
-      
+
       if (!hasCache) {
         // Show loading state only if we don't have cache
         kwContent.innerHTML = `
@@ -1548,11 +2303,33 @@ document.addEventListener("DOMContentLoaded", () => {
       const sortedTags = Object.entries(allTags)
         .sort((a, b) => b[1] - a[1]); // Sort by count descending
 
-        kwContent.innerHTML = `
+      kwContent.innerHTML = `
         <div style="max-width: 1200px; margin: 0 auto;">
-          <div style="margin-bottom: 1.5rem;">
-            <input type="text" id="keywordFilterInput" placeholder="Filter keywords..." style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
+          <div style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
+            <input type="text" id="keywordFilterInput" placeholder="Filter keywords..." style="flex: 1; padding: 0.75rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px; background-color: ${THEME_BG_ACCENT};" />
+            <button id="selectAllKeywordsBtn" style="padding: 0.75rem 1rem; background: ${THEME_SECONDARY}; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.9em; white-space: nowrap;">
+              Select All
+            </button>
+            <button id="deselectAllKeywordsBtn" style="padding: 0.75rem 1rem; background: ${THEME_SECONDARY}; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.9em; white-space: nowrap; display: none;">
+              Deselect All
+            </button>
           </div>
+          
+          <!-- Bulk Actions Bar -->
+          <div id="bulkActionsBar" style="display: none; margin-bottom: 1rem; padding: 1rem; background: #e3f2fd; border: 1px solid ${PLONE_BLUE}; border-radius: 8px; justify-content: space-between; align-items: center;">
+            <div style="font-weight: 500; color: #333;">
+              <span id="selectedCount">0</span> keyword<span id="selectedCountPlural">s</span> selected
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <button id="bulkRenameBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em; font-weight: 500;">
+                Bulk Rename
+              </button>
+              <button id="bulkDeleteBtn" style="padding: 0.5rem 1rem; background: #ef5350; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em; font-weight: 500;">
+                Bulk Delete
+              </button>
+            </div>
+          </div>
+          
           <style>
             .keyword-name-editable {
               display: inline-flex;
@@ -1577,10 +2354,15 @@ document.addEventListener("DOMContentLoaded", () => {
             .keyword-name-editable:hover .edit-icon {
               opacity: 0.6;
             }
+            .keyword-item.selected {
+              background: #e3f2fd !important;
+              border-color: ${PLONE_BLUE} !important;
+            }
           </style>
           <div id="allKeywordsList" style="display: grid; gap: 0.75rem;">
             ${sortedTags.map(([tag, count]) => `
-              <div class="keyword-item" data-keyword="${tag}" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; transition: all 0.2s;">
+              <div class="keyword-item" data-keyword="${tag}" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; transition: all 0.2s;">
+                <input type="checkbox" class="keyword-checkbox" data-keyword="${tag}" style="width: 18px; height: 18px; cursor: pointer; flex-shrink: 0;" />
                 <div style="flex: 1;">
                   <div class="keyword-name-editable" data-keyword="${tag}" title="Click to rename">
                     <span>${tag}</span>
@@ -1653,6 +2435,113 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         });
       });
+
+      // Bulk selection functionality
+      function updateBulkActionsBar() {
+        const checkboxes = document.querySelectorAll(".keyword-checkbox:checked") as NodeListOf<HTMLInputElement>;
+        const selectedCount = checkboxes.length;
+        const bulkActionsBar = document.getElementById("bulkActionsBar");
+        const selectedCountSpan = document.getElementById("selectedCount");
+        const selectedCountPlural = document.getElementById("selectedCountPlural");
+
+        if (bulkActionsBar && selectedCountSpan && selectedCountPlural) {
+          if (selectedCount > 0) {
+            bulkActionsBar.style.display = "flex";
+            selectedCountSpan.textContent = String(selectedCount);
+            selectedCountPlural.textContent = selectedCount === 1 ? "" : "s";
+          } else {
+            bulkActionsBar.style.display = "none";
+          }
+        }
+
+        // Update select all button state
+        const visibleCheckboxes = Array.from(document.querySelectorAll(".keyword-checkbox") as NodeListOf<HTMLInputElement>)
+          .filter(cb => {
+            const item = cb.closest(".keyword-item") as HTMLElement;
+            return item && item.style.display !== "none";
+          });
+        const checkedVisible = visibleCheckboxes.filter(cb => cb.checked).length;
+
+        if (selectAllBtn && deselectAllBtn) {
+          if (checkedVisible === visibleCheckboxes.length && visibleCheckboxes.length > 0) {
+            selectAllBtn.style.display = "none";
+            deselectAllBtn.style.display = "block";
+          } else {
+            selectAllBtn.style.display = "block";
+            deselectAllBtn.style.display = "none";
+          }
+        }
+
+        // Update selected state on items
+        document.querySelectorAll(".keyword-item").forEach((item) => {
+          const checkbox = item.querySelector(".keyword-checkbox") as HTMLInputElement;
+          if (checkbox?.checked) {
+            item.classList.add("selected");
+          } else {
+            item.classList.remove("selected");
+          }
+        });
+      }
+
+      // Checkbox change handlers
+      document.querySelectorAll(".keyword-checkbox").forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+          updateBulkActionsBar();
+        });
+      });
+
+      // Select All / Deselect All
+      const selectAllBtn = document.getElementById("selectAllKeywordsBtn");
+      const deselectAllBtn = document.getElementById("deselectAllKeywordsBtn");
+
+      selectAllBtn?.addEventListener("click", () => {
+        document.querySelectorAll(".keyword-checkbox").forEach((checkbox) => {
+          const item = (checkbox as HTMLInputElement).closest(".keyword-item") as HTMLElement;
+          if (item && item.style.display !== "none") {
+            (checkbox as HTMLInputElement).checked = true;
+          }
+        });
+        updateBulkActionsBar();
+        selectAllBtn.style.display = "none";
+        deselectAllBtn!.style.display = "block";
+      });
+
+      deselectAllBtn?.addEventListener("click", () => {
+        document.querySelectorAll(".keyword-checkbox").forEach((checkbox) => {
+          (checkbox as HTMLInputElement).checked = false;
+        });
+        updateBulkActionsBar();
+        selectAllBtn!.style.display = "block";
+        deselectAllBtn.style.display = "none";
+      });
+
+      // Bulk Rename
+      document.getElementById("bulkRenameBtn")?.addEventListener("click", () => {
+        const selected = Array.from(document.querySelectorAll(".keyword-checkbox:checked") as NodeListOf<HTMLInputElement>)
+          .map(cb => cb.getAttribute("data-keyword"))
+          .filter(Boolean) as string[];
+
+        if (selected.length === 0) {
+          alert("Please select at least one keyword to rename.");
+          return;
+        }
+
+        showBulkRenameDialog(selected);
+      });
+
+      // Bulk Delete
+      document.getElementById("bulkDeleteBtn")?.addEventListener("click", () => {
+        const selected = Array.from(document.querySelectorAll(".keyword-checkbox:checked") as NodeListOf<HTMLInputElement>)
+          .map(cb => cb.getAttribute("data-keyword"))
+          .filter(Boolean) as string[];
+
+        if (selected.length === 0) {
+          alert("Please select at least one keyword to delete.");
+          return;
+        }
+
+        showBulkDeleteDialog(selected);
+      });
     }
 
     // Show Rename Keyword dialog
@@ -1669,7 +2558,7 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
           <div style="margin-bottom: 1.5rem;">
               <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">New Name</label>
-              <input type="text" id="newKeywordNameInput" value="${oldKeyword}" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
+                <input type="text" id="newKeywordNameInput" value="${oldKeyword}" style="width: 100%; padding: 0.75rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px; background-color: ${THEME_BG_ACCENT};" />
               </div>
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
               <button id="cancelRenameBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333;">
@@ -1715,14 +2604,14 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           // Merge old keyword into new keyword
           await api.mergeTags(newName, [oldKeyword]);
-          
+
           // Reload keywords and show the renamed keyword in All Keywords view
           invalidateKeywordsCache(); // Invalidate cache after rename
           allTags = await getCachedTags(true);
           currentTab = 'all';
           updateTabs();
           showAllKeywordsView();
-          
+
           // Scroll to the renamed keyword if it exists
           setTimeout(() => {
             const keywordItem = document.querySelector(`[data-keyword="${newName}"]`);
@@ -1785,7 +2674,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const result = await api.mergeTags(tempTarget, [keyword]);
           const updated = result.updated;
           const errors = result.errors || [];
-          
+
           // Note: The tempTarget will remain on items, but it's unique and won't appear
           // in normal keyword lists since it starts with __DELETE_. This is acceptable
           // for now. A proper solution would require a backend delete_keyword function.
@@ -1794,13 +2683,13 @@ document.addEventListener("DOMContentLoaded", () => {
           // Invalidate cache and refresh - the keyword should be gone if it had 0 items
           invalidateKeywordsCache();
           allTags = await getCachedTags(true);
-          
+
           // If the keyword still exists in allTags but had 0 items, it was likely a cache artifact
           // Remove it from the local state
           if (allTags[keyword] === 0) {
             delete allTags[keyword];
           }
-          
+
           kwContent.innerHTML = `
             <div style="max-width: 600px; margin: 0 auto;">
               <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -1856,6 +2745,181 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
+    // Show Bulk Rename dialog
+    function showBulkRenameDialog(keywords: string[]) {
+      const totalCount = keywords.reduce((sum, kw) => sum + (allTags[kw] || 0), 0);
+      kwContent.innerHTML = `
+        <div style="max-width: 600px; margin: 0 auto;">
+          <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0 0 1.5rem 0;">Bulk Rename Keywords</h3>
+            <div style="margin-bottom: 1rem;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Selected Keywords (${keywords.length})</label>
+              <div style="max-height: 200px; overflow-y: auto; padding: 0.75rem; background: #f5f5f5; border-radius: 4px; margin-bottom: 1rem;">
+                <ul style="margin: 0; padding-left: 1.5rem; color: #666;">
+                  ${keywords.map(kw => `<li>${kw} <span style="color: #999;">(${allTags[kw] || 0} items)</span></li>`).join('')}
+                </ul>
+              </div>
+              <p style="margin: 0; font-size: 0.85em; color: #666;">Total: ${totalCount} items will be updated</p>
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">New Name</label>
+              <input type="text" id="bulkNewKeywordNameInput" placeholder="Enter new keyword name..." style="width: 100%; padding: 0.75rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px; background-color: ${THEME_BG_ACCENT};" />
+              <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">All selected keywords will be merged into this new keyword.</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+              <button id="cancelBulkRenameBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333;">
+                Cancel
+              </button>
+              <button id="saveBulkRenameBtn" style="padding: 0.75rem 1.5rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                Rename All
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById("cancelBulkRenameBtn")?.addEventListener("click", () => {
+        showAllKeywordsView();
+      });
+
+      document.getElementById("saveBulkRenameBtn")?.addEventListener("click", async () => {
+        const newNameInput = document.getElementById("bulkNewKeywordNameInput") as HTMLInputElement;
+        const newName = newNameInput.value.trim();
+
+        if (!newName) {
+          alert("Please enter a new keyword name.");
+          return;
+        }
+
+        // Check if new name is in the selected list
+        if (keywords.includes(newName)) {
+          alert("The new name cannot be one of the selected keywords.");
+          return;
+        }
+
+        // Check if new name already exists
+        if (allTags[newName]) {
+          if (!confirm(`Keyword "${newName}" already exists with ${allTags[newName]} items. This will merge all selected keywords into "${newName}". Continue?`)) {
+            return;
+          }
+        }
+
+        const saveBtn = document.getElementById("saveBulkRenameBtn") as HTMLButtonElement;
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Renaming...";
+
+        try {
+          // Merge all selected keywords into the new keyword
+          await api.mergeTags(newName, keywords);
+
+          // Reload keywords
+          invalidateKeywordsCache();
+          allTags = await getCachedTags(true);
+          currentTab = 'all';
+          updateTabs();
+          showAllKeywordsView();
+
+          // Scroll to the renamed keyword
+          setTimeout(() => {
+            const keywordItem = document.querySelector(`[data-keyword="${newName}"]`);
+            if (keywordItem) {
+              keywordItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              (keywordItem as HTMLElement).style.background = '#e8f5e9';
+              setTimeout(() => {
+                (keywordItem as HTMLElement).style.background = 'white';
+              }, 2000);
+            }
+          }, 100);
+        } catch (error) {
+          alert(`Error renaming keywords: ${error instanceof Error ? error.message : "Unknown error"}`);
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Rename All";
+        }
+      });
+    }
+
+    // Show Bulk Delete dialog
+    function showBulkDeleteDialog(keywords: string[]) {
+      const totalCount = keywords.reduce((sum, kw) => sum + (allTags[kw] || 0), 0);
+      kwContent.innerHTML = `
+        <div style="max-width: 600px; margin: 0 auto;">
+          <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0 0 1.5rem 0; color: #c62828;">Bulk Delete Keywords</h3>
+            <div style="margin-bottom: 1.5rem;">
+              <p style="margin: 0 0 1rem 0;">Are you sure you want to delete <strong>${keywords.length} keyword${keywords.length !== 1 ? 's' : ''}</strong>?</p>
+              <div style="max-height: 200px; overflow-y: auto; padding: 0.75rem; background: #f5f5f5; border-radius: 4px; margin-bottom: 1rem;">
+                <ul style="margin: 0; padding-left: 1.5rem; color: #666;">
+                  ${keywords.map(kw => `<li>${kw} <span style="color: #999;">(${allTags[kw] || 0} items)</span></li>`).join('')}
+                </ul>
+              </div>
+              <div style="padding: 1rem; background: #ffebee; border-radius: 4px; border-left: 4px solid #c62828;">
+                <p style="margin: 0; color: #c62828; font-weight: 500;">This will remove these keywords from ${totalCount} item${totalCount !== 1 ? 's' : ''} total.</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+              <button id="cancelBulkDeleteBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333;">
+                Cancel
+              </button>
+              <button id="confirmBulkDeleteBtn" style="padding: 0.75rem 1.5rem; background: #ef5350; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                Delete All
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById("cancelBulkDeleteBtn")?.addEventListener("click", () => {
+        showAllKeywordsView();
+      });
+
+      document.getElementById("confirmBulkDeleteBtn")?.addEventListener("click", async () => {
+        const deleteBtn = document.getElementById("confirmBulkDeleteBtn") as HTMLButtonElement;
+        deleteBtn.disabled = true;
+        deleteBtn.textContent = "Deleting...";
+
+        try {
+          let totalUpdated = 0;
+          const allErrors: string[] = [];
+
+          // Delete each keyword
+          for (const keyword of keywords) {
+            try {
+              const tempTarget = `__DELETE_${Date.now()}_${Math.random().toString(36).substring(2, 9)}__`;
+              const result = await api.mergeTags(tempTarget, [keyword]);
+              totalUpdated += result.updated || 0;
+              if (result.errors && result.errors.length > 0) {
+                allErrors.push(...result.errors);
+              }
+            } catch (error) {
+              allErrors.push(`Failed to delete "${keyword}": ${error instanceof Error ? error.message : "Unknown error"}`);
+            }
+          }
+
+          // Reload keywords
+          invalidateKeywordsCache();
+          allTags = await getCachedTags(true);
+          currentTab = 'all';
+          updateTabs();
+          showAllKeywordsView();
+
+          // Show success message
+          if (allErrors.length === 0) {
+            setTimeout(() => {
+              alert(`Successfully deleted ${keywords.length} keyword${keywords.length !== 1 ? 's' : ''} from ${totalUpdated} item${totalUpdated !== 1 ? 's' : ''}.`);
+            }, 100);
+          } else {
+            setTimeout(() => {
+              alert(`Deleted ${keywords.length} keyword${keywords.length !== 1 ? 's' : ''} with ${allErrors.length} error${allErrors.length !== 1 ? 's' : ''}. Updated ${totalUpdated} item${totalUpdated !== 1 ? 's' : ''}.`);
+            }, 100);
+          }
+        } catch (error) {
+          alert(`Error deleting keywords: ${error instanceof Error ? error.message : "Unknown error"}`);
+          deleteBtn.disabled = false;
+          deleteBtn.textContent = "Delete All";
+        }
+      });
+    }
+
     // Show Similar Keywords view (existing functionality)
     function showSimilarKeywordsView() {
       // This will be called when switching to similar tab
@@ -1869,7 +2933,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function showCreateKeywordUI() {
       // Use current browser path as default if available
       const defaultPath = currentPath || "";
-      
+
       kwContent.innerHTML = `
         <div style="max-width: 800px; margin: 0 auto;">
           <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -1882,7 +2946,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             <div style="margin-bottom: 1.5rem;">
               <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Keyword Name</label>
-              <input type="text" id="newKeywordInput" placeholder="Enter keyword name..." style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
+              <input type="text" id="newKeywordInput" placeholder="Enter keyword name..." style="width: 100%; padding: 0.75rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px; background-color: ${THEME_BG_ACCENT};" />
             </div>
             
             <div style="margin-bottom: 1.5rem;">
@@ -1895,7 +2959,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   Entire Site
                 </button>
               </div>
-              <input type="text" id="keywordPathInput" value="${defaultPath}" placeholder="Or enter a specific path like /resources" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; margin-top: 0.5rem;" />
+              <input type="text" id="keywordPathInput" value="${defaultPath}" placeholder="Or enter a specific path like /resources" style="width: 100%; padding: 0.75rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px; margin-top: 0.5rem; background-color: ${THEME_BG_ACCENT};" />
               <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">
                 The keyword will be applied to all items in the selected location. Items that already have this keyword will be skipped.
               </p>
@@ -1912,7 +2976,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
       `;
-      
+
       // Add path option button handlers
       document.querySelectorAll(".path-option-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -1985,7 +3049,7 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
               const currentSubjects = item.Subject || item.subjects || [];
               const subjectsArray = Array.isArray(currentSubjects) ? currentSubjects : [];
-              
+
               // Check if keyword already exists (case-insensitive)
               if (!subjectsArray.some((s: string) => s.trim().toLowerCase() === keyword.toLowerCase())) {
                 const newSubjects = [...subjectsArray, keyword];
@@ -2003,7 +3067,7 @@ document.addEventListener("DOMContentLoaded", () => {
           invalidateKeywordsCache(); // Invalidate cache after create
           allTags = await getCachedTags(true);
           const keywordCount = allTags[keyword] || 0;
-          
+
           kwContent.innerHTML = `
             <div style="max-width: 800px; margin: 0 auto;">
               <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -2073,231 +3137,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // Show Bulk Import UI
-    function showBulkImportUI() {
-      kwContent.innerHTML = `
-        <div style="max-width: 800px; margin: 0 auto;">
-          <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-            <h3 style="margin: 0 0 1.5rem 0;">Bulk Import Keywords</h3>
-            <div style="margin-bottom: 1.5rem;">
-              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Keywords (one per line or comma-separated)</label>
-              <textarea id="bulkKeywordsInput" placeholder="Enter keywords, one per line or separated by commas:&#10;Keyword 1&#10;Keyword 2&#10;Keyword 3" style="width: 100%; min-height: 200px; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-family: monospace;" ></textarea>
-              <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">You can paste keywords separated by newlines or commas. Empty lines will be ignored.</p>
-            </div>
-            <div style="margin-bottom: 1.5rem;">
-              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Apply to Items</label>
-              <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                <button type="button" id="bulkUseCurrentPathBtn" class="bulk-path-option-btn" data-path="${currentPath || ""}" style="flex: 1; padding: 0.75rem; background: ${currentPath ? '#e8f5e9' : '#f5f5f5'}; border: 2px solid ${currentPath ? '#4caf50' : '#ddd'}; border-radius: 4px; cursor: pointer; font-size: 0.9em; ${currentPath ? 'color: #2e7d32; font-weight: 500;' : 'color: #666;'}">
-                  ${currentPath ? `Current Path: ${currentPath}` : 'No current path'}
-                </button>
-                <button type="button" id="bulkUseEntireSiteBtn" class="bulk-path-option-btn" data-path="" style="flex: 1; padding: 0.75rem; background: #fff3e0; border: 2px solid #ff9800; border-radius: 4px; cursor: pointer; font-size: 0.9em; color: #e65100; font-weight: 500;">
-                  Entire Site
-                </button>
-              </div>
-              <input type="text" id="bulkImportPathInput" value="${currentPath || ""}" placeholder="Or enter a specific path like /resources" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; margin-top: 0.5rem;" />
-              <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">
-                Keywords will be applied to all items in the selected location. Items that already have a keyword will be skipped for that keyword.
-              </p>
-            </div>
-            <div style="margin-bottom: 1.5rem;">
-              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                <input type="checkbox" id="bulkImportSkipExisting" checked style="width: 18px; height: 18px; cursor: pointer;" />
-                <span>Skip keywords that already exist</span>
-              </label>
-            </div>
-            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-              <button id="cancelBulkImportBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333;">
-                Cancel
-              </button>
-              <button id="saveBulkImportBtn" style="padding: 0.75rem 1.5rem; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
-                Import Keywords
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-
-      // Add bulk import path option button handlers
-      document.querySelectorAll(".bulk-path-option-btn").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const path = btn.getAttribute("data-path") || "";
-          const pathInput = document.getElementById("bulkImportPathInput") as HTMLInputElement;
-          if (pathInput) {
-            pathInput.value = path;
-          }
-          // Update button styles
-          document.querySelectorAll(".bulk-path-option-btn").forEach((b) => {
-            (b as HTMLElement).style.background = "#f5f5f5";
-            (b as HTMLElement).style.borderColor = "#ddd";
-            (b as HTMLElement).style.color = "#666";
-            (b as HTMLElement).style.fontWeight = "normal";
-          });
-          if (path) {
-            (btn as HTMLElement).style.background = "#e8f5e9";
-            (btn as HTMLElement).style.borderColor = "#4caf50";
-            (btn as HTMLElement).style.color = "#2e7d32";
-            (btn as HTMLElement).style.fontWeight = "500";
-          } else {
-            (btn as HTMLElement).style.background = "#fff3e0";
-            (btn as HTMLElement).style.borderColor = "#ff9800";
-            (btn as HTMLElement).style.color = "#e65100";
-            (btn as HTMLElement).style.fontWeight = "500";
-          }
-        });
-      });
-
-      document.getElementById("cancelBulkImportBtn")?.addEventListener("click", () => {
-        if (currentTab === 'all') {
-          showAllKeywordsView();
-        } else {
-          showKeywordsManager();
-        }
-      });
-
-      document.getElementById("saveBulkImportBtn")?.addEventListener("click", async () => {
-        const keywordsInput = document.getElementById("bulkKeywordsInput") as HTMLTextAreaElement;
-        const pathInput = document.getElementById("bulkImportPathInput") as HTMLInputElement;
-        const skipExistingCheckbox = document.getElementById("bulkImportSkipExisting") as HTMLInputElement;
-
-        const keywordsText = keywordsInput.value.trim();
-        const path = pathInput.value.trim() || undefined;
-        const skipExisting = skipExistingCheckbox.checked;
-
-        if (!keywordsText) {
-          alert("Please enter at least one keyword.");
-          return;
-        }
-
-        // Parse keywords - support both newline and comma separation
-        const keywords = keywordsText
-          .split(/[\n,]/)
-          .map(k => k.trim())
-          .filter(k => k.length > 0);
-
-        if (keywords.length === 0) {
-          alert("No valid keywords found. Please enter keywords separated by newlines or commas.");
-          return;
-        }
-
-        const saveBtn = document.getElementById("saveBulkImportBtn") as HTMLButtonElement;
-        saveBtn.disabled = true;
-        saveBtn.textContent = `Importing ${keywords.length} keywords...`;
-
-        try {
-          let created = 0;
-          let skipped = 0;
-          let applied = 0;
-          let errors: string[] = [];
-
-          // Show progress
-          const progressDiv = document.createElement("div");
-          progressDiv.style.cssText = "margin-top: 1.5rem; padding: 1rem; background: #f5f5f5; border-radius: 4px;";
-          progressDiv.innerHTML = `
-            <div style="margin-bottom: 0.5rem; font-weight: 500;">Importing keywords...</div>
-            <div style="font-size: 0.9em; color: #666;">Processing: <span id="currentKeyword">-</span></div>
-            <div style="margin-top: 0.5rem; width: 100%; background: #e0e0e0; border-radius: 4px; overflow: hidden;">
-              <div id="importProgressBar" style="width: 0%; background: #4caf50; height: 24px; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.85em; font-weight: bold;">
-                0%
-              </div>
-            </div>
-          `;
-          saveBtn.parentElement?.parentElement?.appendChild(progressDiv);
-
-          // Process each keyword
-          for (let i = 0; i < keywords.length; i++) {
-            const keyword = keywords[i];
-            const currentKeywordSpan = document.getElementById("currentKeyword");
-            if (currentKeywordSpan) {
-              currentKeywordSpan.textContent = keyword;
-            }
-
-            // Update progress
-            const progress = Math.round(((i + 1) / keywords.length) * 100);
-            const progressBar = document.getElementById("importProgressBar");
-            if (progressBar) {
-              progressBar.style.width = `${progress}%`;
-              progressBar.textContent = `${progress}%`;
-            }
-
-            // Check if keyword already exists
-            if (skipExisting && allTags[keyword]) {
-              skipped++;
-              continue;
-            }
-
-            try {
-              // Only apply keyword if path is provided
-              if (path) {
-                const items = await api.getItems(path);
-                let itemUpdated = 0;
-
-                for (const item of items) {
-                  const itemPath = item.path || item["@id"];
-                  if (!itemPath) continue;
-
-                  try {
-                    const currentSubjects = item.Subject || item.subjects || [];
-                    const subjectsArray = Array.isArray(currentSubjects) ? currentSubjects : [];
-                    
-                    // Check if keyword already exists (case-insensitive)
-                    if (!subjectsArray.some((s: string) => s.trim().toLowerCase() === keyword.toLowerCase())) {
-                      const newSubjects = [...subjectsArray, keyword];
-                      await api.updateSubjects(itemPath, newSubjects);
-                      itemUpdated++;
-                    }
-                  } catch (error) {
-                    // Continue with other items
-                    errors.push(`Failed to update ${item.title || itemPath}: ${error instanceof Error ? error.message : "Unknown error"}`);
-                  }
-                }
-
-                if (itemUpdated > 0) {
-                  applied += itemUpdated;
-                  created++;
-                } else {
-                  // Keyword already exists on all items, but we still count it as created
-                  created++;
-                }
-              } else {
-                // Just create the keyword without applying it to any items
-                created++;
-              }
-            } catch (error) {
-              errors.push(`${keyword}: ${error instanceof Error ? error.message : "Unknown error"}`);
-            }
-          }
-
-          // Remove progress indicator
-          progressDiv.remove();
-
-          // Show results
-          let message = `Import complete!\n\n`;
-          message += `Created: ${created} keyword${created !== 1 ? 's' : ''}\n`;
-          if (skipped > 0) {
-            message += `Skipped (already exist): ${skipped}\n`;
-          }
-          if (applied > 0) {
-            message += `Applied to: ${applied} item${applied !== 1 ? 's' : ''}\n`;
-          }
-          if (errors.length > 0) {
-            message += `\nErrors: ${errors.length}\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n... and ${errors.length - 5} more` : ''}`;
-          }
-
-          alert(message);
-          
-          // Reload keywords and switch to All Keywords tab
-          invalidateKeywordsCache(); // Invalidate cache after bulk import
-          allTags = await getCachedTags(true);
-          currentTab = 'all';
-          updateTabs();
-          showAllKeywordsView();
-        } catch (error) {
-          alert(`Error during bulk import: ${error instanceof Error ? error.message : "Unknown error"}`);
-          saveBtn.disabled = false;
-          saveBtn.textContent = "Import Keywords";
-        }
-      });
-    }
 
     // Define the execute merge handler function at the showKeywordsManager scope so it persists
     const executeMergeHandler = async () => {
@@ -2449,17 +3288,17 @@ document.addEventListener("DOMContentLoaded", () => {
       // 2. Find Similar (Default 90%)
       const loadingMsg = document.getElementById("loadingMsg");
 
-            // Witty loading messages
-            const messages = [
-              "Consulting the thesaurus...",
-              "Asking the librarian...",
-              "Comparing apples to appples...",
-              "Hunting for typos...",
-              "Measuring Levenshtein distances...",
-              "Untangling the tag spaghetti...",
-              "Reading the dictionary backwards...",
-              "Squinting at similar words...",
-              "Doing the alphabet dance...",
+      // Witty loading messages
+      const messages = [
+        "Consulting the thesaurus...",
+        "Asking the librarian...",
+        "Comparing apples to appples...",
+        "Hunting for typos...",
+        "Measuring Levenshtein distances...",
+        "Untangling the tag spaghetti...",
+        "Reading the dictionary backwards...",
+        "Squinting at similar words...",
+        "Doing the alphabet dance...",
         "Grouping the flock...",
         "Ron, Carol, and David are sorting keywords...",
         "Playing word association games...",
@@ -2512,15 +3351,15 @@ document.addEventListener("DOMContentLoaded", () => {
         "Ron's organizing by similarity...",
         "Carol is checking for variations...",
         "David's computing Levenshtein distances..."
-            ];
+      ];
 
-            let msgIndex = 0;
+      let msgIndex = 0;
       if (loadingMsg) {
         loadingMsg.innerHTML = `<span style="font-style: italic;">Found ${tagCount} keywords. ${messages[0]}</span>`;
       }
 
-            const intervalId = setInterval(() => {
-              msgIndex = (msgIndex + 1) % messages.length;
+      const intervalId = setInterval(() => {
+        msgIndex = (msgIndex + 1) % messages.length;
         if (loadingMsg) {
           loadingMsg.innerHTML = `<span style="font-style: italic;">Found ${tagCount} keywords. ${messages[msgIndex]}</span>`;
         }
@@ -2528,7 +3367,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         similarPairs = await api.findSimilarTags(allTags, 90, 100);
-              clearInterval(intervalId);
+        clearInterval(intervalId);
       } catch (error) {
         clearInterval(intervalId);
         throw error;
@@ -2548,11 +3387,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderResults(tagCount: number, currentThreshold: number) {
-            if (similarPairs.length === 0) {
+      if (similarPairs.length === 0) {
         kwContent.innerHTML = `
           <div style="text-align: center; padding: 2rem;">
             <p style="font-size: 1.2em; margin-bottom: 0.5rem;">No similar keywords found at ${currentThreshold}% similarity.</p>
-            <p style="color: #666;">Your keyword list looks clean! ✨</p>
+            <p style="color: #666;">Your keyword list looks clean!</p>
             <div style="margin-top: 2rem; padding: 1rem; background: #f5f5f5; border-radius: 4px; display: inline-block; text-align: left;">
               <p style="margin: 0 0 0.5rem 0; font-weight: 500;">Stats:</p>
               <p style="margin: 0; color: #666;">Total Unique Keywords: <strong>${tagCount}</strong></p>
@@ -2568,8 +3407,8 @@ document.addEventListener("DOMContentLoaded", () => {
           similarPairs = await api.findSimilarTags(allTags, 80, 100);
           renderResults(tagCount, 80);
         });
-              return;
-            }
+        return;
+      }
 
       kwContent.innerHTML = `
         <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; background: #e8f5e9; padding: 1rem; border-radius: 4px;">
@@ -2610,41 +3449,41 @@ document.addEventListener("DOMContentLoaded", () => {
         renderResults(tagCount, newThreshold);
       });
 
-            // Helper to manage merge plan with mutual exclusivity
-            const toggleMerge = (keepTag: string, discardTag: string) => {
-              // 1. Remove any existing plan where 'keepTag' was going to be discarded
-              if (mergePlan.has(discardTag)) {
-                const sources = mergePlan.get(discardTag)!;
-                const index = sources.indexOf(keepTag);
-                if (index > -1) {
-                  sources.splice(index, 1);
-                  if (sources.length === 0) {
-                    mergePlan.delete(discardTag);
-                  }
-                }
-              }
+      // Helper to manage merge plan with mutual exclusivity
+      const toggleMerge = (keepTag: string, discardTag: string) => {
+        // 1. Remove any existing plan where 'keepTag' was going to be discarded
+        if (mergePlan.has(discardTag)) {
+          const sources = mergePlan.get(discardTag)!;
+          const index = sources.indexOf(keepTag);
+          if (index > -1) {
+            sources.splice(index, 1);
+            if (sources.length === 0) {
+              mergePlan.delete(discardTag);
+            }
+          }
+        }
 
-              // 2. Add 'discardTag' to be merged into 'keepTag'
-              if (!mergePlan.has(keepTag)) {
-                mergePlan.set(keepTag, []);
-              }
-              const sources = mergePlan.get(keepTag)!;
-              if (!sources.includes(discardTag)) {
-                sources.push(discardTag);
-              }
+        // 2. Add 'discardTag' to be merged into 'keepTag'
+        if (!mergePlan.has(keepTag)) {
+          mergePlan.set(keepTag, []);
+        }
+        const sources = mergePlan.get(keepTag)!;
+        if (!sources.includes(discardTag)) {
+          sources.push(discardTag);
+        }
 
-              updateMergePlan();
-            };
+        updateMergePlan();
+      };
 
       const pairsList = document.getElementById("pairsList")!;
 
-            similarPairs.forEach((pair, index) => {
-              const row = document.createElement("div");
-              row.className = "similarity-row";
-              row.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.75rem; transition: all 0.3s;";
-              row.id = `pair-row-${index}`;
+      similarPairs.forEach((pair, index) => {
+        const row = document.createElement("div");
+        row.className = "similarity-row";
+        row.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.75rem; transition: all 0.3s;";
+        row.id = `pair-row-${index}`;
 
-              row.innerHTML = `
+        row.innerHTML = `
                 <div style="flex: 1; display: flex; align-items: center; gap: 1rem;">
                   <div class="tag-option" id="tag-left-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s;">
                     <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
@@ -2668,82 +3507,82 @@ document.addEventListener("DOMContentLoaded", () => {
 
         pairsList.appendChild(row);
 
-              const leftCard = row.querySelector(`#tag-left-${index}`) as HTMLElement;
-              const rightCard = row.querySelector(`#tag-right-${index}`) as HTMLElement;
-              const statusText = row.querySelector(`.status-text`) as HTMLElement;
+        const leftCard = row.querySelector(`#tag-left-${index}`) as HTMLElement;
+        const rightCard = row.querySelector(`#tag-right-${index}`) as HTMLElement;
+        const statusText = row.querySelector(`.status-text`) as HTMLElement;
 
-              const updateRowVisuals = (keepLeft: boolean) => {
-                // Reset styles
-                leftCard.style.borderColor = "transparent";
-                leftCard.style.background = "#f8f9fa";
-                leftCard.style.opacity = "1";
-                leftCard.innerHTML = `
+        const updateRowVisuals = (keepLeft: boolean) => {
+          // Reset styles
+          leftCard.style.borderColor = "transparent";
+          leftCard.style.background = "#f8f9fa";
+          leftCard.style.opacity = "1";
+          leftCard.innerHTML = `
                   <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
                   <div style="font-size: 0.85em; color: #666;">${pair.count} items</div>
                 `;
 
-                rightCard.style.borderColor = "transparent";
-                rightCard.style.background = "#f8f9fa";
-                rightCard.style.opacity = "1";
-                rightCard.innerHTML = `
+          rightCard.style.borderColor = "transparent";
+          rightCard.style.background = "#f8f9fa";
+          rightCard.style.opacity = "1";
+          rightCard.innerHTML = `
                   <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.matched}</div>
                   <div style="font-size: 0.85em; color: #666;">${pair.matched_count} items</div>
                 `;
 
-                if (keepLeft) {
-                  // Keep Left
-                  leftCard.style.borderColor = "#4caf50";
-                  leftCard.style.background = "#e8f5e9";
-                  leftCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
+          if (keepLeft) {
+            // Keep Left
+            leftCard.style.borderColor = "#4caf50";
+            leftCard.style.background = "#e8f5e9";
+            leftCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
 
-                  // Discard Right
-                  rightCard.style.opacity = "0.6";
-                  rightCard.style.background = "#ffebee";
-                  rightCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
+            // Discard Right
+            rightCard.style.opacity = "0.6";
+            rightCard.style.background = "#ffebee";
+            rightCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
 
             statusText.textContent = "←";
-                  statusText.style.color = PLONE_BLUE;
+            statusText.style.color = PLONE_BLUE;
             statusText.style.fontSize = "2rem";
             statusText.style.textAlign = "center";
             statusText.style.fontWeight = "bold";
-                } else {
-                  // Keep Right
-                  rightCard.style.borderColor = "#4caf50";
-                  rightCard.style.background = "#e8f5e9";
-                  rightCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
+          } else {
+            // Keep Right
+            rightCard.style.borderColor = "#4caf50";
+            rightCard.style.background = "#e8f5e9";
+            rightCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
 
-                  // Discard Left
-                  leftCard.style.opacity = "0.6";
-                  leftCard.style.background = "#ffebee";
-                  leftCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
+            // Discard Left
+            leftCard.style.opacity = "0.6";
+            leftCard.style.background = "#ffebee";
+            leftCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
 
             statusText.textContent = "→";
-                  statusText.style.color = PLONE_BLUE;
+            statusText.style.color = PLONE_BLUE;
             statusText.style.fontSize = "2rem";
             statusText.style.textAlign = "center";
             statusText.style.fontWeight = "bold";
-                }
-              };
-
-              leftCard.onclick = () => {
-                updateRowVisuals(true);
-                toggleMerge(pair.tag, pair.matched);
-              };
-
-              rightCard.onclick = () => {
-                updateRowVisuals(false);
-                toggleMerge(pair.matched, pair.tag);
-              };
-            });
           }
+        };
 
-        function updateMergePlan() {
-          // Create sticky footer if it doesn't exist
-          let stickyFooter = document.getElementById("stickyMergeFooter");
-          if (!stickyFooter) {
-            stickyFooter = document.createElement("div");
-            stickyFooter.id = "stickyMergeFooter";
-            stickyFooter.style.cssText = `
+        leftCard.onclick = () => {
+          updateRowVisuals(true);
+          toggleMerge(pair.tag, pair.matched);
+        };
+
+        rightCard.onclick = () => {
+          updateRowVisuals(false);
+          toggleMerge(pair.matched, pair.tag);
+        };
+      });
+    }
+
+    function updateMergePlan() {
+      // Create sticky footer if it doesn't exist
+      let stickyFooter = document.getElementById("stickyMergeFooter");
+      if (!stickyFooter) {
+        stickyFooter = document.createElement("div");
+        stickyFooter.id = "stickyMergeFooter";
+        stickyFooter.style.cssText = `
               position: fixed;
               bottom: 0;
               left: 0;
@@ -2757,26 +3596,26 @@ document.addEventListener("DOMContentLoaded", () => {
               transform: translateY(100%);
               transition: transform 0.3s ease-out;
             `;
-            document.body.appendChild(stickyFooter);
-          }
+        document.body.appendChild(stickyFooter);
+      }
 
-          let totalMerges = 0;
-          mergePlan.forEach(sources => totalMerges += sources.length);
+      let totalMerges = 0;
+      mergePlan.forEach(sources => totalMerges += sources.length);
 
-          if (totalMerges === 0) {
-            stickyFooter.style.transform = "translateY(100%)";
-            setTimeout(() => { stickyFooter!.style.display = "none"; }, 300);
-            return;
-          }
+      if (totalMerges === 0) {
+        stickyFooter.style.transform = "translateY(100%)";
+        setTimeout(() => { stickyFooter!.style.display = "none"; }, 300);
+        return;
+      }
 
-          stickyFooter.style.display = "flex";
-          stickyFooter.style.justifyContent = "space-between";
-          stickyFooter.style.alignItems = "center";
-          // Force reflow
-          stickyFooter.offsetHeight;
-          stickyFooter.style.transform = "translateY(0)";
+      stickyFooter.style.display = "flex";
+      stickyFooter.style.justifyContent = "space-between";
+      stickyFooter.style.alignItems = "center";
+      // Force reflow
+      stickyFooter.offsetHeight;
+      stickyFooter.style.transform = "translateY(0)";
 
-          stickyFooter.innerHTML = `
+      stickyFooter.innerHTML = `
             <div style="display: flex; align-items: center; gap: 1rem;">
               <div style="background: ${PLONE_BLUE}; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${totalMerges}</div>
               <div>
@@ -2800,8 +3639,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const newViewBtn = viewPlanBtn.cloneNode(true) as HTMLElement;
         viewPlanBtn.parentNode?.replaceChild(newViewBtn, viewPlanBtn);
         newViewBtn.addEventListener("click", () => {
-            document.getElementById("mergePlanSection")?.scrollIntoView({ behavior: 'smooth' });
-          });
+          document.getElementById("mergePlanSection")?.scrollIntoView({ behavior: 'smooth' });
+        });
       }
 
       const executeMergeBtn = document.getElementById("executeMergeBtn");
@@ -2816,7 +3655,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (typeof executeMergeHandler === 'function') {
             try {
               await executeMergeHandler();
-              } catch (error) {
+            } catch (error) {
               console.error("Error in executeMergeHandler:", error);
               alert(`Error executing merge: ${error instanceof Error ? error.message : "Unknown error"}`);
             }
@@ -2827,21 +3666,21 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
 
-          // Also update the detailed list at the bottom (hidden by default now, maybe?)
+      // Also update the detailed list at the bottom (hidden by default now, maybe?)
       const mergePlanSection = document.getElementById("mergePlanSection");
       const mergePlanList = document.getElementById("mergePlanList");
 
       if (mergePlanSection && mergePlanList) {
-          if (mergePlan.size > 0) {
-            mergePlanSection.style.display = "block";
-            mergePlanList.innerHTML = "";
+        if (mergePlan.size > 0) {
+          mergePlanSection.style.display = "block";
+          mergePlanList.innerHTML = "";
           mergePlan.forEach((_sources, _target) => {
-              // ... (existing code to render list items if needed) ...
-            });
-          } else {
-            mergePlanSection.style.display = "none";
-          }
+            // ... (existing code to render list items if needed) ...
+          });
+        } else {
+          mergePlanSection.style.display = "none";
         }
+      }
     }
   }
 });
