@@ -1,6 +1,6 @@
 [package]
 name = "ploa"
-version = "1.1.15"
+version = "1.1.16"
 description = "Desktop companion for Plone sites - Browse, manage, and edit Plone content with a native tree-view interface"
 authors = ["David Bain <david.bain@incrementic.com>"]
 license = "MIT"
@@ -15,6 +15,7 @@ tauri-build = { version = "2.0", features = [] }
 [dependencies]
 tauri = { version = "2.0", features = [] }
 tauri-plugin-shell = "2.0"
+tauri-plugin-dialog = "2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 reqwest = { version = "0.12", features = ["json"] }

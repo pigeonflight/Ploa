@@ -9,7 +9,7 @@
     <title>Ploa | Desktop Companion for Plone Sites</title>
     <meta name="title" content="Ploa | Desktop Companion for Plone Sites">
     <meta name="description"
-        content="A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app that stays logged in and remembers your preferences.">
+        content="A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app designed for efficiency.">
     <meta name="keywords"
         content="Plone, Plone REST API, CMS, content management, desktop app, GUI, Tauri, Rust, macOS, Plone management, content editing, tag management">
     <meta name="author" content="David Bain">
@@ -26,7 +26,7 @@
     <meta property="og:url" content="https://ploa.incrementic.com/">
     <meta property="og:title" content="Ploa | Desktop Companion for Plone Sites">
     <meta property="og:description"
-        content="A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app that stays logged in and remembers your preferences.">
+        content="A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app designed for efficiency.">
     <meta property="og:image" content="https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -39,7 +39,7 @@
     <meta name="twitter:url" content="https://ploa.incrementic.com/">
     <meta name="twitter:title" content="Ploa | Desktop Companion for Plone Sites">
     <meta name="twitter:description"
-        content="A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app that stays logged in and remembers your preferences.">
+        content="A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app designed for efficiency.">
     <meta name="twitter:image" content="https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg">
     <meta name="twitter:image:alt" content="Ploa - Plone REST API GUI">
     <meta name="twitter:creator" content="@pigeonflight">
@@ -60,7 +60,7 @@
       "name": "Ploa",
       "applicationCategory": "DesktopApplication",
       "operatingSystem": "macOS",
-      "description": "A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app that stays logged in and remembers your preferences.",
+      "description": "A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app designed for efficiency.",
       "url": "https://ploa.incrementic.com/",
       "downloadUrl": "https://github.com/pigeonflight/Ploa/releases/latest",
       "author": {
@@ -74,7 +74,7 @@
         "price": "0",
         "priceCurrency": "USD"
       },
-      "softwareVersion": "0.1.0",
+      "softwareVersion": "1.1.16",
       "screenshot": "https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg"
     }
     </script>
@@ -438,7 +438,7 @@
                 <p class="hero-description">
                     A native desktop application that makes managing Plone sites faster and easier.
                     Connect to your Plone site, browse content, manage tags, and edit blocks—all from
-                    a dedicated app that stays logged in and remembers your preferences.
+                    a dedicated app designed for efficiency.
                 </p>
                 <div class="cta-buttons">
                     <a href="https://github.com/pigeonflight/Ploa/releases/latest" class="btn btn-primary">
@@ -572,6 +572,51 @@
                 </a>
             </div>
         </div>
+    </div>
+
+    <!-- Release Notes Section -->
+    <div
+        style="max-width: 800px; margin: 3rem auto; padding: 2rem; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);">
+        <h2 style="color: #8CA9FF; margin-bottom: 1rem; font-size: 1.75rem;">Latest Release Notes</h2>
+
+        <div style="margin-bottom: 2rem;">
+            <h3 style="color: #333; margin-bottom: 0.5rem; font-size: 1.25rem;">v1.1.16 - Critical Bug Fixes</h3>
+            <p style="color: #999; font-size: 0.9rem; margin-bottom: 1rem;">November 27, 2024</p>
+
+            <div
+                style="background: #FFF8DE; border-left: 4px solid #8CA9FF; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                <strong style="color: #333;">🐛 Critical Fixes</strong>
+                <ul style="margin: 0.5rem 0 0 1.5rem; color: #666; line-height: 1.8;">
+                    <li><strong>Fixed login form not working</strong> - Resolved variable reference error that prevented
+                        login after RAG feature updates</li>
+                    <li><strong>Fixed PDF bundle export</strong> - Added missing dialog permissions for folder selection
+                    </li>
+                    <li><strong>Improved error messages</strong> - PDF bundle now shows detailed error messages for
+                        easier debugging</li>
+                </ul>
+            </div>
+
+            <div style="background: #FFF8DE; border-left: 4px solid #AAC4F5; padding: 1rem; border-radius: 4px;">
+                <strong style="color: #333;">✨ UI Improvements</strong>
+                <ul style="margin: 0.5rem 0 0 1.5rem; color: #666; line-height: 1.8;">
+                    <li>Replaced "Preferences" button with cleaner three-dot icon (⋮)</li>
+                    <li>Better visual consistency in header controls</li>
+                </ul>
+            </div>
+        </div>
+
+        <p style="text-align: center; margin-top: 1.5rem;">
+            <a href="https://github.com/pigeonflight/Ploa/releases"
+                style="color: #8CA9FF; text-decoration: none; font-weight: 500;">View all releases →</a>
+        </p>
+    </div>
+
+    <!-- CLI Mention -->
+    <div style="text-align: center; margin: 4rem 0; color: #666;">
+        <p>Prefer doing things on the command line? Check out Ploa's predecessor
+            <a href="https://github.com/pigeonflight/ploneapi-shell"
+                style="color: #8CA9FF; text-decoration: none; font-weight: 500;">Plone Api Shell</a>.
+        </p>
     </div>
 
     <footer>

@@ -1,6 +1,8 @@
 import "./style.css";
 import * as api from "./lib/api";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
+import { join } from "@tauri-apps/api/path";
 
 // Plone brand color
 // Theme colors
@@ -31,13 +33,20 @@ document.addEventListener("DOMContentLoaded", () => {
         <button id="disconnectBtn" style="display: none; padding: 0.25rem 0.75rem; background: transparent; border: 1px solid #d32f2f; color: #d32f2f; border-radius: 4px; cursor: pointer; font-size: 14px;">
           Disconnect
         </button>
+        <button id="preferencesBtn" style="padding: 0.5rem; background: transparent; border: none; color: #666; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Preferences">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="5" r="2"></circle>
+            <circle cx="12" cy="12" r="2"></circle>
+            <circle cx="12" cy="19" r="2"></circle>
+          </svg>
+        </button>
       </div>
     </header>
     <main style="flex: 1; overflow: auto;">
       <div id="content">
         <div id="login-form" style="max-width: 500px; margin: 2rem auto;">
           <h2>Connect to Plone Site</h2>
-          <form id="loginForm" style="display: flex; flex-direction: column; gap: 1rem;">
+          <div id="loginForm" style="display: flex; flex-direction: column; gap: 1rem;" role="form" aria-labelledby="connectHeading">
             <div>
               <label for="baseUrl" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Base URL:</label>
               <input 
@@ -80,7 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             <div style="display: flex; gap: 1rem;">
               <button 
-                type="submit" 
+                type="button" 
                 id="loginSubmitBtn"
                 style="flex: 1; padding: 0.75rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; font-size: 16px; font-weight: 500; cursor: pointer;"
               >
@@ -94,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 Browse Anonymously
               </button>
             </div>
-          </form>
+          </div>
           <div id="error" style="margin-top: 1rem; color: #d32f2f; display: none;"></div>
         </div>
 
@@ -137,6 +146,16 @@ document.addEventListener("DOMContentLoaded", () => {
               <button id="clearSearchBtn" style="padding: 0.5rem 1rem; background: ${THEME_SECONDARY}; color: #333; border: none; border-radius: 4px; cursor: pointer; display: none;">
                 Clear
               </button>
+              <button id="ragBundleBtn" style="padding: 0.5rem 1rem; background: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer; display: none;">
+                Bundle PDFs
+              </button>
+            </div>
+            <div id="ragBundlePanel" style="display: none; margin: 0.5rem 0; padding: 0.75rem; border: 1px dashed ${THEME_SECONDARY}; border-radius: 6px; background: rgba(46, 125, 50, 0.08);">
+              <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                <strong style="color: #2e7d32; font-size: 0.9rem;">RAG bundle ready</strong>
+                <span style="color: #555; font-size: 0.85rem;">Download all PDF files from the current search into a local folder for use in your RAG stack.</span>
+                <span id="ragBundleStatus" style="color: #2e7d32; font-size: 0.85rem;"></span>
+              </div>
             </div>
             <div id="breadcrumb" style="margin-bottom: 0.5rem; padding: 0.5rem; background: ${THEME_BG_ACCENT}; border-radius: 4px; font-size: 13px; color: #666; display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap;">
               <span style="color: ${PLONE_BLUE}; cursor: pointer;" data-path="" class="breadcrumb-item">Root</span>
@@ -179,6 +198,29 @@ document.addEventListener("DOMContentLoaded", () => {
         <span id="feedback-link" style="margin-left: 1rem; cursor: pointer; text-decoration: underline;">Feedback</span>
       </span>
     </footer>
+    <div id="preferencesModal" style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); display: none; align-items: center; justify-content: center; z-index: 999;">
+      <div style="background: white; width: min(480px, 90%); border-radius: 8px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); padding: 1.5rem; position: relative;">
+        <button id="preferencesCloseBtn" style="position: absolute; top: 0.75rem; right: 0.75rem; background: transparent; border: none; cursor: pointer; padding: 0.25rem; color: #555;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        <h2 style="margin-top: 0; margin-bottom: 0.5rem;">Preferences</h2>
+        <p style="margin-top: 0; color: #666;">Control optional and experimental functionality for your local Ploa app.</p>
+        <div style="margin-top: 1rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 6px; padding: 1rem; background: ${THEME_BG_LIGHT}; display: flex; justify-content: space-between; gap: 1rem; align-items: center;">
+          <div>
+            <div style="font-weight: 600; margin-bottom: 0.25rem;">Enable RAG bundle export</div>
+            <p style="margin: 0; color: #555; font-size: 13px;">Show controls that let you download PDFs from a listing into a local folder for use with RAG tools. Downloads happen on your device.</p>
+          </div>
+          <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 13px;">
+            <input type="checkbox" id="ragBundleToggle" style="width: 16px; height: 16px;" />
+            <span id="ragBundleToggleLabel">Off</span>
+          </label>
+        </div>
+        <p id="preferencesStatus" style="margin-top: 1rem; font-size: 13px; color: #4caf50; display: none;">Preferences saved.</p>
+      </div>
+    </div>
     </div>
   `;
 
@@ -192,6 +234,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const keywordsBtn = document.querySelector<HTMLButtonElement>("#keywordsBtn")!;
   const searchBtn = document.querySelector<HTMLButtonElement>("#searchBtn")!;
   const clearSearchBtn = document.querySelector<HTMLButtonElement>("#clearSearchBtn")!;
+  const ragBundleBtn = document.querySelector<HTMLButtonElement>("#ragBundleBtn")!;
+  const ragBundlePanel = document.querySelector<HTMLDivElement>("#ragBundlePanel")!;
+  const ragBundleStatus = document.querySelector<HTMLSpanElement>("#ragBundleStatus")!;
   const searchInput = document.querySelector<HTMLInputElement>("#searchInput")!;
   const itemsList = document.querySelector<HTMLDivElement>("#itemsList")!;
   const currentPathSpan = document.querySelector<HTMLSpanElement>("#currentPath")!;
@@ -199,6 +244,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const statusText = document.querySelector<HTMLSpanElement>("#statusText")!;
   const headerLoginBtn = document.querySelector<HTMLButtonElement>("#headerLoginBtn")!;
   const disconnectBtn = document.querySelector<HTMLButtonElement>("#disconnectBtn")!;
+  const preferencesBtn = document.querySelector<HTMLButtonElement>("#preferencesBtn")!;
+  const preferencesModal = document.querySelector<HTMLDivElement>("#preferencesModal")!;
+  const preferencesCloseBtn = document.querySelector<HTMLButtonElement>("#preferencesCloseBtn")!;
+  const ragBundleToggle = document.querySelector<HTMLInputElement>("#ragBundleToggle")!;
+  const ragBundleToggleLabel = document.querySelector<HTMLSpanElement>("#ragBundleToggleLabel")!;
+  const preferencesStatus = document.querySelector<HTMLParagraphElement>("#preferencesStatus")!;
   const baseUrlInput = document.querySelector<HTMLInputElement>("#baseUrl")!;
   const usernameInput = document.querySelector<HTMLInputElement>("#username")!;
   const passwordInput = document.querySelector<HTMLInputElement>("#password")!;
@@ -206,6 +257,112 @@ document.addEventListener("DOMContentLoaded", () => {
   const urlHistory = document.querySelector<HTMLDataListElement>("#urlHistory")!;
   const credentialsHint = document.querySelector<HTMLDivElement>("#credentialsHint")!;
   const incrementicCredit = document.querySelector<HTMLSpanElement>("#incrementic-credit")!;
+  const feedbackLink = document.querySelector<HTMLSpanElement>("#feedback-link")!;
+
+  type Preferences = {
+    enableRagBundle: boolean;
+  };
+
+  const PREFERENCES_KEY = "ploa_preferences";
+  const defaultPreferences: Preferences = {
+    enableRagBundle: false
+  };
+
+  const loadPreferences = (): Preferences => {
+    try {
+      const stored = localStorage.getItem(PREFERENCES_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          ...defaultPreferences,
+          ...parsed
+        };
+      }
+    } catch (error) {
+      console.warn("Failed to parse preferences, resetting to defaults.", error);
+    }
+    return { ...defaultPreferences };
+  };
+
+  const savePreferences = (prefs: Preferences) => {
+    localStorage.setItem(PREFERENCES_KEY, JSON.stringify(prefs));
+  };
+
+  let currentPreferences = loadPreferences();
+
+  const updateRagToggleLabel = () => {
+    ragBundleToggleLabel.textContent = ragBundleToggle.checked ? "On" : "Off";
+    ragBundleToggleLabel.style.color = ragBundleToggle.checked ? "#2e7d32" : "#555";
+  };
+
+  const showPreferencesStatus = (message: string) => {
+    preferencesStatus.textContent = message;
+    preferencesStatus.style.display = "block";
+    setTimeout(() => {
+      preferencesStatus.style.display = "none";
+    }, 2000);
+  };
+
+  const openPreferences = () => {
+    preferencesModal.style.display = "flex";
+  };
+
+  const closePreferences = () => {
+    preferencesModal.style.display = "none";
+  };
+
+  ragBundleToggle.checked = currentPreferences.enableRagBundle;
+  updateRagToggleLabel();
+
+  preferencesBtn.addEventListener("click", openPreferences);
+  preferencesCloseBtn.addEventListener("click", closePreferences);
+  preferencesModal.addEventListener("click", (event) => {
+    if (event.target === preferencesModal) {
+      closePreferences();
+    }
+  });
+
+  ragBundleToggle.addEventListener("change", () => {
+    currentPreferences = {
+      ...currentPreferences,
+      enableRagBundle: ragBundleToggle.checked
+    };
+    savePreferences(currentPreferences);
+    updateRagToggleLabel();
+    showPreferencesStatus("Preferences saved.");
+    updateRagBundlePanelVisibility();
+  });
+
+  const isRagBundleEnabled = () => currentPreferences.enableRagBundle === true;
+
+  const updateRagBundlePanelVisibility = () => {
+    const shouldShow = isRagBundleEnabled() && ragCandidates.length > 0;
+    ragBundlePanel.style.display = shouldShow ? "block" : "none";
+    ragBundleBtn.style.display = shouldShow ? "inline-flex" : "none";
+    ragBundleBtn.disabled = isRagBundling;
+    if (!shouldShow) {
+      ragBundleStatus.textContent = "";
+    }
+  };
+
+  const setRagCandidates = (candidates: RagCandidate[]) => {
+    ragCandidates = candidates;
+    updateRagBundlePanelVisibility();
+  };
+
+  const clearRagCandidates = () => {
+    ragCandidates = [];
+    updateRagBundlePanelVisibility();
+  };
+
+  const setRagBundleStatus = (message: string, color: string = "#2e7d32") => {
+    ragBundleStatus.textContent = message;
+    ragBundleStatus.style.color = color;
+    if (message) {
+      ragBundlePanel.style.display = "block";
+    }
+  };
+
 
   // Handle Incrementic credit link
   incrementicCredit.addEventListener("click", async () => {
@@ -217,17 +374,14 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Handle Feedback link
-  const feedbackLink = document.querySelector<HTMLSpanElement>("#feedback-link");
-  if (feedbackLink) {
-    feedbackLink.addEventListener("click", async (e) => {
-      e.stopPropagation(); // Prevent triggering the incrementic credit click
-      try {
-        await invoke("plugin:shell|open", { path: "https://github.com/pigeonflight/Ploa/issues" });
-      } catch (error) {
-        console.error("Failed to open feedback URL:", error);
-      }
-    });
-  }
+  feedbackLink.addEventListener("click", async (e) => {
+    e.stopPropagation(); // Prevent triggering the incrementic credit click
+    try {
+      await invoke("plugin:shell|open", { path: "https://github.com/pigeonflight/Ploa/issues" });
+    } catch (error) {
+      console.error("Failed to open feedback URL:", error);
+    }
+  });
 
   // Load and display app version
   invoke<string>("get_app_version").then(async (version) => {
@@ -235,7 +389,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (versionSpan) {
       versionSpan.textContent = version;
     }
-    
+
     // Check for updates in the background
     checkForUpdates(version);
   }).catch((error) => {
@@ -254,14 +408,14 @@ document.addEventListener("DOMContentLoaded", () => {
           "Accept": "application/vnd.github.v3+json"
         }
       });
-      
+
       if (!response.ok) {
         return; // Silently fail - don't bother user if check fails
       }
-      
+
       const release = await response.json();
       const latestVersion = release.tag_name.replace(/^v/, ""); // Remove 'v' prefix if present
-      
+
       // Compare versions (simple string comparison should work for semantic versioning)
       if (compareVersions(latestVersion, currentVersion) > 0) {
         // New version available - show notification
@@ -277,7 +431,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function compareVersions(v1: string, v2: string): number {
     const parts1 = v1.split('.').map(Number);
     const parts2 = v2.split('.').map(Number);
-    
+
     for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
       const part1 = parts1[i] || 0;
       const part2 = parts2[i] || 0;
@@ -327,7 +481,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // State
   let currentBaseUrl = "";
   let currentPath = "";
-  
+  type RagCandidate = { item: api.ItemMetadata; path: string };
+  let ragCandidates: RagCandidate[] = [];
+  let isRagBundling = false;
+
   // Tree state for hierarchical browsing
   interface TreeNode {
     item: api.ItemMetadata;
@@ -338,7 +495,7 @@ document.addEventListener("DOMContentLoaded", () => {
     hasChildren: boolean; // Track if we know this item has children
     depth: number;
   }
-  
+
   let treeRoot: TreeNode[] = [];
   let expandedPaths: Set<string> = new Set();
 
@@ -407,6 +564,111 @@ document.addEventListener("DOMContentLoaded", () => {
     return currentPath ? `${currentPath}/${itemId}` : itemId;
   }
 
+  function getItemApiPath(item: api.ItemMetadata): string {
+    const itemPath = item["@id"] || item.path || "";
+    if (!itemPath) return "";
+
+    try {
+      if (itemPath.startsWith("http://") || itemPath.startsWith("https://")) {
+        const urlObj = new URL(itemPath);
+        let pathname = urlObj.pathname;
+        if (pathname.includes("++api++")) {
+          const parts = pathname.split("++api++");
+          pathname = parts[parts.length - 1] || "/";
+        }
+        return pathname.replace(/^\//, "");
+      } else {
+        return itemPath.replace(/^.*\/\+\+api\+\+\//, "").replace(/^\//, "");
+      }
+    } catch {
+      return itemPath.replace(/^.*\/\+\+api\+\+\//, "").replace(/^\//, "");
+    }
+  }
+
+  function getObjectOrigin(objectData: any): string | null {
+    try {
+      if (objectData && objectData["@id"]) {
+        return new URL(objectData["@id"]).origin;
+      }
+    } catch {
+      // ignore
+    }
+    if (currentBaseUrl) {
+      try {
+        return new URL(currentBaseUrl).origin;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function ensureAbsoluteUrlFromObject(objectData: any, maybeUrl: string | null | undefined): string | null {
+    if (!maybeUrl) return null;
+    if (maybeUrl.startsWith("http://") || maybeUrl.startsWith("https://")) {
+      return maybeUrl;
+    }
+    const origin = getObjectOrigin(objectData);
+    if (!origin) return null;
+    if (maybeUrl.startsWith("/")) {
+      return `${origin}${maybeUrl}`;
+    }
+    return `${origin}/${maybeUrl}`;
+  }
+
+  function sanitizeFilename(base: string): string {
+    const cleaned = base
+      .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+      .replace(/\s+/g, " ")
+      .trim();
+    return cleaned || `document-${Date.now()}`;
+  }
+
+  function ensurePdfFilename(preferred?: string | null, fallbackTitle?: string): string {
+    const fallback = fallbackTitle || "document";
+    const candidate = preferred || fallback;
+    const sanitized = sanitizeFilename(candidate);
+    return sanitized.toLowerCase().endsWith(".pdf") ? sanitized : `${sanitized}.pdf`;
+  }
+
+  function detectPdfInfo(objectData: any): { url: string; filename: string } | null {
+    const checkField = (field: any): { url: string; filename: string } | null => {
+      if (!field || !field.download) {
+        return null;
+      }
+      const contentType = field["content-type"] || field["content_type"] || "";
+      const filename = field.filename || "";
+      const downloadUrl = field.download;
+      const looksLikePdf =
+        contentType === "application/pdf" ||
+        filename.toLowerCase().endsWith(".pdf") ||
+        downloadUrl.toLowerCase().includes(".pdf");
+      if (!looksLikePdf) {
+        return null;
+      }
+      const absoluteUrl = ensureAbsoluteUrlFromObject(objectData, downloadUrl);
+      if (!absoluteUrl) {
+        return null;
+      }
+      const finalName = ensurePdfFilename(filename || null, objectData?.title || objectData?.id);
+      return { url: absoluteUrl, filename: finalName };
+    };
+
+    if (objectData && (objectData["@type"] === "File" || objectData.type === "File")) {
+      const fileResult = checkField(objectData.file);
+      if (fileResult) return fileResult;
+    }
+
+    const fileFields = ["file", "attachment", "document", "pdf"];
+    for (const fieldName of fileFields) {
+      const result = checkField(objectData[fieldName]);
+      if (result) {
+        return result;
+      }
+    }
+    return null;
+  }
+
   // Load history
   const history = JSON.parse(localStorage.getItem("plone_url_history") || "[]");
   history.forEach((url: string) => {
@@ -452,6 +714,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Initialize RAG bundle panel visibility now that variables are defined
+  updateRagBundlePanelVisibility();
+
   // Helper to update auth state UI
   function updateAuthState(loggedIn: boolean, username?: string) {
     if (loggedIn) {
@@ -473,9 +738,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Login handler
-  loginSubmitBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
+  let loginInProgress = false;
+
+  async function handleLoginSubmit(e?: Event) {
+    if (e) {
+      e.preventDefault();
+    }
+    if (loginInProgress) {
+      return;
+    }
+    loginInProgress = true;
     const baseUrl = baseUrlInput.value.replace(/\/$/, "");
     const username = usernameInput.value;
     const password = passwordInput.value;
@@ -483,6 +755,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!baseUrl) {
       errorDiv.textContent = "Base URL is required";
       errorDiv.style.display = "block";
+      loginInProgress = false;
       return;
     }
 
@@ -510,8 +783,18 @@ document.addEventListener("DOMContentLoaded", () => {
       errorDiv.style.display = "block";
     } finally {
       loginSubmitBtn.textContent = "Login";
+      loginInProgress = false;
     }
+  }
+  const loginInputs = [baseUrlInput, usernameInput, passwordInput];
+  loginInputs.forEach((input) => {
+    input.addEventListener("keypress", (event) => {
+      if (event.key === "Enter") {
+        handleLoginSubmit(event);
+      }
+    });
   });
+  loginSubmitBtn.addEventListener("click", handleLoginSubmit);
 
   // Anonymous browse handler
   anonymousBtn.addEventListener("click", async (e) => {
@@ -562,7 +845,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!breadcrumb) return;
     breadcrumb.innerHTML = "";
     const parts = path ? path.split("/").filter(p => p) : [];
-    
+
     // Add Root
     const rootSpan = document.createElement("span");
     rootSpan.style.color = PLONE_BLUE;
@@ -572,7 +855,7 @@ document.addEventListener("DOMContentLoaded", () => {
     rootSpan.textContent = "Root";
     rootSpan.onclick = () => loadTreeItems("");
     breadcrumb.appendChild(rootSpan);
-    
+
     // Add path segments
     let currentPathSeg = "";
     parts.forEach((part, index) => {
@@ -581,7 +864,7 @@ document.addEventListener("DOMContentLoaded", () => {
       separator.style.color = "#999";
       separator.style.pointerEvents = "none"; // Prevent separator from blocking clicks
       breadcrumb.appendChild(separator);
-      
+
       currentPathSeg = currentPathSeg ? `${currentPathSeg}/${part}` : part;
       const pathSpan = document.createElement("span");
       const isLast = index === parts.length - 1;
@@ -591,7 +874,7 @@ document.addEventListener("DOMContentLoaded", () => {
       pathSpan.className = "breadcrumb-item";
       pathSpan.setAttribute("data-path", currentPathSeg);
       pathSpan.textContent = part;
-      
+
       // Make all breadcrumb items clickable except the last one
       if (!isLast) {
         pathSpan.style.textDecoration = "underline";
@@ -621,7 +904,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const isFolder = node.item.is_folderish || node.item['@type'] === 'Folder';
     // Show arrow if: has loaded children, OR we know it has children, OR is a folder (might have children), OR already expanded
     const hasChildren = node.children.length > 0 || node.hasChildren || isFolder || node.expanded;
-    
+
     const treeNode = document.createElement("div");
     treeNode.className = "tree-node";
     treeNode.style.display = "flex";
@@ -646,7 +929,7 @@ document.addEventListener("DOMContentLoaded", () => {
     expandContainer.style.justifyContent = "center";
     expandContainer.style.marginRight = "0.5rem";
     expandContainer.style.minWidth = "24px";
-    
+
     // Only show arrow if item has children (loaded) or is a folder (might have children)
     if (hasChildren) {
       const expandBtn = document.createElement("button");
@@ -662,12 +945,12 @@ document.addEventListener("DOMContentLoaded", () => {
       expandBtn.style.height = "20px";
       expandBtn.style.minWidth = "20px";
       expandBtn.style.minHeight = "20px";
-      
+
       // Larger triangle arrows
-      expandBtn.innerHTML = node.expanded 
+      expandBtn.innerHTML = node.expanded
         ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 9 12 15 18 9"/></svg>`
         : `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="9 6 15 12 9 18"/></svg>`;
-      
+
       expandBtn.onclick = async (e) => {
         e.stopPropagation();
         await toggleTreeNode(node);
@@ -913,10 +1196,10 @@ document.addEventListener("DOMContentLoaded", () => {
         // Fetch the full item data to check if it has an items array
         const itemData = await api.fetch(node.path);
         const children = itemData.items && Array.isArray(itemData.items) ? itemData.items : [];
-        
+
         // Update hasChildren flag based on actual data
         node.hasChildren = children.length > 0;
-        
+
         node.children = children.map((item: api.ItemMetadata) => {
           const itemId = extractItemId(item);
           const childPath = node.path ? `${node.path}/${itemId}` : itemId;
@@ -933,19 +1216,19 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
     }
-    
+
     node.expanded = !node.expanded;
     if (node.expanded) {
       expandedPaths.add(node.path);
     } else {
       expandedPaths.delete(node.path);
     }
-    
+
     renderTree();
   }
 
   function renderTree() {
-      itemsList.innerHTML = "";
+    itemsList.innerHTML = "";
     if (treeRoot.length === 0) {
       itemsList.innerHTML = "<p style='color: #666; padding: 1rem;'>No items</p>";
       return;
@@ -959,17 +1242,18 @@ document.addEventListener("DOMContentLoaded", () => {
     if (currentPathSpan) {
       currentPathSpan.textContent = path === "" ? "/" : `/${path}`;
     }
-    
+    clearRagCandidates();
+
     try {
       itemsList.innerHTML = "<p>Loading...</p>";
       const items = await api.getItems(path || undefined);
-      
+
       // Build tree structure for current level
       // Check ALL items in parallel to see which ones have children
       treeRoot = await Promise.all(items.map(async (item) => {
         const itemId = extractItemId(item);
         const itemPath = path ? `${path}/${itemId}` : itemId;
-        
+
         // Check if item has children by fetching it and looking for items array
         let hasChildren = false;
         try {
@@ -979,10 +1263,10 @@ document.addEventListener("DOMContentLoaded", () => {
           // If fetch fails, assume no children
           hasChildren = false;
         }
-        
+
         return createTreeNode(item, itemPath, 0, hasChildren);
       }));
-      
+
       renderTree();
     } catch (error) {
       console.error("Error loading tree items:", error);
@@ -1017,11 +1301,13 @@ document.addEventListener("DOMContentLoaded", () => {
   function displaySearchResults(items: api.ItemMetadata[]) {
     if (items.length === 0) {
       itemsList.innerHTML = "<p style='color: #666;'>No items found</p>";
+      clearRagCandidates();
       return;
     }
 
+    const resolvedCandidates: RagCandidate[] = [];
     itemsList.innerHTML = "";
-    
+
     // Add a header showing search results
     const header = document.createElement("div");
     header.style.padding = "0.75rem";
@@ -1033,6 +1319,10 @@ document.addEventListener("DOMContentLoaded", () => {
     itemsList.appendChild(header);
 
     items.forEach((item) => {
+      const resolvedPath = getItemApiPath(item);
+      if (resolvedPath) {
+        resolvedCandidates.push({ item, path: resolvedPath });
+      }
       const isFolder = item.is_folderish || item['@type'] === 'Folder';
 
       const li = document.createElement("div");
@@ -1072,7 +1362,7 @@ document.addEventListener("DOMContentLoaded", () => {
         e.preventDefault();
         if (!e.dataTransfer) return;
         e.dataTransfer.dropEffect = "move";
-        
+
         // Don't highlight if dragging over itself
         const draggedPath = e.dataTransfer.getData("text/plain");
         const targetPath = getItemFullPath(item);
@@ -1098,7 +1388,7 @@ document.addEventListener("DOMContentLoaded", () => {
       li.addEventListener("drop", async (e: DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         li.classList.remove("drag-over");
         li.style.borderColor = "";
         li.style.borderWidth = "";
@@ -1109,7 +1399,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!sourcePath) return;
 
         const destinationPath = getItemFullPath(item);
-        
+
         // Don't allow dropping on itself
         if (sourcePath === destinationPath) {
           return;
@@ -1135,14 +1425,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      li.onmouseover = () => { 
+      li.onmouseover = () => {
         if (!li.classList.contains("drag-over")) {
-          li.style.backgroundColor = THEME_BG_ACCENT; 
+          li.style.backgroundColor = THEME_BG_ACCENT;
         }
       };
-      li.onmouseout = () => { 
+      li.onmouseout = () => {
         if (!li.classList.contains("drag-over")) {
-          li.style.backgroundColor = "transparent"; 
+          li.style.backgroundColor = "transparent";
         }
       };
 
@@ -1184,7 +1474,7 @@ document.addEventListener("DOMContentLoaded", () => {
       typeDiv.style.fontSize = "0.8rem";
       typeDiv.style.color = "#666";
       typeDiv.textContent = item['@type'] || item.type || "Unknown";
-      
+
       // Show path for search results
       const pathDiv = document.createElement("div");
       pathDiv.style.fontSize = "0.75rem";
@@ -1226,28 +1516,6 @@ document.addEventListener("DOMContentLoaded", () => {
         infoBtn.style.opacity = "0.6";
       };
 
-      // Helper function to extract path from item
-      const getItemPath = (item: api.ItemMetadata): string => {
-        const itemPath = item["@id"] || item.path || "";
-        if (!itemPath) return "";
-        
-        try {
-          if (itemPath.startsWith('http://') || itemPath.startsWith('https://')) {
-            const urlObj = new URL(itemPath);
-            let pathname = urlObj.pathname;
-            if (pathname.includes('++api++')) {
-              const parts = pathname.split('++api++');
-              pathname = parts[parts.length - 1] || '/';
-            }
-            return pathname.replace(/^\//, '');
-          } else {
-            return itemPath.replace(/^.*\/\+\+api\+\+\//, '').replace(/^\//, '');
-          }
-        } catch (e) {
-          return itemPath.replace(/^.*\/\+\+api\+\+\//, '').replace(/^\//, '');
-        }
-      };
-
       // Button container for actions
       const buttonContainer = document.createElement("div");
       buttonContainer.style.display = "flex";
@@ -1280,7 +1548,7 @@ document.addEventListener("DOMContentLoaded", () => {
       };
       browseBtn.onclick = async (e) => {
         e.stopPropagation();
-        const objectPath = getItemPath(item);
+        const objectPath = getItemApiPath(item);
         if (!objectPath) {
           return;
         }
@@ -1294,7 +1562,7 @@ document.addEventListener("DOMContentLoaded", () => {
         e.stopPropagation();
         itemsList.innerHTML = "<p>Loading...</p>";
         try {
-          const objectPath = getItemPath(item);
+          const objectPath = getItemApiPath(item);
           if (!objectPath) {
             throw new Error("Could not determine item path");
           }
@@ -1309,12 +1577,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Handle row click - navigate to item
       mainContent.onclick = async () => {
-        const objectPath = getItemPath(item);
+        const objectPath = getItemApiPath(item);
         if (!objectPath) {
           itemsList.innerHTML = `<p style='color: #d32f2f;'>Error: Could not determine item path</p>`;
           return;
         }
-        
+
         try {
           const objectData = await api.fetch(objectPath);
           showObjectDetails(objectData);
@@ -1331,6 +1599,92 @@ document.addEventListener("DOMContentLoaded", () => {
       li.appendChild(buttonContainer);
       itemsList.appendChild(li);
     });
+
+    setRagCandidates(resolvedCandidates);
+  }
+
+  async function handleRagBundleClick() {
+    if (!isRagBundleEnabled()) {
+      setRagBundleStatus("Enable the bundle option in Preferences first.", "#c62828");
+      return;
+    }
+    if (ragCandidates.length === 0) {
+      setRagBundleStatus("Run a search to populate bundle candidates.", "#c62828");
+      return;
+    }
+    if (isRagBundling) {
+      setRagBundleStatus("A bundle export is already running...", "#555");
+      return;
+    }
+
+    isRagBundling = true;
+    ragBundleBtn.disabled = true;
+    const candidatesSnapshot = [...ragCandidates];
+
+    try {
+      setRagBundleStatus("Select a folder to store the PDFs...", "#555");
+      const directory = await open({
+        directory: true,
+        multiple: false,
+        title: "Select folder for PDF bundle",
+      });
+      if (!directory) {
+        setRagBundleStatus("Export cancelled.", "#666");
+        return;
+      }
+      const targetDir = Array.isArray(directory) ? directory[0] : directory;
+      if (!targetDir) {
+        setRagBundleStatus("A folder is required to save the PDFs.", "#c62828");
+        return;
+      }
+
+      const downloadJobs: { source: string; destination: string }[] = [];
+      let inspected = 0;
+      let pdfReady = 0;
+
+      for (const candidate of candidatesSnapshot) {
+        inspected++;
+        setRagBundleStatus(`Inspecting ${inspected}/${candidatesSnapshot.length}...`, "#555");
+        try {
+          const objectData = await api.fetch(candidate.path);
+          const pdfInfo = detectPdfInfo(objectData);
+          if (pdfInfo) {
+            const destinationPath = await join(targetDir, pdfInfo.filename);
+            downloadJobs.push({ source: pdfInfo.url, destination: destinationPath });
+            pdfReady++;
+          }
+        } catch (error) {
+          console.error("Failed to inspect item for PDF:", error);
+        }
+      }
+
+      if (downloadJobs.length === 0) {
+        setRagBundleStatus("No PDFs detected in this result set.", "#c62828");
+        return;
+      }
+
+      setRagBundleStatus(`Downloading ${downloadJobs.length} PDF${downloadJobs.length === 1 ? "" : "s"}...`, "#2e7d32");
+      type DownloadOutcome = { saved: boolean; error?: string };
+      const results = await invoke<DownloadOutcome[]>("download_files", { downloads: downloadJobs });
+      const savedCount = results.filter(result => result?.saved).length;
+      const failedCount = results.length - savedCount;
+
+      if (failedCount === 0) {
+        setRagBundleStatus(`Saved ${savedCount} PDF${savedCount === 1 ? "" : "s"} to ${targetDir}.`, "#2e7d32");
+      } else {
+        setRagBundleStatus(`Saved ${savedCount}, ${failedCount} failed. Check console for details.`, "#c62828");
+      }
+    } catch (error) {
+      console.error("RAG bundle export failed:", error);
+      const errorMessage = error instanceof Error
+        ? error.message
+        : (typeof error === 'string' ? error : JSON.stringify(error));
+      setRagBundleStatus(`Export failed: ${errorMessage}`, "#c62828");
+    } finally {
+      isRagBundling = false;
+      ragBundleBtn.disabled = false;
+      updateRagBundlePanelVisibility();
+    }
   }
 
   searchBtn.addEventListener("click", async () => {
@@ -1342,13 +1696,14 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       itemsList.innerHTML = "<p>Searching...</p>";
       clearSearchBtn.style.display = "block";
-      
+
       const searchResults = await api.search(undefined, undefined, query);
       const items = searchResults.items || [];
       displaySearchResults(items);
     } catch (error) {
       console.error("Search error:", error);
       itemsList.innerHTML = `<p style='color: #d32f2f;'>Search failed: ${error instanceof Error ? error.message : "Unknown error"}</p>`;
+      clearRagCandidates();
     }
   });
 
@@ -1363,7 +1718,12 @@ document.addEventListener("DOMContentLoaded", () => {
   clearSearchBtn.addEventListener("click", () => {
     searchInput.value = '';
     clearSearchBtn.style.display = "none";
+    clearRagCandidates();
     browseBtn.click(); // Refresh browse view
+  });
+
+  ragBundleBtn.addEventListener("click", () => {
+    handleRagBundleClick();
   });
 
 
@@ -1380,8 +1740,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const hasBlocks = blocks && blocksLayout && Object.keys(blocks).length > 0;
 
     // Check if this is an image and get the image URL
-    const isImage = objectData['@type'] === 'Image' || objectData.type === 'Image' || 
-                    (objectData.image && objectData.image.download);
+    const isImage = objectData['@type'] === 'Image' || objectData.type === 'Image' ||
+      (objectData.image && objectData.image.download);
     // Use image.download for full-size, or @@images/image/thumb for thumbnail
     let imageUrl = null;
     if (isImage && objectData.image) {
@@ -1394,41 +1754,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Check if this is a PDF file (could be File type or any content with a file field)
-    let pdfUrl = null;
-    let isPDF = false;
-    
-    // Check for File type with file field
-    if (objectData['@type'] === 'File' || objectData.type === 'File') {
-      if (objectData.file && objectData.file.download) {
-        const contentType = objectData.file['content-type'] || '';
-        const filename = objectData.file.filename || '';
-        if (contentType === 'application/pdf' || filename.toLowerCase().endsWith('.pdf')) {
-          isPDF = true;
-          pdfUrl = objectData.file.download;
-        }
-      }
-    } else {
-      // Check for file fields in other content types (e.g., attachment, file, etc.)
-      const fileFields = ['file', 'attachment', 'document', 'pdf'];
-      for (const fieldName of fileFields) {
-        if (objectData[fieldName] && objectData[fieldName].download) {
-          const contentType = objectData[fieldName]['content-type'] || '';
-          const filename = objectData[fieldName].filename || '';
-          if (contentType === 'application/pdf' || filename.toLowerCase().endsWith('.pdf')) {
-            isPDF = true;
-            pdfUrl = objectData[fieldName].download;
-            break;
-          }
-        }
-      }
-    }
-    
-    // Make PDF URL absolute if needed
-    if (pdfUrl && !pdfUrl.startsWith('http')) {
-      const baseUrl = objectData['@id'] ? new URL(objectData['@id']).origin : currentBaseUrl;
-      pdfUrl = baseUrl + pdfUrl;
-    }
+    const pdfInfo = detectPdfInfo(objectData);
+    const isPDF = Boolean(pdfInfo);
+    const pdfUrl = pdfInfo?.url || null;
 
     itemsList.innerHTML = `
       <div style="padding: 1rem; position: relative;">
@@ -1455,6 +1783,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <iframe src="${pdfUrl}" style="width: 100%; height: 600px; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px;" title="PDF Preview"></iframe>
           <p style="margin-top: 0.5rem; font-size: 13px; color: #666;">
             <a href="${pdfUrl}" target="_blank" style="color: ${PLONE_BLUE}; text-decoration: underline;">Open PDF in new tab</a>
+            ${pdfInfo?.filename ? `<span style="margin-left: 0.5rem; color: #999;">${pdfInfo.filename}</span>` : ""}
           </p>
         </div>
         ` : ''}
@@ -1463,30 +1792,30 @@ document.addEventListener("DOMContentLoaded", () => {
           <h4 style="margin: 0 0 0.5rem 0;">Details</h4>
           <p><strong>Type:</strong> ${objectData['@type'] || objectData.type || "Unknown"}</p>
           <p><strong>Path:</strong> ${(() => {
-            // Convert API URL to public site URL by removing ++api++ part
-            let publicUrl = path;
-            try {
-              if (path.includes('++api++')) {
-                const urlObj = new URL(path);
-                let pathname = urlObj.pathname;
-                // Remove ++api++ and everything before it
-                if (pathname.includes('++api++')) {
-                  const parts = pathname.split('++api++');
-                  pathname = parts[parts.length - 1] || '/';
-                }
-                publicUrl = `${urlObj.protocol}//${urlObj.host}${pathname}`;
-              } else if (path.startsWith('http')) {
-                publicUrl = path;
-              } else {
-                // Relative path, construct from base URL
-                publicUrl = currentBaseUrl ? `${currentBaseUrl.replace('/++api++', '')}${path.startsWith('/') ? path : '/' + path}` : path;
-              }
-            } catch (e) {
-              // Fallback to just showing the path
-              publicUrl = path.replace(currentBaseUrl, '');
+        // Convert API URL to public site URL by removing ++api++ part
+        let publicUrl = path;
+        try {
+          if (path.includes('++api++')) {
+            const urlObj = new URL(path);
+            let pathname = urlObj.pathname;
+            // Remove ++api++ and everything before it
+            if (pathname.includes('++api++')) {
+              const parts = pathname.split('++api++');
+              pathname = parts[parts.length - 1] || '/';
             }
-            return `<a href="${publicUrl}" target="_blank" style="color: ${PLONE_BLUE}; text-decoration: underline;">${publicUrl}</a>`;
-          })()}</p>
+            publicUrl = `${urlObj.protocol}//${urlObj.host}${pathname}`;
+          } else if (path.startsWith('http')) {
+            publicUrl = path;
+          } else {
+            // Relative path, construct from base URL
+            publicUrl = currentBaseUrl ? `${currentBaseUrl.replace('/++api++', '')}${path.startsWith('/') ? path : '/' + path}` : path;
+          }
+        } catch (e) {
+          // Fallback to just showing the path
+          publicUrl = path.replace(currentBaseUrl, '');
+        }
+        return `<a href="${publicUrl}" target="_blank" style="color: ${PLONE_BLUE}; text-decoration: underline;">${publicUrl}</a>`;
+      })()}</p>
         </div>
 
         <!--Tags Section-->
@@ -1603,12 +1932,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const newTagInput = document.getElementById("newTagInput") as HTMLInputElement;
     const tagStatus = document.getElementById("tagStatus") as HTMLDivElement;
     const tagAutocomplete = document.getElementById("tagAutocomplete") as HTMLDivElement;
-    
+
     // Load all existing tags for autocomplete
     let allTags: string[] = [];
     let selectedAutocompleteTag: string | null = null;
     let currentMatches: string[] = [];
-    
+
     (async () => {
       try {
         const tagsData = await api.collectTags();
@@ -1617,7 +1946,7 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error('Failed to load tags for autocomplete:', error);
       }
     })();
-    
+
     // Validate path after tagStatus is declared
     if (!objectPath || objectPath === '/') {
       console.error('Invalid path extracted from:', path);
@@ -1627,58 +1956,58 @@ document.addEventListener("DOMContentLoaded", () => {
         tagStatus.style.display = 'block';
       }
     }
-    
+
     // Autocomplete functionality
     function filterTags(query: string): string[] {
       if (!query.trim()) return [];
       const lowerQuery = query.toLowerCase();
       return allTags
-        .filter(tag => 
-          tag.toLowerCase().includes(lowerQuery) && 
+        .filter(tag =>
+          tag.toLowerCase().includes(lowerQuery) &&
           !currentTags.includes(tag)
         )
         .slice(0, 10); // Limit to 10 suggestions
     }
-    
+
     function renderAutocomplete(matches: string[]) {
       if (!tagAutocomplete) return;
       currentMatches = matches;
-      
+
       if (matches.length === 0) {
         tagAutocomplete.style.display = 'none';
         selectedAutocompleteTag = null;
         return;
       }
-      
+
       tagAutocomplete.innerHTML = matches.map((tag) => `
         <div class="autocomplete-item" data-tag="${tag}" style="padding: 0.5rem; cursor: pointer; border-bottom: 1px solid ${THEME_BG_LIGHT}; ${tag === selectedAutocompleteTag ? `background: ${THEME_BG_LIGHT};` : ''}">
           ${tag}
         </div>
       `).join('');
-      
+
       tagAutocomplete.style.display = 'block';
-      
+
       // Attach click and hover handlers
       tagAutocomplete.querySelectorAll('.autocomplete-item').forEach(item => {
         const tag = item.getAttribute('data-tag');
         const isSelected = tag === selectedAutocompleteTag;
-        
+
         item.addEventListener('click', () => {
           if (tag) {
             selectTag(tag);
           }
         });
-        
+
         item.addEventListener('mouseenter', () => {
           (item as HTMLElement).style.background = THEME_BG_LIGHT;
         });
-        
+
         item.addEventListener('mouseleave', () => {
           (item as HTMLElement).style.background = isSelected ? THEME_BG_LIGHT : 'transparent';
         });
       });
     }
-    
+
     function selectTag(tag: string) {
       if (tag && !currentTags.includes(tag)) {
         currentTags.push(tag);
@@ -1688,14 +2017,14 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedAutocompleteTag = null;
       }
     }
-    
+
     newTagInput?.addEventListener('input', (e) => {
       const query = (e.target as HTMLInputElement).value;
       const matches = filterTags(query);
       selectedAutocompleteTag = matches.length > 0 ? matches[0] : null;
       renderAutocomplete(matches);
     });
-    
+
     newTagInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         if (tagAutocomplete && tagAutocomplete.style.display !== 'none' && selectedAutocompleteTag) {
@@ -1708,11 +2037,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         return;
       }
-      
+
       if (!tagAutocomplete || tagAutocomplete.style.display === 'none') {
         return;
       }
-      
+
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         const currentIndex = selectedAutocompleteTag ? currentMatches.indexOf(selectedAutocompleteTag) : -1;
@@ -1737,12 +2066,12 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedAutocompleteTag = null;
       }
     });
-    
+
     // Hide autocomplete when clicking outside
     document.addEventListener('click', (e) => {
-      if (tagAutocomplete && newTagInput && 
-          !tagAutocomplete.contains(e.target as Node) && 
-          e.target !== newTagInput) {
+      if (tagAutocomplete && newTagInput &&
+        !tagAutocomplete.contains(e.target as Node) &&
+        e.target !== newTagInput) {
         tagAutocomplete.style.display = 'none';
         selectedAutocompleteTag = null;
       }
@@ -1826,7 +2155,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Update toggle button appearance based on current mode
       function updateToggleButton() {
         if (!modeToggleBtn || !modeToggleIcon || !modeToggleText) return;
-        
+
         if (currentMode === 'visual') {
           modeToggleText.textContent = 'Visual';
           modeToggleIcon.innerHTML = `<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line>`;
@@ -1840,38 +2169,38 @@ document.addEventListener("DOMContentLoaded", () => {
       modeToggleBtn?.addEventListener("click", () => {
         if (currentMode === 'visual') {
           // Switch to JSON mode
-        currentMode = 'json';
-        jsonModeDiv!.style.display = 'block';
-        visualModeDiv!.style.display = 'none';
+          currentMode = 'json';
+          jsonModeDiv!.style.display = 'block';
+          visualModeDiv!.style.display = 'none';
 
-        // Sync from visual to JSON when switching
-        const blocksEditor = document.getElementById("blocksEditor") as HTMLTextAreaElement;
-        const blocksLayoutEditor = document.getElementById("blocksLayoutEditor") as HTMLTextAreaElement;
-        blocksEditor.value = JSON.stringify(currentBlocks, null, 2);
-        blocksLayoutEditor.value = JSON.stringify(currentBlocksLayout, null, 2);
-        } else {
-          // Switch to Visual mode
-        currentMode = 'visual';
-        jsonModeDiv!.style.display = 'none';
-        visualModeDiv!.style.display = 'block';
-
-        // Sync from JSON to visual when switching
-        try {
+          // Sync from visual to JSON when switching
           const blocksEditor = document.getElementById("blocksEditor") as HTMLTextAreaElement;
           const blocksLayoutEditor = document.getElementById("blocksLayoutEditor") as HTMLTextAreaElement;
-          currentBlocks = JSON.parse(blocksEditor.value);
-          currentBlocksLayout = JSON.parse(blocksLayoutEditor.value);
-          renderBlockCards();
-        } catch (error) {
-          console.error("Error parsing JSON:", error);
-          alert("Invalid JSON in editor. Please fix syntax errors before switching to Visual mode.");
+          blocksEditor.value = JSON.stringify(currentBlocks, null, 2);
+          blocksLayoutEditor.value = JSON.stringify(currentBlocksLayout, null, 2);
+        } else {
+          // Switch to Visual mode
+          currentMode = 'visual';
+          jsonModeDiv!.style.display = 'none';
+          visualModeDiv!.style.display = 'block';
+
+          // Sync from JSON to visual when switching
+          try {
+            const blocksEditor = document.getElementById("blocksEditor") as HTMLTextAreaElement;
+            const blocksLayoutEditor = document.getElementById("blocksLayoutEditor") as HTMLTextAreaElement;
+            currentBlocks = JSON.parse(blocksEditor.value);
+            currentBlocksLayout = JSON.parse(blocksLayoutEditor.value);
+            renderBlockCards();
+          } catch (error) {
+            console.error("Error parsing JSON:", error);
+            alert("Invalid JSON in editor. Please fix syntax errors before switching to Visual mode.");
             // Revert to JSON mode
-          currentMode = 'json';
+            currentMode = 'json';
             jsonModeDiv!.style.display = 'block';
             visualModeDiv!.style.display = 'none';
             updateToggleButton();
-          return;
-        }
+            return;
+          }
         }
         updateToggleButton();
       });
@@ -1882,14 +2211,14 @@ document.addEventListener("DOMContentLoaded", () => {
       // Simple markdown to HTML converter
       function markdownToHtml(markdown: string): string {
         if (!markdown) return '';
-        
+
         // Escape HTML to prevent XSS
         const escapeHtml = (text: string) => {
           const div = document.createElement('div');
           div.textContent = text;
           return div.innerHTML;
         };
-        
+
         let html = markdown;
         const lines = html.split('\n');
         const output: string[] = [];
@@ -1899,15 +2228,15 @@ document.addEventListener("DOMContentLoaded", () => {
         let listItems: string[] = [];
         let listOrdered = false;
         let currentParagraph: string[] = [];
-        
+
         // Track notes for footnotes section
         const notes: Array<{ id: string; content: string; index: number }> = [];
         let noteCounter = 0;
-        
+
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           const trimmed = line.trim();
-          
+
           // Code blocks
           if (trimmed.startsWith('```')) {
             if (inCodeBlock) {
@@ -1932,12 +2261,12 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             continue;
           }
-          
+
           if (inCodeBlock) {
             codeBlockContent.push(line);
             continue;
           }
-          
+
           // Headers - match # through ###### (h1 through h6)
           const headerMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
           if (headerMatch) {
@@ -1957,7 +2286,7 @@ document.addEventListener("DOMContentLoaded", () => {
             output.push(`<h${Math.min(level, 6)} style="margin: ${1.5 - (level - 1) * 0.2}rem 0 ${0.75 + (level - 1) * 0.1}rem 0; font-size: ${size}rem; font-weight: 600;">${processInlineMarkdown(text, notes)}</h${Math.min(level, 6)}>`);
             continue;
           }
-          
+
           // Horizontal rule
           if (trimmed.match(/^[-*_]{3,}$/)) {
             if (currentParagraph.length > 0) {
@@ -1973,33 +2302,33 @@ document.addEventListener("DOMContentLoaded", () => {
             output.push('<hr style="margin: 1rem 0; border: none; border-top: 1px solid #ddd;">');
             continue;
           }
-          
+
           // Lists
           const ulMatch = trimmed.match(/^[-*] (.+)$/);
           const olMatch = trimmed.match(/^\d+\. (.+)$/);
-          
+
           if (ulMatch || olMatch) {
             const isOrdered = !!olMatch;
             const itemText = ulMatch ? ulMatch[1] : olMatch![1];
-            
+
             if (currentParagraph.length > 0) {
               output.push(`<p style="margin: 0.75rem 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
               currentParagraph = [];
             }
-            
+
             if (inList && listOrdered !== isOrdered) {
               // Different list type, close previous
               const tag = listOrdered ? 'ol' : 'ul';
               output.push(`<${tag} style="margin: 0.5rem 0; padding-left: 1.5rem;">${listItems.map(li => `<li style="margin: 0.25rem 0;">${li}</li>`).join('')}</${tag}>`);
               listItems = [];
             }
-            
+
             inList = true;
             listOrdered = isOrdered;
             listItems.push(processInlineMarkdown(itemText, notes));
             continue;
           }
-          
+
           // End of list
           if (inList && trimmed === '') {
             const tag = listOrdered ? 'ol' : 'ul';
@@ -2008,11 +2337,11 @@ document.addEventListener("DOMContentLoaded", () => {
             inList = false;
             continue;
           }
-          
+
           // Note definitions (markdown style: [^1]: content or HTML style: <note id="...">content</note>)
           const noteDefMatch = trimmed.match(/^\[\^([^\]]+)\]:\s*(.+)$/);
           const noteHtmlMatch = trimmed.match(/^<note\s+id=["']([^"']+)["']>(.*?)<\/note>$/i);
-          
+
           if (noteDefMatch || noteHtmlMatch) {
             if (currentParagraph.length > 0) {
               output.push(`<p style="margin: 0.75rem 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
@@ -2024,7 +2353,7 @@ document.addEventListener("DOMContentLoaded", () => {
               listItems = [];
               inList = false;
             }
-            
+
             const noteId = noteDefMatch ? noteDefMatch[1] : noteHtmlMatch![1];
             const noteContent = noteDefMatch ? noteDefMatch[2] : noteHtmlMatch![2];
             noteCounter++;
@@ -2035,7 +2364,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             continue;
           }
-          
+
           // Regular paragraph
           if (trimmed === '') {
             if (currentParagraph.length > 0) {
@@ -2052,7 +2381,7 @@ document.addEventListener("DOMContentLoaded", () => {
             currentParagraph.push(processInlineMarkdown(trimmed, notes));
           }
         }
-        
+
         // Close any open blocks
         if (inCodeBlock && codeBlockContent.length > 0) {
           const code = codeBlockContent.join('\n');
@@ -2065,7 +2394,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const tag = listOrdered ? 'ol' : 'ul';
           output.push(`<${tag} style="margin: 0.5rem 0; padding-left: 1.5rem;">${listItems.map(li => `<li style="margin: 0.25rem 0;">${li}</li>`).join('')}</${tag}>`);
         }
-        
+
         // Add footnotes section if there are any notes
         if (notes.length > 0) {
           output.push('<hr style="margin: 2rem 0 1rem 0; border: none; border-top: 1px solid #ddd;">');
@@ -2082,10 +2411,10 @@ document.addEventListener("DOMContentLoaded", () => {
           output.push('</ol>');
           output.push('</div>');
         }
-        
+
         return output.join('\n');
       }
-      
+
       // Process inline markdown (bold, italic, links, code, noterefs)
       function processInlineMarkdown(text: string, notes: Array<{ id: string; content: string; index: number }> = []): string {
         // Escape HTML first
@@ -2094,9 +2423,9 @@ document.addEventListener("DOMContentLoaded", () => {
           div.textContent = text;
           return div.innerHTML;
         };
-        
+
         let html = escapeHtml(text);
-        
+
         // Note references (markdown style: [^1] or HTML style: <noteref ref="note1">)
         // Process noterefs before other inline elements
         html = html.replace(/\[\^([^\]]+)\]/g, (match, noteId) => {
@@ -2106,7 +2435,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           return match; // Return as-is if note not found
         });
-        
+
         // HTML-style noterefs: <noteref ref="note1"> or <noteref ref="note1">text</noteref>
         html = html.replace(/<noteref\s+ref=["']([^"']+)["'](?:\s*\/>|>([^<]*)<\/noteref>)/gi, (match, noteId, text) => {
           const note = notes.find(n => n.id === noteId);
@@ -2116,21 +2445,21 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           return match;
         });
-        
+
         // Code blocks are handled separately, so we process inline code
         // Inline code (`code`) - but not inside code blocks
         html = html.replace(/`([^`]+)`/g, (_match, code) => {
           return `<code style="background: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-family: monospace; font-size: 0.9em;">${escapeHtml(code)}</code>`;
         });
-        
+
         // Bold (**text** or __text__) - but not inside code
         html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
         html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
-        
+
         // Italic (*text* or _text_) - but not inside code or bold
         html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
         html = html.replace(/(?<!_)_([^_]+)_(?!_)/g, '<em>$1</em>');
-        
+
         // Links [text](url) - but not note references
         html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, linkText, url) => {
           // Check if it's an internal anchor (starts with #)
@@ -2139,7 +2468,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           return `<a href="${url}" style="color: #1976d2; text-decoration: none;" target="_blank" rel="noopener noreferrer">${linkText}</a>`;
         });
-        
+
         return html;
       }
 
@@ -2154,11 +2483,11 @@ document.addEventListener("DOMContentLoaded", () => {
             // Render Markdown block
             const markdownContainer = document.createElement('div');
             markdownContainer.style.cssText = 'line-height: 1.6; color: #333;';
-            
+
             if (block.markdown) {
               const html = markdownToHtml(block.markdown);
               markdownContainer.innerHTML = html || '<p style="color: #999; font-style: italic;">Empty markdown block</p>';
-              
+
               // Add smooth scrolling for internal anchor links
               markdownContainer.querySelectorAll('a[href^="#"]').forEach((link) => {
                 link.addEventListener('click', (e) => {
@@ -2191,7 +2520,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (block.value && Array.isArray(block.value)) {
               const textContainer = document.createElement('div');
               textContainer.style.cssText = 'line-height: 1.6; color: #333;';
-              
+
               const extractAndRenderText = (nodes: any[]): string => {
                 return nodes.map(node => {
                   if (node.text !== undefined) {
@@ -2218,7 +2547,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   return '';
                 }).join('');
               };
-              
+
               const html = extractAndRenderText(block.value);
               textContainer.innerHTML = html || '<p style="color: #999; font-style: italic;">Empty text block</p>';
               contentContainer.appendChild(textContainer);
@@ -2237,7 +2566,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Render Image block
             const imageContainer = document.createElement('div');
             imageContainer.style.cssText = 'text-align: center; margin: 0.5rem 0;';
-            
+
             if (block.url) {
               const img = document.createElement('img');
               img.src = block.url;
@@ -2251,7 +2580,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 imageContainer.appendChild(errorDiv);
               };
               imageContainer.appendChild(img);
-              
+
               if (block.title) {
                 const caption = document.createElement('p');
                 caption.style.cssText = 'margin-top: 0.5rem; font-size: 0.9rem; color: #666; font-style: italic;';
@@ -2268,7 +2597,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Render Listing block preview
             const listingContainer = document.createElement('div');
             listingContainer.style.cssText = 'padding: 1rem; background: #f5f5f5; border-radius: 4px;';
-            
+
             if (block.query && Array.isArray(block.query)) {
               listingContainer.innerHTML = `
                 <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #333;">Content Listing</p>
@@ -2284,14 +2613,14 @@ document.addEventListener("DOMContentLoaded", () => {
             // Render Video block
             const videoContainer = document.createElement('div');
             videoContainer.style.cssText = 'margin: 0.5rem 0;';
-            
+
             if (block.url) {
               const video = document.createElement('video');
               video.src = block.url;
               video.controls = true;
               video.style.cssText = 'width: 100%; max-width: 100%; border-radius: 4px;';
               videoContainer.appendChild(video);
-              
+
               if (block.title) {
                 const title = document.createElement('p');
                 title.style.cssText = 'margin-top: 0.5rem; font-weight: 600; color: #333;';
@@ -2308,21 +2637,21 @@ document.addEventListener("DOMContentLoaded", () => {
             // Render Teaser block
             const teaserContainer = document.createElement('div');
             teaserContainer.style.cssText = 'padding: 1rem; background: #f9f9f9; border-left: 3px solid #ff9800; border-radius: 4px;';
-            
+
             if (block.title) {
               const title = document.createElement('h4');
               title.style.cssText = 'margin: 0 0 0.5rem 0; color: #333;';
               title.textContent = block.title;
               teaserContainer.appendChild(title);
             }
-            
+
             if (block.description) {
               const desc = document.createElement('p');
               desc.style.cssText = 'margin: 0 0 0.5rem 0; color: #666; line-height: 1.5;';
               desc.textContent = block.description;
               teaserContainer.appendChild(desc);
             }
-            
+
             if (block.href) {
               const link = document.createElement('a');
               link.href = block.href;
@@ -2331,7 +2660,7 @@ document.addEventListener("DOMContentLoaded", () => {
               link.target = '_blank';
               teaserContainer.appendChild(link);
             }
-            
+
             if (!block.title && !block.description && !block.href) {
               teaserContainer.innerHTML = '<p style="margin: 0; color: #999; font-style: italic;">Empty teaser block</p>';
             }
@@ -2342,11 +2671,11 @@ document.addEventListener("DOMContentLoaded", () => {
             // Render Table block
             const tableContainer = document.createElement('div');
             tableContainer.style.cssText = 'overflow-x: auto; margin: 0.5rem 0;';
-            
+
             if (block.table && block.table.rows) {
               const table = document.createElement('table');
               table.style.cssText = 'width: 100%; border-collapse: collapse; background: white;';
-              
+
               block.table.rows.forEach((row: any, rowIdx: number) => {
                 const tr = document.createElement('tr');
                 if (row.cells) {
@@ -2363,7 +2692,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 table.appendChild(tr);
               });
-              
+
               tableContainer.appendChild(table);
             } else {
               tableContainer.innerHTML = '<p style="color: #999; font-style: italic;">Empty table block</p>';
@@ -2678,15 +3007,15 @@ document.addEventListener("DOMContentLoaded", () => {
           blockStatus.textContent = "✓ Blocks saved successfully!";
           blockStatus.style.color = "#4caf50";
           blockStatus.style.display = "block";
-          
+
           // Update original blocks to reflect saved state
           originalBlocks = JSON.stringify(newBlocks);
           originalBlocksLayout = JSON.stringify(newBlocksLayout);
-          
+
           // Also update currentBlocks to match saved state
           currentBlocks = newBlocks;
           currentBlocksLayout = newBlocksLayout;
-          
+
           setTimeout(() => { blockStatus.style.display = "none"; }, 3000);
         } catch (error) {
           console.error("Error saving blocks:", error);
@@ -2809,21 +3138,21 @@ document.addEventListener("DOMContentLoaded", () => {
     // Light caching for keywords (5 minute cache)
     let keywordsCache: { data: Record<string, number>; timestamp: number } | null = null;
     const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-    
+
     async function getCachedTags(forceRefresh = false): Promise<Record<string, number>> {
       const now = Date.now();
-      
+
       // Return cached data if it's still valid and not forcing refresh
       if (!forceRefresh && keywordsCache && (now - keywordsCache.timestamp) < CACHE_DURATION) {
         return keywordsCache.data;
       }
-      
+
       // Fetch fresh data
       const tags = await api.collectTags();
       keywordsCache = { data: tags, timestamp: now };
       return tags;
     }
-    
+
     function invalidateKeywordsCache() {
       keywordsCache = null;
     }
@@ -2832,7 +3161,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function showAllKeywordsView() {
       // Check if we have cached data
       const hasCache = keywordsCache && (Date.now() - keywordsCache.timestamp) < CACHE_DURATION;
-      
+
       if (!hasCache) {
         // Show loading state only if we don't have cache
         kwContent.innerHTML = `
@@ -2864,7 +3193,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const sortedTags = Object.entries(allTags)
         .sort((a, b) => b[1] - a[1]); // Sort by count descending
 
-        kwContent.innerHTML = `
+      kwContent.innerHTML = `
         <div style="max-width: 1200px; margin: 0 auto;">
           <div style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
             <input type="text" id="keywordFilterInput" placeholder="Filter keywords..." style="flex: 1; padding: 0.75rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px; background-color: ${THEME_BG_ACCENT};" />
@@ -3004,7 +3333,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const bulkActionsBar = document.getElementById("bulkActionsBar");
         const selectedCountSpan = document.getElementById("selectedCount");
         const selectedCountPlural = document.getElementById("selectedCountPlural");
-        
+
         if (bulkActionsBar && selectedCountSpan && selectedCountPlural) {
           if (selectedCount > 0) {
             bulkActionsBar.style.display = "flex";
@@ -3014,7 +3343,7 @@ document.addEventListener("DOMContentLoaded", () => {
             bulkActionsBar.style.display = "none";
           }
         }
-        
+
         // Update select all button state
         const visibleCheckboxes = Array.from(document.querySelectorAll(".keyword-checkbox") as NodeListOf<HTMLInputElement>)
           .filter(cb => {
@@ -3022,7 +3351,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return item && item.style.display !== "none";
           });
         const checkedVisible = visibleCheckboxes.filter(cb => cb.checked).length;
-        
+
         if (selectAllBtn && deselectAllBtn) {
           if (checkedVisible === visibleCheckboxes.length && visibleCheckboxes.length > 0) {
             selectAllBtn.style.display = "none";
@@ -3032,7 +3361,7 @@ document.addEventListener("DOMContentLoaded", () => {
             deselectAllBtn.style.display = "none";
           }
         }
-        
+
         // Update selected state on items
         document.querySelectorAll(".keyword-item").forEach((item) => {
           const checkbox = item.querySelector(".keyword-checkbox") as HTMLInputElement;
@@ -3054,7 +3383,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Select All / Deselect All
       const selectAllBtn = document.getElementById("selectAllKeywordsBtn");
       const deselectAllBtn = document.getElementById("deselectAllKeywordsBtn");
-      
+
       selectAllBtn?.addEventListener("click", () => {
         document.querySelectorAll(".keyword-checkbox").forEach((checkbox) => {
           const item = (checkbox as HTMLInputElement).closest(".keyword-item") as HTMLElement;
@@ -3081,12 +3410,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const selected = Array.from(document.querySelectorAll(".keyword-checkbox:checked") as NodeListOf<HTMLInputElement>)
           .map(cb => cb.getAttribute("data-keyword"))
           .filter(Boolean) as string[];
-        
+
         if (selected.length === 0) {
           alert("Please select at least one keyword to rename.");
           return;
         }
-        
+
         showBulkRenameDialog(selected);
       });
 
@@ -3095,12 +3424,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const selected = Array.from(document.querySelectorAll(".keyword-checkbox:checked") as NodeListOf<HTMLInputElement>)
           .map(cb => cb.getAttribute("data-keyword"))
           .filter(Boolean) as string[];
-        
+
         if (selected.length === 0) {
           alert("Please select at least one keyword to delete.");
           return;
         }
-        
+
         showBulkDeleteDialog(selected);
       });
     }
@@ -3165,14 +3494,14 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           // Merge old keyword into new keyword
           await api.mergeTags(newName, [oldKeyword]);
-          
+
           // Reload keywords and show the renamed keyword in All Keywords view
           invalidateKeywordsCache(); // Invalidate cache after rename
           allTags = await getCachedTags(true);
           currentTab = 'all';
           updateTabs();
           showAllKeywordsView();
-          
+
           // Scroll to the renamed keyword if it exists
           setTimeout(() => {
             const keywordItem = document.querySelector(`[data-keyword="${newName}"]`);
@@ -3235,7 +3564,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const result = await api.mergeTags(tempTarget, [keyword]);
           const updated = result.updated;
           const errors = result.errors || [];
-          
+
           // Note: The tempTarget will remain on items, but it's unique and won't appear
           // in normal keyword lists since it starts with __DELETE_. This is acceptable
           // for now. A proper solution would require a backend delete_keyword function.
@@ -3244,13 +3573,13 @@ document.addEventListener("DOMContentLoaded", () => {
           // Invalidate cache and refresh - the keyword should be gone if it had 0 items
           invalidateKeywordsCache();
           allTags = await getCachedTags(true);
-          
+
           // If the keyword still exists in allTags but had 0 items, it was likely a cache artifact
           // Remove it from the local state
           if (allTags[keyword] === 0) {
             delete allTags[keyword];
           }
-          
+
           kwContent.innerHTML = `
             <div style="max-width: 600px; margin: 0 auto;">
               <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -3372,14 +3701,14 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           // Merge all selected keywords into the new keyword
           await api.mergeTags(newName, keywords);
-          
+
           // Reload keywords
           invalidateKeywordsCache();
           allTags = await getCachedTags(true);
           currentTab = 'all';
           updateTabs();
           showAllKeywordsView();
-          
+
           // Scroll to the renamed keyword
           setTimeout(() => {
             const keywordItem = document.querySelector(`[data-keyword="${newName}"]`);
@@ -3441,7 +3770,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           let totalUpdated = 0;
           const allErrors: string[] = [];
-          
+
           // Delete each keyword
           for (const keyword of keywords) {
             try {
@@ -3462,7 +3791,7 @@ document.addEventListener("DOMContentLoaded", () => {
           currentTab = 'all';
           updateTabs();
           showAllKeywordsView();
-          
+
           // Show success message
           if (allErrors.length === 0) {
             setTimeout(() => {
@@ -3494,7 +3823,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function showCreateKeywordUI() {
       // Use current browser path as default if available
       const defaultPath = currentPath || "";
-      
+
       kwContent.innerHTML = `
         <div style="max-width: 800px; margin: 0 auto;">
           <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -3537,7 +3866,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
       `;
-      
+
       // Add path option button handlers
       document.querySelectorAll(".path-option-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -3610,7 +3939,7 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
               const currentSubjects = item.Subject || item.subjects || [];
               const subjectsArray = Array.isArray(currentSubjects) ? currentSubjects : [];
-              
+
               // Check if keyword already exists (case-insensitive)
               if (!subjectsArray.some((s: string) => s.trim().toLowerCase() === keyword.toLowerCase())) {
                 const newSubjects = [...subjectsArray, keyword];
@@ -3628,7 +3957,7 @@ document.addEventListener("DOMContentLoaded", () => {
           invalidateKeywordsCache(); // Invalidate cache after create
           allTags = await getCachedTags(true);
           const keywordCount = allTags[keyword] || 0;
-          
+
           kwContent.innerHTML = `
             <div style="max-width: 800px; margin: 0 auto;">
               <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -3849,17 +4178,17 @@ document.addEventListener("DOMContentLoaded", () => {
       // 2. Find Similar (Default 90%)
       const loadingMsg = document.getElementById("loadingMsg");
 
-            // Witty loading messages
-            const messages = [
-              "Consulting the thesaurus...",
-              "Asking the librarian...",
-              "Comparing apples to appples...",
-              "Hunting for typos...",
-              "Measuring Levenshtein distances...",
-              "Untangling the tag spaghetti...",
-              "Reading the dictionary backwards...",
-              "Squinting at similar words...",
-              "Doing the alphabet dance...",
+      // Witty loading messages
+      const messages = [
+        "Consulting the thesaurus...",
+        "Asking the librarian...",
+        "Comparing apples to appples...",
+        "Hunting for typos...",
+        "Measuring Levenshtein distances...",
+        "Untangling the tag spaghetti...",
+        "Reading the dictionary backwards...",
+        "Squinting at similar words...",
+        "Doing the alphabet dance...",
         "Grouping the flock...",
         "Ron, Carol, and David are sorting keywords...",
         "Playing word association games...",
@@ -3912,15 +4241,15 @@ document.addEventListener("DOMContentLoaded", () => {
         "Ron's organizing by similarity...",
         "Carol is checking for variations...",
         "David's computing Levenshtein distances..."
-            ];
+      ];
 
-            let msgIndex = 0;
+      let msgIndex = 0;
       if (loadingMsg) {
         loadingMsg.innerHTML = `<span style="font-style: italic;">Found ${tagCount} keywords. ${messages[0]}</span>`;
       }
 
-            const intervalId = setInterval(() => {
-              msgIndex = (msgIndex + 1) % messages.length;
+      const intervalId = setInterval(() => {
+        msgIndex = (msgIndex + 1) % messages.length;
         if (loadingMsg) {
           loadingMsg.innerHTML = `<span style="font-style: italic;">Found ${tagCount} keywords. ${messages[msgIndex]}</span>`;
         }
@@ -3928,7 +4257,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         similarPairs = await api.findSimilarTags(allTags, 90, 100);
-              clearInterval(intervalId);
+        clearInterval(intervalId);
       } catch (error) {
         clearInterval(intervalId);
         throw error;
@@ -3948,7 +4277,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderResults(tagCount: number, currentThreshold: number) {
-            if (similarPairs.length === 0) {
+      if (similarPairs.length === 0) {
         kwContent.innerHTML = `
           <div style="text-align: center; padding: 2rem;">
             <p style="font-size: 1.2em; margin-bottom: 0.5rem;">No similar keywords found at ${currentThreshold}% similarity.</p>
@@ -3968,8 +4297,8 @@ document.addEventListener("DOMContentLoaded", () => {
           similarPairs = await api.findSimilarTags(allTags, 80, 100);
           renderResults(tagCount, 80);
         });
-              return;
-            }
+        return;
+      }
 
       kwContent.innerHTML = `
         <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; background: #e8f5e9; padding: 1rem; border-radius: 4px;">
@@ -4010,41 +4339,41 @@ document.addEventListener("DOMContentLoaded", () => {
         renderResults(tagCount, newThreshold);
       });
 
-            // Helper to manage merge plan with mutual exclusivity
-            const toggleMerge = (keepTag: string, discardTag: string) => {
-              // 1. Remove any existing plan where 'keepTag' was going to be discarded
-              if (mergePlan.has(discardTag)) {
-                const sources = mergePlan.get(discardTag)!;
-                const index = sources.indexOf(keepTag);
-                if (index > -1) {
-                  sources.splice(index, 1);
-                  if (sources.length === 0) {
-                    mergePlan.delete(discardTag);
-                  }
-                }
-              }
+      // Helper to manage merge plan with mutual exclusivity
+      const toggleMerge = (keepTag: string, discardTag: string) => {
+        // 1. Remove any existing plan where 'keepTag' was going to be discarded
+        if (mergePlan.has(discardTag)) {
+          const sources = mergePlan.get(discardTag)!;
+          const index = sources.indexOf(keepTag);
+          if (index > -1) {
+            sources.splice(index, 1);
+            if (sources.length === 0) {
+              mergePlan.delete(discardTag);
+            }
+          }
+        }
 
-              // 2. Add 'discardTag' to be merged into 'keepTag'
-              if (!mergePlan.has(keepTag)) {
-                mergePlan.set(keepTag, []);
-              }
-              const sources = mergePlan.get(keepTag)!;
-              if (!sources.includes(discardTag)) {
-                sources.push(discardTag);
-              }
+        // 2. Add 'discardTag' to be merged into 'keepTag'
+        if (!mergePlan.has(keepTag)) {
+          mergePlan.set(keepTag, []);
+        }
+        const sources = mergePlan.get(keepTag)!;
+        if (!sources.includes(discardTag)) {
+          sources.push(discardTag);
+        }
 
-              updateMergePlan();
-            };
+        updateMergePlan();
+      };
 
       const pairsList = document.getElementById("pairsList")!;
 
-            similarPairs.forEach((pair, index) => {
-              const row = document.createElement("div");
-              row.className = "similarity-row";
-              row.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.75rem; transition: all 0.3s;";
-              row.id = `pair-row-${index}`;
+      similarPairs.forEach((pair, index) => {
+        const row = document.createElement("div");
+        row.className = "similarity-row";
+        row.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.75rem; transition: all 0.3s;";
+        row.id = `pair-row-${index}`;
 
-              row.innerHTML = `
+        row.innerHTML = `
                 <div style="flex: 1; display: flex; align-items: center; gap: 1rem;">
                   <div class="tag-option" id="tag-left-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s;">
                     <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
@@ -4068,82 +4397,82 @@ document.addEventListener("DOMContentLoaded", () => {
 
         pairsList.appendChild(row);
 
-              const leftCard = row.querySelector(`#tag-left-${index}`) as HTMLElement;
-              const rightCard = row.querySelector(`#tag-right-${index}`) as HTMLElement;
-              const statusText = row.querySelector(`.status-text`) as HTMLElement;
+        const leftCard = row.querySelector(`#tag-left-${index}`) as HTMLElement;
+        const rightCard = row.querySelector(`#tag-right-${index}`) as HTMLElement;
+        const statusText = row.querySelector(`.status-text`) as HTMLElement;
 
-              const updateRowVisuals = (keepLeft: boolean) => {
-                // Reset styles
-                leftCard.style.borderColor = "transparent";
-                leftCard.style.background = "#f8f9fa";
-                leftCard.style.opacity = "1";
-                leftCard.innerHTML = `
+        const updateRowVisuals = (keepLeft: boolean) => {
+          // Reset styles
+          leftCard.style.borderColor = "transparent";
+          leftCard.style.background = "#f8f9fa";
+          leftCard.style.opacity = "1";
+          leftCard.innerHTML = `
                   <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
                   <div style="font-size: 0.85em; color: #666;">${pair.count} items</div>
                 `;
 
-                rightCard.style.borderColor = "transparent";
-                rightCard.style.background = "#f8f9fa";
-                rightCard.style.opacity = "1";
-                rightCard.innerHTML = `
+          rightCard.style.borderColor = "transparent";
+          rightCard.style.background = "#f8f9fa";
+          rightCard.style.opacity = "1";
+          rightCard.innerHTML = `
                   <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.matched}</div>
                   <div style="font-size: 0.85em; color: #666;">${pair.matched_count} items</div>
                 `;
 
-                if (keepLeft) {
-                  // Keep Left
-                  leftCard.style.borderColor = "#4caf50";
-                  leftCard.style.background = "#e8f5e9";
-                  leftCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
+          if (keepLeft) {
+            // Keep Left
+            leftCard.style.borderColor = "#4caf50";
+            leftCard.style.background = "#e8f5e9";
+            leftCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
 
-                  // Discard Right
-                  rightCard.style.opacity = "0.6";
-                  rightCard.style.background = "#ffebee";
-                  rightCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
+            // Discard Right
+            rightCard.style.opacity = "0.6";
+            rightCard.style.background = "#ffebee";
+            rightCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
 
             statusText.textContent = "←";
-                  statusText.style.color = PLONE_BLUE;
+            statusText.style.color = PLONE_BLUE;
             statusText.style.fontSize = "2rem";
             statusText.style.textAlign = "center";
             statusText.style.fontWeight = "bold";
-                } else {
-                  // Keep Right
-                  rightCard.style.borderColor = "#4caf50";
-                  rightCard.style.background = "#e8f5e9";
-                  rightCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
+          } else {
+            // Keep Right
+            rightCard.style.borderColor = "#4caf50";
+            rightCard.style.background = "#e8f5e9";
+            rightCard.innerHTML += `<div style="color: #2e7d32; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✓ KEEPING</div>`;
 
-                  // Discard Left
-                  leftCard.style.opacity = "0.6";
-                  leftCard.style.background = "#ffebee";
-                  leftCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
+            // Discard Left
+            leftCard.style.opacity = "0.6";
+            leftCard.style.background = "#ffebee";
+            leftCard.innerHTML += `<div style="color: #c62828; font-size: 0.8em; font-weight: bold; margin-top: 4px;">✗ MERGING</div>`;
 
             statusText.textContent = "→";
-                  statusText.style.color = PLONE_BLUE;
+            statusText.style.color = PLONE_BLUE;
             statusText.style.fontSize = "2rem";
             statusText.style.textAlign = "center";
             statusText.style.fontWeight = "bold";
-                }
-              };
-
-              leftCard.onclick = () => {
-                updateRowVisuals(true);
-                toggleMerge(pair.tag, pair.matched);
-              };
-
-              rightCard.onclick = () => {
-                updateRowVisuals(false);
-                toggleMerge(pair.matched, pair.tag);
-              };
-            });
           }
+        };
 
-        function updateMergePlan() {
-          // Create sticky footer if it doesn't exist
-          let stickyFooter = document.getElementById("stickyMergeFooter");
-          if (!stickyFooter) {
-            stickyFooter = document.createElement("div");
-            stickyFooter.id = "stickyMergeFooter";
-            stickyFooter.style.cssText = `
+        leftCard.onclick = () => {
+          updateRowVisuals(true);
+          toggleMerge(pair.tag, pair.matched);
+        };
+
+        rightCard.onclick = () => {
+          updateRowVisuals(false);
+          toggleMerge(pair.matched, pair.tag);
+        };
+      });
+    }
+
+    function updateMergePlan() {
+      // Create sticky footer if it doesn't exist
+      let stickyFooter = document.getElementById("stickyMergeFooter");
+      if (!stickyFooter) {
+        stickyFooter = document.createElement("div");
+        stickyFooter.id = "stickyMergeFooter";
+        stickyFooter.style.cssText = `
               position: fixed;
               bottom: 0;
               left: 0;
@@ -4157,26 +4486,26 @@ document.addEventListener("DOMContentLoaded", () => {
               transform: translateY(100%);
               transition: transform 0.3s ease-out;
             `;
-            document.body.appendChild(stickyFooter);
-          }
+        document.body.appendChild(stickyFooter);
+      }
 
-          let totalMerges = 0;
-          mergePlan.forEach(sources => totalMerges += sources.length);
+      let totalMerges = 0;
+      mergePlan.forEach(sources => totalMerges += sources.length);
 
-          if (totalMerges === 0) {
-            stickyFooter.style.transform = "translateY(100%)";
-            setTimeout(() => { stickyFooter!.style.display = "none"; }, 300);
-            return;
-          }
+      if (totalMerges === 0) {
+        stickyFooter.style.transform = "translateY(100%)";
+        setTimeout(() => { stickyFooter!.style.display = "none"; }, 300);
+        return;
+      }
 
-          stickyFooter.style.display = "flex";
-          stickyFooter.style.justifyContent = "space-between";
-          stickyFooter.style.alignItems = "center";
-          // Force reflow
-          stickyFooter.offsetHeight;
-          stickyFooter.style.transform = "translateY(0)";
+      stickyFooter.style.display = "flex";
+      stickyFooter.style.justifyContent = "space-between";
+      stickyFooter.style.alignItems = "center";
+      // Force reflow
+      stickyFooter.offsetHeight;
+      stickyFooter.style.transform = "translateY(0)";
 
-          stickyFooter.innerHTML = `
+      stickyFooter.innerHTML = `
             <div style="display: flex; align-items: center; gap: 1rem;">
               <div style="background: ${PLONE_BLUE}; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${totalMerges}</div>
               <div>
@@ -4200,8 +4529,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const newViewBtn = viewPlanBtn.cloneNode(true) as HTMLElement;
         viewPlanBtn.parentNode?.replaceChild(newViewBtn, viewPlanBtn);
         newViewBtn.addEventListener("click", () => {
-            document.getElementById("mergePlanSection")?.scrollIntoView({ behavior: 'smooth' });
-          });
+          document.getElementById("mergePlanSection")?.scrollIntoView({ behavior: 'smooth' });
+        });
       }
 
       const executeMergeBtn = document.getElementById("executeMergeBtn");
@@ -4216,7 +4545,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (typeof executeMergeHandler === 'function') {
             try {
               await executeMergeHandler();
-              } catch (error) {
+            } catch (error) {
               console.error("Error in executeMergeHandler:", error);
               alert(`Error executing merge: ${error instanceof Error ? error.message : "Unknown error"}`);
             }
@@ -4227,21 +4556,23 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
 
-          // Also update the detailed list at the bottom (hidden by default now, maybe?)
+      // Also update the detailed list at the bottom (hidden by default now, maybe?)
       const mergePlanSection = document.getElementById("mergePlanSection");
       const mergePlanList = document.getElementById("mergePlanList");
 
       if (mergePlanSection && mergePlanList) {
-          if (mergePlan.size > 0) {
-            mergePlanSection.style.display = "block";
-            mergePlanList.innerHTML = "";
+        if (mergePlan.size > 0) {
+          mergePlanSection.style.display = "block";
+          mergePlanList.innerHTML = "";
           mergePlan.forEach((_sources, _target) => {
-              // ... (existing code to render list items if needed) ...
-            });
-          } else {
-            mergePlanSection.style.display = "none";
-          }
+            // ... (existing code to render list items if needed) ...
+          });
+        } else {
+          mergePlanSection.style.display = "none";
         }
+      }
     }
   }
 });
+
+

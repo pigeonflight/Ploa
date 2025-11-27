@@ -48,7 +48,7 @@ impl PloneApiClient {
     pub fn new(base_url: String) -> Result<Self, ApiError> {
         // Normalize base URL to ensure it points to ++api++
         let normalized = Self::normalize_base_url(&base_url)?;
-        
+
         Ok(Self {
             base_url: normalized,
             token: None,
@@ -80,8 +80,8 @@ impl PloneApiClient {
 
         // Add scheme if missing
         let url_str = if !text.contains("://") {
-            let scheme = if text.starts_with("localhost") 
-                || text.starts_with("127.") 
+            let scheme = if text.starts_with("localhost")
+                || text.starts_with("127.")
                 || text.starts_with("0.0.0.0")
             {
                 "http"
@@ -132,20 +132,27 @@ impl PloneApiClient {
 
     fn build_request(&self, method: reqwest::Method, url: &str) -> reqwest::RequestBuilder {
         let mut request = self.client.request(method, url);
-        
+
         request = request.header("Content-Type", "application/json");
         request = request.header("Accept", "application/json");
-        
+
         if let Some(token) = &self.token {
             request = request.bearer_auth(token);
         }
-        
+
         request
     }
 
-    pub async fn login(&mut self, username: String, password: String) -> Result<LoginResponse, ApiError> {
+    pub async fn login(
+        &mut self,
+        username: String,
+        password: String,
+    ) -> Result<LoginResponse, ApiError> {
         let login_url = self.resolve_url(Some("@login"));
-        let login_req = LoginRequest { login: username, password };
+        let login_req = LoginRequest {
+            login: username,
+            password,
+        };
 
         let response = self
             .client
@@ -208,7 +215,44 @@ impl PloneApiClient {
         })
     }
 
-    pub async fn post(&self, path_or_url: Option<&str>, json_data: Value) -> Result<Value, ApiError> {
+    pub async fn download_binary(&self, path_or_url: Option<&str>) -> Result<Vec<u8>, ApiError> {
+        let url = self.resolve_url(path_or_url);
+        let response = self
+            .build_request(reqwest::Method::GET, &url)
+            .send()
+            .await
+            .map_err(|e| ApiError {
+                message: format!("Request failed: {}", e),
+                status: None,
+            })?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_msg = response
+                .text()
+                .await
+                .unwrap_or_else(|_| format!("Request failed with status {}", status.as_u16()));
+            return Err(ApiError {
+                message: error_msg,
+                status: Some(status.as_u16()),
+            });
+        }
+
+        response
+            .bytes()
+            .await
+            .map(|bytes| bytes.to_vec())
+            .map_err(|e| ApiError {
+                message: format!("Failed to read binary response: {}", e),
+                status: Some(status.as_u16()),
+            })
+    }
+
+    pub async fn post(
+        &self,
+        path_or_url: Option<&str>,
+        json_data: Value,
+    ) -> Result<Value, ApiError> {
         let url = self.resolve_url(path_or_url);
         let response = self
             .build_request(reqwest::Method::POST, &url)
@@ -247,7 +291,11 @@ impl PloneApiClient {
         }
     }
 
-    pub async fn patch(&self, path_or_url: Option<&str>, json_data: Value) -> Result<Value, ApiError> {
+    pub async fn patch(
+        &self,
+        path_or_url: Option<&str>,
+        json_data: Value,
+    ) -> Result<Value, ApiError> {
         let url = self.resolve_url(path_or_url);
         let response = self
             .build_request(reqwest::Method::PATCH, &url)
@@ -265,7 +313,7 @@ impl PloneApiClient {
                 .text()
                 .await
                 .unwrap_or_else(|_| format!("Request failed with status {}", status.as_u16()));
-            
+
             // Try to extract error message from JSON
             let error_msg = if let Ok(error_json) = serde_json::from_str::<Value>(&error_text) {
                 error_json
@@ -306,7 +354,10 @@ impl PloneApiClient {
         destination_path: &str,
     ) -> Result<Value, ApiError> {
         // POST to destination/@move with source in body
-        let move_url = self.resolve_url(Some(&format!("{}/@move", destination_path.trim_end_matches('/'))));
+        let move_url = self.resolve_url(Some(&format!(
+            "{}/@move",
+            destination_path.trim_end_matches('/')
+        )));
         let move_data = json!({
             "source": source_path
         });
@@ -327,7 +378,7 @@ impl PloneApiClient {
                 .text()
                 .await
                 .unwrap_or_else(|_| format!("Move failed with status {}", status.as_u16()));
-            
+
             // Try to extract error message from JSON
             let error_msg = if let Ok(error_json) = serde_json::from_str::<Value>(&error_text) {
                 error_json
@@ -444,20 +495,20 @@ impl PloneApiClient {
         // The @id from Plone REST API is typically a full public URL like:
         // https://domain.com/path/to/item
         // We need to extract just the path portion: path/to/item
-        
+
         // First, try to match against base_url (in case it's already an API URL)
         let base = self.base_url.trim_end_matches('/');
         if id.starts_with(base) {
             return Some(id[base.len()..].trim_start_matches('/').to_string());
         }
-        
+
         // Parse as URL to extract the path
         if let Ok(url) = Url::parse(id) {
             let mut path = url.path().to_string();
-            
+
             // Remove leading slash
             path = path.trim_start_matches('/').to_string();
-            
+
             // If the path contains ++api++, remove it (we'll add it back via base_url)
             if path.contains("++api++") {
                 let parts: Vec<&str> = path.split("++api++").collect();
@@ -467,7 +518,7 @@ impl PloneApiClient {
                     path = parts[0].trim_start_matches('/').to_string();
                 }
             }
-            
+
             // Verify the domain matches (security check)
             if let Ok(base_url_obj) = Url::parse(&self.base_url) {
                 if base_url_obj.host_str() == url.host_str() || base_url_obj.host_str().is_none() {
@@ -479,27 +530,27 @@ impl PloneApiClient {
                 return Some(path);
             }
         }
-        
+
         // Fallback: manual string extraction for edge cases
         if let Some(domain_end) = id.find("://") {
             if let Some(path_start) = id[domain_end + 3..].find('/') {
                 let full_path = &id[domain_end + 3 + path_start..];
                 let mut path = full_path.trim_start_matches('/').to_string();
-                
+
                 // Remove ++api++ if present
                 if path.contains("++api++") {
                     let parts: Vec<&str> = path.split("++api++").collect();
                     if parts.len() > 1 {
                         path = parts[1].trim_start_matches('/').to_string();
-        } else {
+                    } else {
                         path = parts[0].trim_start_matches('/').to_string();
                     }
                 }
-                
+
                 return Some(path);
             }
         }
-        
+
         None
     }
 
@@ -513,9 +564,12 @@ impl PloneApiClient {
 
         loop {
             let mut url = self.search_url()?;
-            url.query_pairs_mut().append_pair("b_size", &page_size.to_string());
-            url.query_pairs_mut().append_pair("b_start", &b_start.to_string());
-            url.query_pairs_mut().append_pair("metadata_fields", "Subject");
+            url.query_pairs_mut()
+                .append_pair("b_size", &page_size.to_string());
+            url.query_pairs_mut()
+                .append_pair("b_start", &b_start.to_string());
+            url.query_pairs_mut()
+                .append_pair("metadata_fields", "Subject");
             if let Some(p) = path {
                 url.query_pairs_mut().append_pair("path", p);
             }
@@ -575,8 +629,7 @@ impl PloneApiClient {
         threshold: u32,
         limit: usize,
     ) -> Vec<SimilarTagPair> {
-        let tag_list: Vec<(String, usize)> =
-            tags.iter().map(|(k, v)| (k.clone(), *v)).collect();
+        let tag_list: Vec<(String, usize)> = tags.iter().map(|(k, v)| (k.clone(), *v)).collect();
         let mut pairs = Vec::new();
 
         for i in 0..tag_list.len() {
@@ -589,8 +642,8 @@ impl PloneApiClient {
                 if max_len == 0 {
                     continue;
                 }
-                let similarity = ((max_len as i32 - distance as i32) * 100 / max_len as i32)
-                    .max(0) as u32;
+                let similarity =
+                    ((max_len as i32 - distance as i32) * 100 / max_len as i32).max(0) as u32;
 
                 if similarity >= threshold {
                     pairs.push(SimilarTagPair {
@@ -623,7 +676,8 @@ impl PloneApiClient {
         let mut url = self.search_url()?;
         url.query_pairs_mut().append_pair("Subject", subject);
         url.query_pairs_mut().append_pair("b_size", "200");
-        url.query_pairs_mut().append_pair("metadata_fields", "Subject");
+        url.query_pairs_mut()
+            .append_pair("metadata_fields", "Subject");
         if let Some(p) = path {
             url.query_pairs_mut().append_pair("path", p);
         }
@@ -684,41 +738,41 @@ impl PloneApiClient {
                     // Check if source tag exists (case-insensitive, trimmed)
                     let source_trimmed = source.trim();
                     let target_trimmed = target.trim();
-                    
+
                     // Skip if source and target are the same (case-insensitive)
                     if source_trimmed.eq_ignore_ascii_case(target_trimmed) {
                         continue;
                     }
-                    
+
                     let has_source = subjects
                         .iter()
                         .any(|s| s.trim().eq_ignore_ascii_case(source_trimmed));
-                    
+
                     let _has_target = subjects
                         .iter()
                         .any(|s| s.trim().eq_ignore_ascii_case(target_trimmed));
-                    
+
                     // Only process if source exists
                     if has_source {
                         // If item has both source and target, we just need to remove source
                         // If item only has source, we need to remove source and add target
-                        
+
                         // Remove source tag(s) - remove all case-insensitive matches
                         let before_count = subjects.len();
                         subjects.retain(|s| !s.trim().eq_ignore_ascii_case(source_trimmed));
-                        
+
                         // Check if we actually removed something
                         if subjects.len() < before_count {
                             changed = true;
-                            
+
                             // Add target tag if not already present (case-insensitive)
                             // Check again after removing source in case target was removed somehow
                             let still_has_target = subjects
                                 .iter()
                                 .any(|s| s.trim().eq_ignore_ascii_case(target_trimmed));
-                            
+
                             if !still_has_target {
-                            subjects.push(target.to_string());
+                                subjects.push(target.to_string());
                             }
                         }
                     }
@@ -727,20 +781,18 @@ impl PloneApiClient {
                     // This prevents unnecessary updates and handles edge cases
                     if changed {
                         // Normalize both lists for comparison (trim, lowercase, sort)
-                        let mut final_subjects_normalized: Vec<String> = subjects
-                            .iter()
-                            .map(|s| s.trim().to_lowercase())
-                            .collect();
+                        let mut final_subjects_normalized: Vec<String> =
+                            subjects.iter().map(|s| s.trim().to_lowercase()).collect();
                         final_subjects_normalized.sort();
                         final_subjects_normalized.dedup();
-                        
+
                         let mut original_subjects_normalized: Vec<String> = original_subjects
                             .iter()
                             .map(|s| s.trim().to_lowercase())
                             .collect();
                         original_subjects_normalized.sort();
                         original_subjects_normalized.dedup();
-                        
+
                         // Only proceed if they're actually different
                         if final_subjects_normalized == original_subjects_normalized {
                             changed = false;
@@ -763,16 +815,16 @@ impl PloneApiClient {
                         } else {
                             None
                         };
-                        
+
                         let mut patch_succeeded = false;
                         let mut last_error: Option<String> = None;
-                        
+
                         // First attempt: use converted API URL
                         if let Some(api_url_str) = &api_url {
                             let result = self
                                 .patch(Some(api_url_str), json!({ "subjects": subjects }))
                                 .await;
-                            
+
                             match result {
                                 Ok(_) => {
                                     updated += 1;
@@ -783,7 +835,7 @@ impl PloneApiClient {
                                 }
                             }
                         }
-                        
+
                         // Fallback: try with extracted relative path
                         if !patch_succeeded {
                             if let Some(path) = self.relative_path_from_id(id) {
@@ -808,12 +860,13 @@ impl PloneApiClient {
                                 }
                             }
                         }
-                        
+
                         if !patch_succeeded {
                             errors.push(format!(
                                 "Failed to update {}: {}",
                                 id,
-                                last_error.unwrap_or_else(|| "Could not determine path".to_string())
+                                last_error
+                                    .unwrap_or_else(|| "Could not determine path".to_string())
                             ));
                         }
                     }

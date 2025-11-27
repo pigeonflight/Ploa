@@ -4,7 +4,7 @@
 
 # Ploa - Your Plone Desktop Companion
 
-A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app that stays logged in and remembers your preferences.
+A native desktop application that makes managing Plone sites faster and easier. Connect to your Plone site, browse content, manage tags, and edit blocks—all from a dedicated app designed for efficiency.
 
 ## Features
 
@@ -52,11 +52,17 @@ Download the latest release from the [Releases page](https://github.com/pigeonfl
 
 Found a bug or have a suggestion? Please report it on our [GitHub Issues page](https://github.com/pigeonflight/Ploa/issues).
 
+## Related Projects
+
+Prefer the command line? Check out Ploa's predecessor, [Plone Api Shell](https://github.com/pigeonflight/ploneapi-shell).
+
 ## Project Structure
 
 - `src/` - Frontend code (HTML/CSS/JavaScript or framework)
 - `src-tauri/` - Rust backend code
 - `src-tauri/src/` - Rust source files
 - `src-tauri/tauri.conf.json` - Tauri configuration
+
+
 
 

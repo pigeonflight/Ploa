@@ -4,12 +4,28 @@
 mod api;
 
 use api::PloneApiClient;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Mutex;
 use tauri::State;
 
 // Store API client in Tauri state
 type ApiClientState = Mutex<Option<PloneApiClient>>;
+
+#[derive(Debug, Deserialize)]
+struct DownloadJob {
+    source: String,
+    destination: String,
+}
+
+#[derive(Debug, Serialize)]
+struct DownloadOutcome {
+    source: String,
+    destination: String,
+    saved: bool,
+    bytes_written: Option<usize>,
+    error: Option<String>,
+}
 
 #[tauri::command]
 async fn login(
@@ -19,19 +35,19 @@ async fn login(
     state: State<'_, ApiClientState>,
 ) -> Result<Value, String> {
     let mut client = PloneApiClient::new(base_url).map_err(|e| e.to_string())?;
-    let response = client.login(username, password).await.map_err(|e| e.to_string())?;
-    
+    let response = client
+        .login(username, password)
+        .await
+        .map_err(|e| e.to_string())?;
+
     // Store the client with token in state
     *state.lock().unwrap() = Some(client);
-    
+
     Ok(serde_json::to_value(response).map_err(|e| e.to_string())?)
 }
 
 #[tauri::command]
-async fn fetch(
-    path: Option<String>,
-    state: State<'_, ApiClientState>,
-) -> Result<Value, String> {
+async fn fetch(path: Option<String>, state: State<'_, ApiClientState>) -> Result<Value, String> {
     let client = {
         state
             .lock()
@@ -39,7 +55,7 @@ async fn fetch(
             .clone()
             .ok_or("Not connected. Please connect to a Plone site first.")?
     };
-    
+
     client
         .fetch(path.as_deref())
         .await
@@ -60,9 +76,13 @@ async fn search(
             .clone()
             .ok_or("Not connected. Please connect to a Plone site first.")?
     };
-    
+
     client
-        .search(portal_type.as_deref(), path.as_deref(), searchable_text.as_deref())
+        .search(
+            portal_type.as_deref(),
+            path.as_deref(),
+            searchable_text.as_deref(),
+        )
         .await
         .map_err(|e| e.to_string())
 }
@@ -80,7 +100,7 @@ async fn patch(
             .clone()
             .ok_or("Not connected. Please connect to a Plone site first.")?
     };
-    
+
     client
         .patch(Some(&path), data)
         .await
@@ -100,7 +120,7 @@ async fn post(
             .clone()
             .ok_or("Not connected. Please connect to a Plone site first.")?
     };
-    
+
     client
         .post(Some(&path), data)
         .await
@@ -108,15 +128,12 @@ async fn post(
 }
 
 #[tauri::command]
-async fn connect(
-    base_url: String,
-    state: State<'_, ApiClientState>,
-) -> Result<Value, String> {
+async fn connect(base_url: String, state: State<'_, ApiClientState>) -> Result<Value, String> {
     let client = PloneApiClient::new(base_url).map_err(|e| e.to_string())?;
-    
+
     // Store the client without token in state
     *state.lock().unwrap() = Some(client);
-    
+
     Ok(json!({ "connected": true }))
 }
 
@@ -128,7 +145,7 @@ async fn connect_with_token(
 ) -> Result<Value, String> {
     let mut client = PloneApiClient::new(base_url).map_err(|e| e.to_string())?;
     client.set_token(token);
-    
+
     // Verify token by trying to fetch user info
     match client.fetch(Some("@users/me")).await {
         Ok(_) => {
@@ -155,12 +172,12 @@ async fn collect_tags(
             .clone()
             .ok_or("Not connected. Please connect to a Plone site first.")?
     };
-    
+
     let tags = client
         .collect_tags(path.as_deref())
         .await
         .map_err(|e| e.to_string())?;
-    
+
     Ok(serde_json::to_value(tags).map_err(|e| e.to_string())?)
 }
 
@@ -178,13 +195,13 @@ async fn find_similar_tags(
             .clone()
             .ok_or("Not connected. Please connect to a Plone site first.")?
     };
-    
+
     // Convert Value to HashMap<String, usize>
-    let tags_map: std::collections::HashMap<String, usize> = 
+    let tags_map: std::collections::HashMap<String, usize> =
         serde_json::from_value(tags).map_err(|e| e.to_string())?;
-    
+
     let similar_pairs = client.find_similar_tag_pairs(&tags_map, threshold, limit);
-    
+
     Ok(serde_json::to_value(similar_pairs).map_err(|e| e.to_string())?)
 }
 
@@ -207,12 +224,12 @@ async fn merge_tags(
             .clone()
             .ok_or("Not connected. Please connect to a Plone site first.")?
     };
-    
+
     let result = client
         .merge_tags(&target, &sources, path.as_deref())
         .await
         .map_err(|e| e.to_string())?;
-    
+
     Ok(serde_json::to_value(result).map_err(|e| e.to_string())?)
 }
 
@@ -229,32 +246,87 @@ async fn move_item(
             .clone()
             .ok_or("Not connected. Please connect to a Plone site first.")?
     };
-    
+
     client
         .move_item(&source_path, &destination_path)
         .await
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn download_files(
+    downloads: Vec<DownloadJob>,
+    state: State<'_, ApiClientState>,
+) -> Result<Vec<DownloadOutcome>, String> {
+    let client = {
+        state
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or("Not connected. Please connect to a Plone site first.")?
+    };
+
+    let mut results = Vec::new();
+
+    for job in downloads {
+        let mut outcome = DownloadOutcome {
+            source: job.source.clone(),
+            destination: job.destination.clone(),
+            saved: false,
+            bytes_written: None,
+            error: None,
+        };
+
+        match client.download_binary(Some(&job.source)).await {
+            Ok(bytes) => {
+                if let Some(parent) = std::path::Path::new(&job.destination).parent() {
+                    if let Err(e) = std::fs::create_dir_all(parent) {
+                        outcome.error = Some(format!("Failed to create directory: {}", e));
+                        results.push(outcome);
+                        continue;
+                    }
+                }
+                match std::fs::write(&job.destination, &bytes) {
+                    Ok(_) => {
+                        outcome.saved = true;
+                        outcome.bytes_written = Some(bytes.len());
+                    }
+                    Err(e) => {
+                        outcome.error = Some(format!("Failed to save file: {}", e));
+                    }
+                }
+            }
+            Err(e) => {
+                outcome.error = Some(e.to_string());
+            }
+        }
+
+        results.push(outcome);
+    }
+
+    Ok(results)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(ApiClientState::default())
         .invoke_handler(tauri::generate_handler![
-            login, 
+            login,
             connect,
             connect_with_token,
-            fetch, 
-            search, 
-            patch, 
+            fetch,
+            search,
+            patch,
             post,
             collect_tags,
             find_similar_tags,
             merge_tags,
             move_item,
+            download_files,
             get_app_version
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-

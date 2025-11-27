@@ -83,3 +83,4 @@ echo " - src-tauri/icons/icon.icns (macOS)"
 echo " - src-tauri/icons/*.png (Linux/Windows)"
 echo " - src-tauri/icons/icon.ico (Windows)"
 
+
