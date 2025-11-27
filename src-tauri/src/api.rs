@@ -420,6 +420,7 @@ impl PloneApiClient {
         searchable_text: Option<&str>,
         metadata_fields: Option<&[String]>,
         fullobjects: Option<bool>,
+        additional_params: Option<&HashMap<String, String>>,
     ) -> Result<Value, ApiError> {
         let mut url = self.search_url()?;
         url.query_pairs_mut().append_pair("b_size", "1000");
@@ -440,6 +441,22 @@ impl PloneApiClient {
             for field in fields {
                 if !field.trim().is_empty() {
                     url.query_pairs_mut().append_pair("metadata_fields", field);
+                }
+            }
+        }
+
+        // Add any additional parameters (e.g. from listing blocks)
+        if let Some(params) = additional_params {
+            for (key, value) in params {
+                // Skip parameters we already handle explicitly to avoid duplicates
+                if key != "b_size" 
+                    && key != "portal_type" 
+                    && key != "path" 
+                    && key != "SearchableText" 
+                    && key != "metadata_fields" 
+                    && key != "fullobjects" 
+                {
+                    url.query_pairs_mut().append_pair(key, value);
                 }
             }
         }

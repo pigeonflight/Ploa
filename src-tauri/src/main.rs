@@ -70,6 +70,7 @@ async fn search(
     searchable_text: Option<String>,
     metadata_fields: Option<Vec<String>>,
     fullobjects: Option<bool>,
+    additional_params: Option<std::collections::HashMap<String, String>>,
     state: State<'_, ApiClientState>,
 ) -> Result<Value, String> {
     let client = {
@@ -87,6 +88,7 @@ async fn search(
             searchable_text.as_deref(),
             metadata_fields.as_ref().map(|v| v.as_slice()),
             fullobjects,
+            additional_params.as_ref(),
         )
         .await
         .map_err(|e| e.to_string())

@@ -215,11 +215,11 @@ document.addEventListener("DOMContentLoaded", () => {
         <div style="margin-top: 1rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 6px; padding: 1rem; background: ${THEME_BG_LIGHT}; display: flex; justify-content: space-between; gap: 1rem; align-items: center;">
           <div>
             <div style="font-weight: 600; margin-bottom: 0.25rem;">Enable RAG bundle export</div>
-            <p style="margin: 0; color: #555; font-size: 13px;">Show controls that let you download PDFs from a listing into a local folder for use with RAG tools. Downloads happen on your device.</p>
+            <p style="margin: 0; color: #555; font-size: 13px;">Show controls that let you download PDFs from a listing into a local folder for use with RAG tools. The downloads will go to the designated directory on your device.</p>
           </div>
           <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 13px;">
             <input type="checkbox" id="ragBundleToggle" style="width: 16px; height: 16px;" />
-            <span id="ragBundleToggleLabel">Off</span>
+            <span id="ragBundleToggleLabel">Disabled</span>
           </label>
         </div>
         <p id="preferencesStatus" style="margin-top: 1rem; font-size: 13px; color: #4caf50; display: none;">Preferences saved.</p>
@@ -297,7 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentPreferences = loadPreferences();
 
   const updateRagToggleLabel = () => {
-    ragBundleToggleLabel.textContent = ragBundleToggle.checked ? "On" : "Off";
+    ragBundleToggleLabel.textContent = ragBundleToggle.checked ? "Enabled" : "Disabled";
     ragBundleToggleLabel.style.color = ragBundleToggle.checked ? "#2e7d32" : "#555";
   };
 
@@ -2052,10 +2052,10 @@ document.addEventListener("DOMContentLoaded", () => {
       itemsList.innerHTML = "<p>Searching...</p>";
       clearSearchBtn.style.display = "block";
 
-        const searchResults = await api.search({
-          searchableText: query,
-          fullObjects: true,
-        });
+      const searchResults = await api.search({
+        searchableText: query,
+        fullObjects: true,
+      });
       const items = searchResults.items || [];
       displaySearchResults(items);
     } catch (error) {
@@ -2969,18 +2969,216 @@ document.addEventListener("DOMContentLoaded", () => {
             break;
 
           case 'listing':
-            // Render Listing block preview
+            // Render Listing block with actual results
             const listingContainer = document.createElement('div');
             listingContainer.style.cssText = 'padding: 1rem; background: #f5f5f5; border-radius: 4px;';
 
-            if (block.query && Array.isArray(block.query)) {
-              listingContainer.innerHTML = `
-                <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #333;">Content Listing</p>
-                <p style="margin: 0; font-size: 0.9rem; color: #666;">${block.query.length} search criteria configured</p>
-              `;
-            } else {
-              listingContainer.innerHTML = '<p style="margin: 0; color: #666;">Content listing block (no query configured)</p>';
-            }
+            // Render header immediately
+            listingContainer.innerHTML = `
+              <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #333;">${block.headline || 'Content Listing'}</p>
+              <div class="listing-results">
+                <p style="margin: 0; font-size: 0.9rem; color: #666;">Loading items...</p>
+              </div>
+            `;
+
+            // Fetch and render results asynchronously
+            (async () => {
+              try {
+                const resultsContainer = listingContainer.querySelector('.listing-results') as HTMLElement;
+                if (!resultsContainer) return;
+
+                // Parse query
+                const queryParams: Record<string, string> = {};
+
+                // Handle 'query' array from listing block
+                // Format: [{i: "portal_type", o: "plone.app.querystring.operation.selection.is", v: ["Document"]}]
+                if (block.query && Array.isArray(block.query)) {
+                  block.query.forEach((criterion: any) => {
+                    if (!criterion.i || criterion.v === undefined) return;
+
+                    // Map criterion to API parameter
+                    // This is a simplified mapping - a full implementation would handle all operations
+                    const key = criterion.i;
+                    let value = criterion.v;
+
+                    // Handle array values (e.g. multiple types)
+                    if (Array.isArray(value)) {
+                      // For now, just take the first one or join them if supported
+                      // The backend update supports multiple values if passed correctly, 
+                      // but our simple map uses string values.
+                      // Ideally we'd support array values in additionalParams, but for now join with comma?
+                      // Plone API usually expects repeated keys for list values, which our HashMap<String, String> doesn't support well.
+                      // However, for many fields, Plone accepts comma-separated strings or we can pick the most common use case.
+                      value = value.join(',');
+                    }
+
+                    queryParams[key] = String(value);
+                  });
+                }
+
+                // Handle sort
+                if (block.sort_on) {
+                  queryParams['sort_on'] = block.sort_on;
+                }
+                if (block.sort_order) {
+                  queryParams['sort_order'] = block.sort_order; // ascending/descending
+                }
+                if (block.limit) {
+                  queryParams['b_size'] = String(block.limit);
+                }
+
+                // Execute search
+                // Use the current path as context if needed, or root
+                const searchPath = block.root_path || (objectData['@id'] ? api.extractPath(objectData['@id']) : undefined);
+
+                const results = await api.search({
+                  path: searchPath, // Search within current context or specified root
+                  additionalParams: queryParams
+                });
+
+                if (results.items && results.items.length > 0) {
+                  resultsContainer.innerHTML = `
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                      ${results.items.map(item => {
+                    // Determine icon based on type
+                    let icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>`; // Default file
+                    if (item['@type'] === 'Folder') {
+                      icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`;
+                    } else if (item['@type'] === 'Image') {
+                      icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
+                    }
+
+                    // Create clickable link
+                    // We need to handle the click to navigate within the app
+                    return `
+                          <div class="listing-item" data-path="${item['@id']}" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: white; border: 1px solid #e0e0e0; border-radius: 4px; cursor: pointer;">
+                            <span style="color: #666;">${icon}</span>
+                            <span style="font-weight: 500; color: ${PLONE_BLUE};">${item.title || 'Untitled'}</span>
+                          </div>
+                        `;
+                  }).join('')}
+                    </div>
+                  `;
+
+                  // Add click handlers
+                  resultsContainer.querySelectorAll('.listing-item').forEach(el => {
+                    el.addEventListener('click', async (e) => {
+                      e.stopPropagation();
+                      const fullId = el.getAttribute('data-path');
+                      if (fullId) {
+                        // Extract relative path
+                        let path = fullId;
+                        try {
+                          const url = new URL(fullId);
+                          path = url.pathname;
+                          if (path.includes('++api++')) {
+                            path = path.split('++api++')[1];
+                          }
+                        } catch (e) {
+                          // If not a URL, assume it's a path or handle as is
+                        }
+                        // Clean path
+                        path = path.replace(/^\/+/, '');
+
+                        itemsList.innerHTML = "<p>Loading...</p>";
+                        try {
+                          const objectData = await api.fetch(path);
+                          showObjectDetails(objectData);
+                        } catch (error) {
+                          console.error("Error navigating to item:", error);
+                        }
+                      }
+                    });
+
+                    // Hover effect
+                    (el as HTMLElement).addEventListener('mouseenter', () => {
+                      (el as HTMLElement).style.backgroundColor = '#f0f7ff';
+                    });
+                    (el as HTMLElement).addEventListener('mouseleave', () => {
+                      (el as HTMLElement).style.backgroundColor = 'white';
+                    });
+                  });
+
+                  // Convert results to RAG candidates for PDF bundling
+                  const listingCandidates: RagCandidate[] = results.items.map(item => ({
+                    item: item,
+                    path: item['@id'] || ''
+                  }));
+
+                  // Count PDFs in this listing
+                  let pdfCount = 0;
+                  for (const candidate of listingCandidates) {
+                    const pdfInfo = detectPdfInfo(candidate.item);
+                    if (pdfInfo) pdfCount++;
+                  }
+
+                  // Add bundle button if RAG is enabled and there are PDFs
+                  if (isRagBundleEnabled() && pdfCount > 0) {
+                    const bundleButton = document.createElement('div');
+                    bundleButton.style.cssText = `
+                      margin-top: 0.75rem;
+                      padding: 0.75rem;
+                      background: linear-gradient(135deg, ${PLONE_BLUE} 0%, ${THEME_SECONDARY} 100%);
+                      border-radius: 6px;
+                      display: flex;
+                      align-items: center;
+                      justify-content: space-between;
+                      gap: 0.5rem;
+                    `;
+
+                    bundleButton.innerHTML = `
+                      <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                          <polyline points="7 10 12 15 17 10"></polyline>
+                          <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span style="color: white; font-weight: 500; font-size: 14px;">${pdfCount} PDF${pdfCount === 1 ? '' : 's'} available in this listing</span>
+                      </div>
+                      <button class="bundle-listing-btn" style="
+                        padding: 0.5rem 1rem;
+                        background: white;
+                        color: ${PLONE_BLUE};
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-weight: 600;
+                        font-size: 13px;
+                        transition: all 0.2s;
+                      ">Bundle These PDFs</button>
+                    `;
+
+                    const btn = bundleButton.querySelector('.bundle-listing-btn') as HTMLButtonElement;
+                    btn.addEventListener('mouseenter', () => {
+                      btn.style.background = '#f0f7ff';
+                      btn.style.transform = 'scale(1.05)';
+                    });
+                    btn.addEventListener('mouseleave', () => {
+                      btn.style.background = 'white';
+                      btn.style.transform = 'scale(1)';
+                    });
+                    btn.addEventListener('click', (e) => {
+                      e.stopPropagation();
+                      setRagCandidates(listingCandidates);
+                      // Scroll to RAG bundle panel
+                      ragBundlePanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    });
+
+                    resultsContainer.appendChild(bundleButton);
+                  }
+
+                } else {
+                  resultsContainer.innerHTML = '<p style="margin: 0; color: #666; font-style: italic;">No items found.</p>';
+                }
+              } catch (error) {
+                console.error("Error rendering listing block:", error);
+                const resultsContainer = listingContainer.querySelector('.listing-results');
+                if (resultsContainer) {
+                  resultsContainer.innerHTML = `<p style="color: #d32f2f;">Error loading items: ${error instanceof Error ? error.message : String(error)}</p>`;
+                }
+              }
+            })();
+
             contentContainer.appendChild(listingContainer);
             break;
 

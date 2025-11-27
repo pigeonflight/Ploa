@@ -110,6 +110,7 @@ type SearchOptions = {
   searchableText?: string;
   metadataFields?: string[];
   fullObjects?: boolean;
+  additionalParams?: Record<string, string>;
 };
 
 export async function search(options: SearchOptions = {}): Promise<SearchResponse> {
@@ -119,6 +120,7 @@ export async function search(options: SearchOptions = {}): Promise<SearchRespons
     searchableText,
     metadataFields,
     fullObjects,
+    additionalParams,
   } = options;
   try {
     const response = await invoke<SearchResponse>("search", {
@@ -127,6 +129,7 @@ export async function search(options: SearchOptions = {}): Promise<SearchRespons
       searchableText: searchableText || null,
       metadataFields: metadataFields && metadataFields.length > 0 ? metadataFields : null,
       fullobjects: fullObjects ?? null,
+      additionalParams: additionalParams || null,
     });
     return response;
   } catch (error) {
@@ -168,7 +171,7 @@ export async function post(path: string, data: Record<string, any>): Promise<any
  * Extract relative path from absolute URL
  * Removes the base URL and ++api++ prefix to get just the content path
  */
-function extractPath(url: string): string {
+export function extractPath(url: string): string {
   if (!url) return "";
   // If it's already a relative path, return as is
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
