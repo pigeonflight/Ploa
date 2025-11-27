@@ -9,6 +9,8 @@
     "shell:default",
     "shell:allow-open",
     "dialog:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "core:path:default",
+    "core:path:allow-join"
   ]
 }

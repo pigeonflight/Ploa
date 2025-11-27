@@ -104,22 +104,35 @@ export async function fetch(path?: string): Promise<any> {
 /**
  * Search for items by portal_type, path, or full-text search
  */
-export async function search(
-  portalType?: string,
-  path?: string,
-  searchableText?: string
-): Promise<SearchResponse> {
+type SearchOptions = {
+  portalType?: string;
+  path?: string;
+  searchableText?: string;
+  metadataFields?: string[];
+  fullObjects?: boolean;
+};
+
+export async function search(options: SearchOptions = {}): Promise<SearchResponse> {
+  const {
+    portalType,
+    path,
+    searchableText,
+    metadataFields,
+    fullObjects,
+  } = options;
   try {
     const response = await invoke<SearchResponse>("search", {
       portalType: portalType || null,
       path: path || null,
       searchableText: searchableText || null,
+      metadataFields: metadataFields && metadataFields.length > 0 ? metadataFields : null,
+      fullobjects: fullObjects ?? null,
     });
     return response;
   } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : "Search failed"
-    );
+    const message =
+      error instanceof Error ? error.message : String(error || "Search failed");
+    throw new Error(message || "Search failed");
   }
 }
 

@@ -155,6 +155,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 <strong style="color: #2e7d32; font-size: 0.9rem;">RAG bundle ready</strong>
                 <span style="color: #555; font-size: 0.85rem;">Download all PDF files from the current search into a local folder for use in your RAG stack.</span>
                 <span id="ragBundleStatus" style="color: #2e7d32; font-size: 0.85rem;"></span>
+                <div id="ragBundleErrorDetails" style="display: none; margin-top: 0.35rem; padding: 0.35rem 0.5rem; background: rgba(198, 40, 40, 0.08); border: 1px solid rgba(198, 40, 40, 0.3); border-radius: 4px; font-size: 0.8rem; color: #c62828;"></div>
+                <button id="ragBundleResumeBtn" style="display: none; margin-top: 0.25rem; padding: 0.35rem 0.75rem; border: 1px solid ${PLONE_BLUE}; border-radius: 4px; background: white; color: ${PLONE_BLUE}; cursor: pointer; align-self: flex-start;">
+                  Resume failed downloads
+                </button>
               </div>
             </div>
             <div id="breadcrumb" style="margin-bottom: 0.5rem; padding: 0.5rem; background: ${THEME_BG_ACCENT}; border-radius: 4px; font-size: 13px; color: #666; display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap;">
@@ -237,6 +241,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const ragBundleBtn = document.querySelector<HTMLButtonElement>("#ragBundleBtn")!;
   const ragBundlePanel = document.querySelector<HTMLDivElement>("#ragBundlePanel")!;
   const ragBundleStatus = document.querySelector<HTMLSpanElement>("#ragBundleStatus")!;
+  const ragBundleErrorDetails = document.querySelector<HTMLDivElement>("#ragBundleErrorDetails")!;
+  const ragBundleResumeBtn = document.querySelector<HTMLButtonElement>("#ragBundleResumeBtn")!;
   const searchInput = document.querySelector<HTMLInputElement>("#searchInput")!;
   const itemsList = document.querySelector<HTMLDivElement>("#itemsList")!;
   const currentPathSpan = document.querySelector<HTMLSpanElement>("#currentPath")!;
@@ -335,13 +341,79 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const isRagBundleEnabled = () => currentPreferences.enableRagBundle === true;
 
+  type RagCandidate = { item: api.ItemMetadata; path: string };
+  type DownloadJob = { source: string; destination: string };
+  type DownloadOutcome = { saved: boolean; error?: string };
+  type DownloadFailure = { job: DownloadJob; error: string };
+  const DOWNLOAD_BATCH_SIZE = 10;
+  let ragCandidates: RagCandidate[] = [];
+  let failedDownloadJobs: DownloadJob[] = [];
+  let downloadFailures: DownloadFailure[] = [];
+
+  const updateResumeButtonVisibility = () => {
+    if (!isRagBundleEnabled()) {
+      ragBundleResumeBtn.style.display = "none";
+      return;
+    }
+    if (failedDownloadJobs.length > 0) {
+      ragBundleResumeBtn.style.display = "inline-flex";
+      ragBundleResumeBtn.textContent = `Resume ${failedDownloadJobs.length} failed download${failedDownloadJobs.length === 1 ? "" : "s"}`;
+      ragBundleResumeBtn.disabled = isRagBundling;
+    } else {
+      ragBundleResumeBtn.style.display = "none";
+    }
+  };
+
+  const escapeHtml = (text: string): string => {
+    const map: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;",
+    };
+    return text.replace(/[&<>"']/g, (m) => map[m]);
+  };
+
+  const renderDownloadFailures = () => {
+    if (!downloadFailures.length) {
+      ragBundleErrorDetails.style.display = "none";
+      ragBundleErrorDetails.innerHTML = "";
+      return;
+    }
+
+    const maxItems = 3;
+    const lines = downloadFailures.slice(0, maxItems).map((failure) => {
+      const destination = failure.job.destination.split("/").pop() || failure.job.destination;
+      return `&#8226; ${escapeHtml(destination)} &ndash; ${escapeHtml(failure.error)}`;
+    });
+    if (downloadFailures.length > maxItems) {
+      lines.push(`<em>+ ${downloadFailures.length - maxItems} more failures</em>`);
+    }
+    ragBundleErrorDetails.innerHTML = lines.join("<br />");
+    ragBundleErrorDetails.style.display = "block";
+  };
+
+  const setDownloadFailures = (failures: DownloadFailure[]) => {
+    downloadFailures = failures;
+    renderDownloadFailures();
+  };
+
+  const setFailedDownloadJobs = (jobs: DownloadJob[], failures: DownloadFailure[] = downloadFailures) => {
+    failedDownloadJobs = jobs;
+    setDownloadFailures(failures);
+    updateResumeButtonVisibility();
+  };
+
   const updateRagBundlePanelVisibility = () => {
-    const shouldShow = isRagBundleEnabled() && ragCandidates.length > 0;
+    const shouldShow = isRagBundleEnabled() && (ragCandidates.length > 0 || failedDownloadJobs.length > 0);
     ragBundlePanel.style.display = shouldShow ? "block" : "none";
-    ragBundleBtn.style.display = shouldShow ? "inline-flex" : "none";
+    ragBundleBtn.style.display = isRagBundleEnabled() && ragCandidates.length > 0 ? "inline-flex" : "none";
     ragBundleBtn.disabled = isRagBundling;
+    updateResumeButtonVisibility();
     if (!shouldShow) {
       ragBundleStatus.textContent = "";
+      setDownloadFailures([]);
     }
   };
 
@@ -481,8 +553,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // State
   let currentBaseUrl = "";
   let currentPath = "";
-  type RagCandidate = { item: api.ItemMetadata; path: string };
-  let ragCandidates: RagCandidate[] = [];
+  let activePdfPreviewUrl: string | null = null;
   let isRagBundling = false;
 
   // Tree state for hierarchical browsing
@@ -528,92 +599,194 @@ document.addEventListener("DOMContentLoaded", () => {
     return item.id || item.title || 'unknown';
   }
 
-  // Helper to get full path of an item (for API calls)
-  function getItemFullPath(item: any): string {
-    // Try @id first (full URL from Plone REST API)
-    if (item['@id']) {
-      const url = item['@id'];
-      try {
-        const urlObj = new URL(url);
-        let path = urlObj.pathname;
-        // Remove ++api++ prefix if present
-        if (path.includes('++api++')) {
-          const parts = path.split('++api++');
-          if (parts.length > 1) {
-            path = parts[1];
-          }
-        }
-        // Return path without leading slash
-        return path.replace(/^\//, '');
-      } catch {
-        // If URL parsing fails, try to extract from string
-        if (url.includes('++api++')) {
-          const parts = url.split('++api++');
-          if (parts.length > 1) {
-            return parts[1].replace(/^\//, '');
-          }
-        }
-        return url;
+  function normalizePathCandidate(rawCandidate: any): string {
+    if (!rawCandidate) {
+      return "";
+    }
+
+    let candidate = rawCandidate;
+
+    if (typeof candidate !== "string") {
+      // Some Plone responses return an object for path metadata
+      if (candidate?.path && typeof candidate.path === "string") {
+        candidate = candidate.path;
+      } else if (Array.isArray(candidate?.physicalPath)) {
+        candidate = candidate.physicalPath.join("/");
+      } else if (typeof candidate?.string === "string") {
+        candidate = candidate.string;
+      } else {
+        return "";
       }
     }
-    // Fallback: construct path from currentPath and item ID
-    if (item.path) {
-      return item.path.replace(/^\//, '');
+
+    candidate = candidate.trim();
+    if (!candidate) {
+      return "";
     }
-    const itemId = extractItemId(item);
-    return currentPath ? `${currentPath}/${itemId}` : itemId;
+
+    // Drop query/hash fragments
+    const queryIndex = candidate.indexOf("?");
+    if (queryIndex !== -1) {
+      candidate = candidate.slice(0, queryIndex);
+    }
+    const hashIndex = candidate.indexOf("#");
+    if (hashIndex !== -1) {
+      candidate = candidate.slice(0, hashIndex);
+    }
+
+    if (candidate.startsWith("http://") || candidate.startsWith("https://")) {
+      try {
+        const urlObj = new URL(candidate);
+        candidate = urlObj.pathname || "";
+      } catch {
+        // Fallback: strip scheme manually
+        candidate = candidate.replace(/^https?:\/\//i, "");
+        const firstSlash = candidate.indexOf("/");
+        candidate = firstSlash >= 0 ? candidate.slice(firstSlash) : "";
+      }
+    }
+
+    // Remove any download specific suffix (e.g. /@@download/file/...)
+    const downloadIndex = candidate.indexOf("/@@download");
+    if (downloadIndex !== -1) {
+      candidate = candidate.slice(0, downloadIndex);
+    }
+
+    // If ++api++ is embedded, strip everything up to it
+    if (candidate.includes("++api++")) {
+      const parts = candidate.split("++api++");
+      candidate = parts[parts.length - 1] || "";
+    }
+
+    candidate = candidate.replace(/^\//, "").replace(/\/+$/, "");
+    return candidate;
+  }
+
+  function resolveItemPath(item: api.ItemMetadata): string {
+    const candidates = [
+      normalizePathCandidate(item.path),
+      normalizePathCandidate((item as any)?.path?.path),
+      normalizePathCandidate(item["@id"]),
+    ];
+
+    for (const candidate of candidates) {
+      if (candidate) {
+        return candidate;
+      }
+    }
+
+    const fallbackId = extractItemId(item);
+    return currentPath ? `${currentPath}/${fallbackId}` : fallbackId;
+  }
+
+  // Helper to get full path of an item (for API calls)
+  function getItemFullPath(item: any): string {
+    return resolveItemPath(item);
   }
 
   function getItemApiPath(item: api.ItemMetadata): string {
-    const itemPath = item["@id"] || item.path || "";
-    if (!itemPath) return "";
+    return resolveItemPath(item);
+  }
 
+  function stripApiSegment(pathname: string): string {
+    if (!pathname) {
+      return "/";
+    }
+    if (pathname.includes("++api++")) {
+      const parts = pathname.split("++api++");
+      const suffix = parts[parts.length - 1] || "/";
+      return suffix.startsWith("/") ? suffix : `/${suffix}`;
+    }
+    return pathname;
+  }
+
+  function getPublicSiteBase(objectData?: any): string | null {
+    const candidateUrl = typeof objectData?.["@id"] === "string"
+      ? objectData["@id"]
+      : (currentBaseUrl || null);
+    if (!candidateUrl) {
+      return null;
+    }
     try {
-      if (itemPath.startsWith("http://") || itemPath.startsWith("https://")) {
-        const urlObj = new URL(itemPath);
-        let pathname = urlObj.pathname;
-        if (pathname.includes("++api++")) {
-          const parts = pathname.split("++api++");
-          pathname = parts[parts.length - 1] || "/";
-        }
-        return pathname.replace(/^\//, "");
-      } else {
-        return itemPath.replace(/^.*\/\+\+api\+\+\//, "").replace(/^\//, "");
+      const urlObj = new URL(candidateUrl);
+      let pathname = urlObj.pathname;
+      if (pathname.includes("++api++")) {
+        pathname = pathname.split("++api++")[0];
       }
+      urlObj.pathname = pathname.replace(/\/+$/, "");
+      urlObj.search = "";
+      urlObj.hash = "";
+      return urlObj.toString().replace(/\/+$/, "");
     } catch {
-      return itemPath.replace(/^.*\/\+\+api\+\+\//, "").replace(/^\//, "");
+      return null;
     }
   }
 
-  function getObjectOrigin(objectData: any): string | null {
+  function getPublicItemUrl(objectData?: any): string | null {
+    if (!objectData || typeof objectData["@id"] !== "string") {
+      return null;
+    }
     try {
-      if (objectData && objectData["@id"]) {
-        return new URL(objectData["@id"]).origin;
-      }
+      const urlObj = new URL(objectData["@id"]);
+      urlObj.pathname = stripApiSegment(urlObj.pathname);
+      urlObj.search = "";
+      urlObj.hash = "";
+      return urlObj.toString();
     } catch {
-      // ignore
+      return null;
     }
-    if (currentBaseUrl) {
-      try {
-        return new URL(currentBaseUrl).origin;
-      } catch {
-        return null;
-      }
-    }
-    return null;
   }
 
   function ensureAbsoluteUrlFromObject(objectData: any, maybeUrl: string | null | undefined): string | null {
     if (!maybeUrl) return null;
-    if (maybeUrl.startsWith("http://") || maybeUrl.startsWith("https://")) {
+
+    if (/^https?:\/\//i.test(maybeUrl)) {
       return maybeUrl;
     }
-    const origin = getObjectOrigin(objectData);
-    if (!origin) return null;
-    if (maybeUrl.startsWith("/")) {
-      return `${origin}${maybeUrl}`;
+
+    const siteBase = getPublicSiteBase(objectData);
+    if (!siteBase) {
+      return null;
     }
-    return `${origin}/${maybeUrl}`;
+
+    if (maybeUrl.startsWith("/")) {
+      return `${siteBase}${maybeUrl}`;
+    }
+
+    const objectUrl = getPublicItemUrl(objectData);
+    if (objectUrl) {
+      const lastSlash = objectUrl.lastIndexOf("/");
+      const parent = lastSlash > 0 ? objectUrl.slice(0, lastSlash) : objectUrl;
+      return `${parent}/${maybeUrl}`;
+    }
+
+    return `${siteBase}/${maybeUrl}`;
+  }
+
+  function buildDownloadUrlFromObject(objectData: any): string | null {
+    const publicItemUrl = getPublicItemUrl(objectData);
+    if (publicItemUrl) {
+      return `${publicItemUrl.replace(/\/+$/, "")}/@@download/file`;
+    }
+
+    const siteBase = getPublicSiteBase(objectData);
+    const inferredPath = resolveItemPath(objectData as api.ItemMetadata);
+    if (!siteBase || !inferredPath) {
+      return null;
+    }
+
+    let cleanPath = inferredPath.replace(/^\/+/, "").replace(/\/+$/, "");
+    try {
+      const siteUrl = new URL(`${siteBase}/`);
+      const sitePath = siteUrl.pathname.replace(/^\/+/, "").replace(/\/+$/, "");
+      if (sitePath && cleanPath.startsWith(`${sitePath}/`)) {
+        cleanPath = cleanPath.slice(sitePath.length + 1);
+      }
+    } catch {
+      // ignore - fallback to original cleanPath
+    }
+
+    return `${siteBase}/${cleanPath}/@@download/file`;
   }
 
   function sanitizeFilename(base: string): string {
@@ -666,7 +839,78 @@ document.addEventListener("DOMContentLoaded", () => {
         return result;
       }
     }
+
+    const fallbackUrl = buildDownloadUrlFromObject(objectData);
+    if (fallbackUrl && fallbackUrl.toLowerCase().includes(".pdf")) {
+      const fallbackName = ensurePdfFilename(
+        objectData?.file?.filename || objectData?.filename || null,
+        objectData?.title || objectData?.id
+      );
+      return { url: fallbackUrl, filename: fallbackName };
+    }
+
     return null;
+  }
+
+  function base64ToUint8Array(base64: string): Uint8Array {
+    const binary = atob(base64);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  function initializePdfPreviewProxy() {
+    if (activePdfPreviewUrl) {
+      URL.revokeObjectURL(activePdfPreviewUrl);
+      activePdfPreviewUrl = null;
+    }
+
+    const container = document.getElementById("pdf-preview-container");
+    if (!container) {
+      return;
+    }
+
+    const encodedUrl = container.getAttribute("data-pdf-url");
+    if (!encodedUrl) {
+      return;
+    }
+
+    const pdfUrl = decodeURIComponent(encodedUrl);
+    const statusEl = document.getElementById("pdf-preview-status");
+    const frame = document.getElementById("pdf-preview-frame") as HTMLIFrameElement | null;
+    const loadBtn = document.getElementById("pdf-preview-load-btn") as HTMLButtonElement | null;
+    if (!statusEl || !frame || !loadBtn) {
+      return;
+    }
+
+    const loadPreview = async () => {
+      loadBtn.disabled = true;
+      statusEl.textContent = "Loading secure preview...";
+      try {
+        const base64Data = await invoke<string>("fetch_protected_file", { source: pdfUrl });
+        const bytes = base64ToUint8Array(base64Data);
+        const arrayBuffer: ArrayBuffer = bytes.buffer.slice(
+          bytes.byteOffset,
+          bytes.byteOffset + bytes.byteLength
+        ) as ArrayBuffer;
+        const blob = new Blob([arrayBuffer], { type: "application/pdf" });
+        if (activePdfPreviewUrl) {
+          URL.revokeObjectURL(activePdfPreviewUrl);
+        }
+        activePdfPreviewUrl = URL.createObjectURL(blob);
+        frame.src = activePdfPreviewUrl;
+        statusEl.textContent = "Preview loaded securely.";
+      } catch (error) {
+        console.error("PDF preview proxy failed:", error);
+        statusEl.textContent = "Preview unavailable (authentication required).";
+        loadBtn.disabled = false;
+      }
+    };
+
+    loadBtn.addEventListener("click", loadPreview, { once: true });
   }
 
   // Load history
@@ -1619,7 +1863,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     isRagBundling = true;
     ragBundleBtn.disabled = true;
+    ragBundleResumeBtn.disabled = true;
     const candidatesSnapshot = [...ragCandidates];
+    setFailedDownloadJobs([], []);
 
     try {
       setRagBundleStatus("Select a folder to store the PDFs...", "#555");
@@ -1638,20 +1884,35 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      const downloadJobs: { source: string; destination: string }[] = [];
+      const downloadJobs: DownloadJob[] = [];
       let inspected = 0;
-      let pdfReady = 0;
 
       for (const candidate of candidatesSnapshot) {
         inspected++;
         setRagBundleStatus(`Inspecting ${inspected}/${candidatesSnapshot.length}...`, "#555");
         try {
-          const objectData = await api.fetch(candidate.path);
-          const pdfInfo = detectPdfInfo(objectData);
+          let objectData: any | null = null;
+          try {
+            objectData = await api.fetch(candidate.path);
+          } catch (primaryError) {
+            console.warn("Primary PDF inspection fetch failed, retrying with @id:", primaryError);
+            if (candidate.item?.["@id"]) {
+              try {
+                objectData = await api.fetch(candidate.item["@id"]);
+              } catch (secondaryError) {
+                console.error("Secondary PDF inspection fetch failed:", secondaryError);
+              }
+            }
+          }
+
+          const pdfInfo = detectPdfInfo(objectData || candidate.item);
           if (pdfInfo) {
-            const destinationPath = await join(targetDir, pdfInfo.filename);
-            downloadJobs.push({ source: pdfInfo.url, destination: destinationPath });
-            pdfReady++;
+            try {
+              const destinationPath = await join(targetDir, pdfInfo.filename);
+              downloadJobs.push({ source: pdfInfo.url, destination: destinationPath });
+            } catch (joinError) {
+              console.error("Failed to prepare destination path:", joinError);
+            }
           }
         } catch (error) {
           console.error("Failed to inspect item for PDF:", error);
@@ -1663,16 +1924,16 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      setRagBundleStatus(`Downloading ${downloadJobs.length} PDF${downloadJobs.length === 1 ? "" : "s"}...`, "#2e7d32");
-      type DownloadOutcome = { saved: boolean; error?: string };
-      const results = await invoke<DownloadOutcome[]>("download_files", { downloads: downloadJobs });
-      const savedCount = results.filter(result => result?.saved).length;
-      const failedCount = results.length - savedCount;
+      const queueResult = await runDownloadJobQueue(downloadJobs, { label: "Downloading PDFs" });
+      setFailedDownloadJobs(queueResult.failedJobs, queueResult.failedDetails);
 
-      if (failedCount === 0) {
-        setRagBundleStatus(`Saved ${savedCount} PDF${savedCount === 1 ? "" : "s"} to ${targetDir}.`, "#2e7d32");
+      if (queueResult.failed === 0) {
+        setRagBundleStatus(`Saved ${queueResult.saved} PDF${queueResult.saved === 1 ? "" : "s"} to ${targetDir}.`, "#2e7d32");
       } else {
-        setRagBundleStatus(`Saved ${savedCount}, ${failedCount} failed. Check console for details.`, "#c62828");
+        setRagBundleStatus(
+          `Saved ${queueResult.saved} PDF${queueResult.saved === 1 ? "" : "s"}, ${queueResult.failed} failed. Use Resume to retry.`,
+          "#c62828"
+        );
       }
     } catch (error) {
       console.error("RAG bundle export failed:", error);
@@ -1683,8 +1944,102 @@ document.addEventListener("DOMContentLoaded", () => {
     } finally {
       isRagBundling = false;
       ragBundleBtn.disabled = false;
+      ragBundleResumeBtn.disabled = false;
       updateRagBundlePanelVisibility();
     }
+  }
+
+  async function resumeFailedDownloads() {
+    if (isRagBundling || failedDownloadJobs.length === 0) {
+      return;
+    }
+    isRagBundling = true;
+    ragBundleBtn.disabled = true;
+    ragBundleResumeBtn.disabled = true;
+    try {
+      setDownloadFailures([]);
+      setRagBundleStatus(`Resuming ${failedDownloadJobs.length} failed download${failedDownloadJobs.length === 1 ? "" : "s"}...`, "#555");
+      const queueResult = await runDownloadJobQueue([...failedDownloadJobs], { label: "Resuming PDFs" });
+      setFailedDownloadJobs(queueResult.failedJobs, queueResult.failedDetails);
+      if (queueResult.failed === 0) {
+        setRagBundleStatus("All remaining PDFs were downloaded successfully.", "#2e7d32");
+      } else {
+        setRagBundleStatus(`Resumed downloads saved ${queueResult.saved}. ${queueResult.failed} still failing.`, "#c62828");
+      }
+    } catch (error) {
+      console.error("Resume download failed:", error);
+      const message = error instanceof Error ? error.message : String(error);
+      setRagBundleStatus(`Resume failed: ${message}`, "#c62828");
+    } finally {
+      isRagBundling = false;
+      ragBundleBtn.disabled = false;
+      ragBundleResumeBtn.disabled = false;
+      updateRagBundlePanelVisibility();
+    }
+  }
+
+  async function runDownloadJobQueue(
+    downloadQueue: DownloadJob[],
+    options: { label: string } = { label: "Downloading PDFs" }
+  ) {
+    const queue = [...downloadQueue];
+    const total = queue.length;
+    const failedJobs: DownloadJob[] = [];
+    const failedDetails: DownloadFailure[] = [];
+    let saved = 0;
+
+    if (total === 0) {
+      return { saved: 0, failed: 0, failedJobs: [], failedDetails: [] };
+    }
+
+    while (queue.length > 0) {
+      const batch = queue.splice(0, DOWNLOAD_BATCH_SIZE);
+      let results: DownloadOutcome[] = [];
+      try {
+        results = await invoke<DownloadOutcome[]>("download_files", { downloads: batch });
+      } catch (error) {
+        console.error("Batch download failed:", error);
+        const message = error instanceof Error ? error.message : "Download batch failed";
+        results = batch.map(() => ({ saved: false, error: message }));
+      }
+
+      results.forEach((result, index) => {
+        if (result?.saved) {
+          saved++;
+        } else {
+          failedJobs.push(batch[index]);
+          const errorMessage = result?.error || "Unknown error";
+          failedDetails.push({ job: batch[index], error: errorMessage });
+        }
+      });
+
+      const progressText =
+        failedJobs.length > 0
+          ? `${options.label}: ${saved}/${total} complete (${failedJobs.length} failed so far)`
+          : `${options.label}: ${saved}/${total} complete`;
+      setRagBundleStatus(progressText, "#2e7d32");
+    }
+
+    const filteredFailedDetails = failedDetails.filter((failure) => {
+      const message = failure.error.toLowerCase();
+      const isUnauthorized = message.includes("unauthorized") || message.includes("401");
+      const isForbidden = message.includes("forbidden") || message.includes("403");
+      const isPermissionRelated = isUnauthorized || isForbidden;
+      if (isPermissionRelated) {
+        console.warn("Skipping unauthorized PDF:", failure.job.destination, failure.error);
+      }
+      return !isPermissionRelated;
+    });
+    const filteredFailedJobs = failedJobs.filter((job) =>
+      filteredFailedDetails.some((failure) => failure.job === job)
+    );
+
+    return {
+      saved,
+      failed: filteredFailedJobs.length,
+      failedJobs: filteredFailedJobs,
+      failedDetails: filteredFailedDetails,
+    };
   }
 
   searchBtn.addEventListener("click", async () => {
@@ -1697,7 +2052,10 @@ document.addEventListener("DOMContentLoaded", () => {
       itemsList.innerHTML = "<p>Searching...</p>";
       clearSearchBtn.style.display = "block";
 
-      const searchResults = await api.search(undefined, undefined, query);
+        const searchResults = await api.search({
+          searchableText: query,
+          fullObjects: true,
+        });
       const items = searchResults.items || [];
       displaySearchResults(items);
     } catch (error) {
@@ -1724,6 +2082,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   ragBundleBtn.addEventListener("click", () => {
     handleRagBundleClick();
+  });
+
+  ragBundleResumeBtn.addEventListener("click", () => {
+    resumeFailedDownloads();
   });
 
 
@@ -1778,9 +2140,15 @@ document.addEventListener("DOMContentLoaded", () => {
         ` : ''}
         
         ${isPDF && pdfUrl ? `
-        <div style="margin-bottom: 1.5rem;">
+        <div id="pdf-preview-container" data-pdf-url="${encodeURIComponent(pdfUrl)}" style="margin-bottom: 1.5rem;">
           <h4 style="margin: 0 0 0.5rem 0;">PDF Preview</h4>
-          <iframe src="${pdfUrl}" style="width: 100%; height: 600px; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px;" title="PDF Preview"></iframe>
+          <iframe id="pdf-preview-frame" src="about:blank" style="width: 100%; height: 600px; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; background: white;" title="PDF Preview"></iframe>
+          <p id="pdf-preview-status" style="margin-top: 0.5rem; font-size: 13px; color: #666;">
+            Preview not loaded. Click the button below to fetch it using your authenticated session.
+          </p>
+          <button id="pdf-preview-load-btn" style="margin-top: 0.5rem; padding: 0.4rem 0.75rem; border: 1px solid ${PLONE_BLUE}; border-radius: 4px; background: ${THEME_BG_ACCENT}; color: ${PLONE_BLUE}; cursor: pointer;">
+            Load Secure Preview
+          </button>
           <p style="margin-top: 0.5rem; font-size: 13px; color: #666;">
             <a href="${pdfUrl}" target="_blank" style="color: ${PLONE_BLUE}; text-decoration: underline;">Open PDF in new tab</a>
             ${pdfInfo?.filename ? `<span style="margin-left: 0.5rem; color: #999;">${pdfInfo.filename}</span>` : ""}
@@ -1897,6 +2265,13 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
 
     // Store current tags
+    if (isPDF && pdfUrl) {
+      initializePdfPreviewProxy();
+    } else if (activePdfPreviewUrl) {
+      URL.revokeObjectURL(activePdfPreviewUrl);
+      activePdfPreviewUrl = null;
+    }
+
     let currentTags = [...subjects];
     // Extract relative path from @id URL
     // The @id is a full URL like https://example.com/Plone/my-item
@@ -4574,5 +4949,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 });
+
 
 

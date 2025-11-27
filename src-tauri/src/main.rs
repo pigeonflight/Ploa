@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Mutex;
 use tauri::State;
+use base64::{engine::general_purpose, Engine as _};
 
 // Store API client in Tauri state
 type ApiClientState = Mutex<Option<PloneApiClient>>;
@@ -67,6 +68,8 @@ async fn search(
     portal_type: Option<String>,
     path: Option<String>,
     searchable_text: Option<String>,
+    metadata_fields: Option<Vec<String>>,
+    fullobjects: Option<bool>,
     state: State<'_, ApiClientState>,
 ) -> Result<Value, String> {
     let client = {
@@ -82,6 +85,8 @@ async fn search(
             portal_type.as_deref(),
             path.as_deref(),
             searchable_text.as_deref(),
+            metadata_fields.as_ref().map(|v| v.as_slice()),
+            fullobjects,
         )
         .await
         .map_err(|e| e.to_string())
@@ -307,6 +312,27 @@ async fn download_files(
     Ok(results)
 }
 
+#[tauri::command]
+async fn fetch_protected_file(
+    source: String,
+    state: State<'_, ApiClientState>,
+) -> Result<String, String> {
+    let client = {
+        state
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or("Not connected. Please connect to a Plone site first.")?
+    };
+
+    let bytes = client
+        .download_binary(Some(&source))
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(general_purpose::STANDARD.encode(bytes))
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -325,6 +351,7 @@ fn main() {
             merge_tags,
             move_item,
             download_files,
+            fetch_protected_file,
             get_app_version
         ])
         .run(tauri::generate_context!())

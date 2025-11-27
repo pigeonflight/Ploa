@@ -74,7 +74,7 @@
         "price": "0",
         "priceCurrency": "USD"
       },
-      "softwareVersion": "1.1.16",
+      "softwareVersion": "1.1.17",
       "screenshot": "https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg"
     }
     </script>
@@ -580,27 +580,26 @@
         <h2 style="color: #8CA9FF; margin-bottom: 1rem; font-size: 1.75rem;">Latest Release Notes</h2>
 
         <div style="margin-bottom: 2rem;">
-            <h3 style="color: #333; margin-bottom: 0.5rem; font-size: 1.25rem;">v1.1.16 - Critical Bug Fixes</h3>
-            <p style="color: #999; font-size: 0.9rem; margin-bottom: 1rem;">November 27, 2024</p>
+            <h3 style="color: #333; margin-bottom: 0.5rem; font-size: 1.25rem;">v1.1.17 - RAG Bundle Reliability</h3>
+            <p style="color: #999; font-size: 0.9rem; margin-bottom: 1rem;">November 27, 2025</p>
 
             <div
                 style="background: #FFF8DE; border-left: 4px solid #8CA9FF; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
-                <strong style="color: #333;">🐛 Critical Fixes</strong>
+                <strong style="color: #333;">📦 Smarter PDF Bundles</strong>
                 <ul style="margin: 0.5rem 0 0 1.5rem; color: #666; line-height: 1.8;">
-                    <li><strong>Fixed login form not working</strong> - Resolved variable reference error that prevented
-                        login after RAG feature updates</li>
-                    <li><strong>Fixed PDF bundle export</strong> - Added missing dialog permissions for folder selection
-                    </li>
-                    <li><strong>Improved error messages</strong> - PDF bundle now shows detailed error messages for
-                        easier debugging</li>
+                    <li><strong>Live progress indicator</strong> – shows how many PDFs have downloaded and how many are
+                        still pending.</li>
+                    <li><strong>Resume failed downloads</strong> – automatically queue only the PDFs that need another attempt.</li>
+                    <li><strong>Failure insight</strong> – the bundle card now lists sample errors (missing permissions, not found, etc.)
+                        so you know why something didn’t save.</li>
                 </ul>
             </div>
 
             <div style="background: #FFF8DE; border-left: 4px solid #AAC4F5; padding: 1rem; border-radius: 4px;">
-                <strong style="color: #333;">✨ UI Improvements</strong>
+                <strong style="color: #333;">🔍 Search & Preview Improvements</strong>
                 <ul style="margin: 0.5rem 0 0 1.5rem; color: #666; line-height: 1.8;">
-                    <li>Replaced "Preferences" button with cleaner three-dot icon (⋮)</li>
-                    <li>Better visual consistency in header controls</li>
+                    <li>Full-object search responses ensure `file.download` metadata is available for reliable PDF detection.</li>
+                    <li>Secure preview proxy uses your authenticated session for protected documents.</li>
                 </ul>
             </div>
         </div>

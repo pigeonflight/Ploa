@@ -418,6 +418,8 @@ impl PloneApiClient {
         portal_type: Option<&str>,
         path: Option<&str>,
         searchable_text: Option<&str>,
+        metadata_fields: Option<&[String]>,
+        fullobjects: Option<bool>,
     ) -> Result<Value, ApiError> {
         let mut url = self.search_url()?;
         url.query_pairs_mut().append_pair("b_size", "1000");
@@ -432,6 +434,18 @@ impl PloneApiClient {
 
         if let Some(st) = searchable_text {
             url.query_pairs_mut().append_pair("SearchableText", st);
+        }
+
+        if let Some(fields) = metadata_fields {
+            for field in fields {
+                if !field.trim().is_empty() {
+                    url.query_pairs_mut().append_pair("metadata_fields", field);
+                }
+            }
+        }
+
+        if fullobjects.unwrap_or(false) {
+            url.query_pairs_mut().append_pair("fullobjects", "1");
         }
 
         let response = self
