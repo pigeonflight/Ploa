@@ -217,8 +217,21 @@ impl PloneApiClient {
 
     pub async fn download_binary(&self, path_or_url: Option<&str>) -> Result<Vec<u8>, ApiError> {
         let url = self.resolve_url(path_or_url);
-        let response = self
-            .build_request(reqwest::Method::GET, &url)
+        println!("Downloading binary from: {}", url);
+
+        let mut request = self.client.get(&url);
+        
+        // Use */* for binary downloads to avoid issues with application/json on some views
+        request = request.header("Accept", "*/*");
+        
+        if let Some(token) = &self.token {
+            request = request.bearer_auth(token);
+            // Also send as cookie "auth_token" which some Plone setups use for JWT
+            // This mirrors browser behavior and fixes issues where Bearer header is ignored
+            request = request.header("Cookie", format!("auth_token={}", token));
+        }
+
+        let response = request
             .send()
             .await
             .map_err(|e| ApiError {

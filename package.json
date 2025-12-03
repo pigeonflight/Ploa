@@ -1,7 +1,7 @@
 {
   "name": "ploa",
   "private": true,
-  "version": "1.1.18",
+  "version": "1.1.19",
   "description": "Plone REST API GUI - A Rust-based GUI application for interacting with Plone sites",
   "type": "module",
   "scripts": {
@@ -17,7 +17,7 @@
     "@tauri-apps/plugin-dialog": "^2.4.2"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.0.0",
+    "@tauri-apps/cli": "^2.9.5",
     "@tauri-apps/cli-darwin-arm64": "^2.0.0",
     "@types/node": "^20.0.0",
     "typescript": "^5.0.0",

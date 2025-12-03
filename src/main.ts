@@ -155,10 +155,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 <strong style="color: #2e7d32; font-size: 0.9rem;">RAG bundle ready</strong>
                 <span style="color: #555; font-size: 0.85rem;">Download all PDF files from the current search into a local folder for use in your RAG stack.</span>
                 <span id="ragBundleStatus" style="color: #2e7d32; font-size: 0.85rem;"></span>
+                <button id="learnMoreBtn" style="display: none; margin-left: 0.5rem; padding: 0.25rem 0.5rem; background: none; border: 1px solid #2e7d32; color: #2e7d32; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Learn More</button>
                 <div id="ragBundleErrorDetails" style="display: none; margin-top: 0.35rem; padding: 0.35rem 0.5rem; background: rgba(198, 40, 40, 0.08); border: 1px solid rgba(198, 40, 40, 0.3); border-radius: 4px; font-size: 0.8rem; color: #c62828;"></div>
-                <button id="ragBundleResumeBtn" style="display: none; margin-top: 0.25rem; padding: 0.35rem 0.75rem; border: 1px solid ${PLONE_BLUE}; border-radius: 4px; background: white; color: ${PLONE_BLUE}; cursor: pointer; align-self: flex-start;">
-                  Resume failed downloads
-                </button>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+                  <button id="ragBundleResumeBtn" style="display: none; padding: 0.35rem 0.75rem; border: 1px solid ${PLONE_BLUE}; border-radius: 4px; background: white; color: ${PLONE_BLUE}; cursor: pointer;">
+                    Resume failed downloads
+                  </button>
+                  <button id="ragBundleLearnMore" style="display: none; padding: 0.35rem 0.75rem; border: 1px solid #666; border-radius: 4px; background: white; color: #666; cursor: pointer;">
+                    Learn More
+                  </button>
+                </div>
+                <div id="ragBundleDiagnostics" style="display: none; margin-top: 0.5rem; padding: 0.75rem; background: rgba(0, 0, 0, 0.02); border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem;"></div>
               </div>
             </div>
             <div id="breadcrumb" style="margin-bottom: 0.5rem; padding: 0.5rem; background: ${THEME_BG_ACCENT}; border-radius: 4px; font-size: 13px; color: #666; display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap;">
@@ -243,6 +250,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const ragBundleStatus = document.querySelector<HTMLSpanElement>("#ragBundleStatus")!;
   const ragBundleErrorDetails = document.querySelector<HTMLDivElement>("#ragBundleErrorDetails")!;
   const ragBundleResumeBtn = document.querySelector<HTMLButtonElement>("#ragBundleResumeBtn")!;
+  const ragBundleLearnMore = document.querySelector<HTMLButtonElement>("#ragBundleLearnMore")!;
+  const ragBundleDiagnostics = document.querySelector<HTMLDivElement>("#ragBundleDiagnostics")!;
   const searchInput = document.querySelector<HTMLInputElement>("#searchInput")!;
   const itemsList = document.querySelector<HTMLDivElement>("#itemsList")!;
   const currentPathSpan = document.querySelector<HTMLSpanElement>("#currentPath")!;
@@ -345,10 +354,21 @@ document.addEventListener("DOMContentLoaded", () => {
   type DownloadJob = { source: string; destination: string };
   type DownloadOutcome = { saved: boolean; error?: string };
   type DownloadFailure = { job: DownloadJob; error: string };
+  type DiagnosticInfo = {
+    totalCandidates: number;
+    pdfsDetected: number;
+    downloaded: number;
+    skippedNoPdf: Array<{ path: string; title: string; reason: string }>;
+    permissionDenied: Array<{ path: string; title: string; url: string; error: string }>;
+    fetchFailed: Array<{ path: string; title: string; error: string }>;
+    downloadFailed: Array<{ path: string; title: string; url: string; error: string }>;
+  };
   const DOWNLOAD_BATCH_SIZE = 10;
   let ragCandidates: RagCandidate[] = [];
   let failedDownloadJobs: DownloadJob[] = [];
   let downloadFailures: DownloadFailure[] = [];
+  let lastBundleDiagnostics: DiagnosticInfo | null = null;
+
 
   const updateResumeButtonVisibility = () => {
     if (!isRagBundleEnabled()) {
@@ -432,6 +452,152 @@ document.addEventListener("DOMContentLoaded", () => {
     ragBundleStatus.style.color = color;
     if (message) {
       ragBundlePanel.style.display = "block";
+    }
+  };
+
+  const updateLearnMoreButton = () => {
+    if (!lastBundleDiagnostics) {
+      ragBundleLearnMore.style.display = "none";
+      return;
+    }
+
+    const hasIssues =
+      lastBundleDiagnostics.skippedNoPdf.length > 0 ||
+      lastBundleDiagnostics.permissionDenied.length > 0 ||
+      lastBundleDiagnostics.fetchFailed.length > 0 ||
+      lastBundleDiagnostics.downloadFailed.length > 0;
+
+    ragBundleLearnMore.style.display = hasIssues ? "inline-block" : "none";
+  };
+
+  const renderDiagnostics = () => {
+    if (!lastBundleDiagnostics) {
+      ragBundleDiagnostics.innerHTML = "";
+      ragBundleDiagnostics.style.display = "none";
+      return;
+    }
+
+    const d = lastBundleDiagnostics;
+    const sections: string[] = [];
+
+    // Summary
+    sections.push(`
+      <div style="margin-bottom: 1rem; padding: 0.75rem; background: #f5f5f5; border-radius: 4px;">
+        <strong>Summary:</strong> Processed ${d.totalCandidates} items → ${d.downloaded} PDFs downloaded
+      </div>
+    `);
+
+    // Successfully downloaded
+    if (d.downloaded > 0) {
+      sections.push(`
+        <div style="margin-bottom: 0.75rem;">
+          <div style="font-weight: 600; color: #2e7d32; margin-bottom: 0.25rem;">
+            ✅ ${d.downloaded} PDF${d.downloaded === 1 ? "" : "s"} downloaded successfully
+          </div>
+        </div>
+      `);
+    }
+
+    // Skipped (not PDFs)
+    if (d.skippedNoPdf.length > 0) {
+      const items = d.skippedNoPdf.slice(0, 5).map(item =>
+        `<li style="margin: 0.25rem 0; font-size: 0.85rem;"><strong>${escapeHtml(item.title)}</strong><br/><span style="color: #666;">${escapeHtml(item.reason)}</span></li>`
+      ).join("");
+      const more = d.skippedNoPdf.length > 5 ? `<li style="color: #666; font-style: italic;">+ ${d.skippedNoPdf.length - 5} more...</li>` : "";
+
+      sections.push(`
+        <div style="margin-bottom: 0.75rem;">
+          <div style="font-weight: 600; color: #ff9800; margin-bottom: 0.25rem;">
+            ⚠️ ${d.skippedNoPdf.length} item${d.skippedNoPdf.length === 1 ? "" : "s"} skipped (not PDFs)
+          </div>
+          <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">${items}${more}</ul>
+        </div>
+      `);
+    }
+
+    // Permission denied
+    if (d.permissionDenied.length > 0) {
+      const items = d.permissionDenied.slice(0, 5).map(item => {
+        // Clean up error message - if it contains HTML, just show status code or simple message
+        let cleanError = escapeHtml(item.error);
+        if (item.error.includes("<!doctype html>") || item.error.includes("<html")) {
+          if (item.error.includes("401")) cleanError = "Unauthorized (401)";
+          else if (item.error.includes("403")) cleanError = "Forbidden (403)";
+          else cleanError = "Access Denied";
+        }
+        return `<li style="margin: 0.25rem 0; font-size: 0.85rem;">
+          <strong>${escapeHtml(item.title)}</strong>
+          <a href="#" onclick="openDiagnosticUrl('${escapeHtml(item.url)}'); return false;" style="float: right; font-size: 0.75rem; color: #2196f3; text-decoration: none;">Open ↗</a>
+          <br/><span style="color: #666;">${cleanError}</span>
+        </li>`;
+      }).join("");
+      const more = d.permissionDenied.length > 5 ? `<li style="color: #666; font-style: italic;">+ ${d.permissionDenied.length - 5} more...</li>` : "";
+
+      sections.push(`
+        <div style="margin-bottom: 0.75rem;">
+          <div style="font-weight: 600; color: #d32f2f; margin-bottom: 0.25rem;">
+            🔒 ${d.permissionDenied.length} item${d.permissionDenied.length === 1 ? "" : "s"} permission denied
+          </div>
+          <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">${items}${more}</ul>
+          <div style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(211, 47, 47, 0.1); border-left: 3px solid #d32f2f; font-size: 0.85rem;">
+            💡 <strong>Tip:</strong> Try logging in with credentials that have access to these documents.
+          </div>
+        </div>
+      `);
+    }
+
+    // Fetch failures
+    if (d.fetchFailed.length > 0) {
+      const items = d.fetchFailed.slice(0, 5).map(item =>
+        `<li style="margin: 0.25rem 0; font-size: 0.85rem;"><strong>${escapeHtml(item.title)}</strong><br/><span style="color: #666;">${escapeHtml(item.error)}</span></li>`
+      ).join("");
+      const more = d.fetchFailed.length > 5 ? `<li style="color: #666; font-style: italic;">+ ${d.fetchFailed.length - 5} more...</li>` : "";
+
+      sections.push(`
+        <div style="margin-bottom: 0.75rem;">
+          <div style="font-weight: 600; color: #f57c00; margin-bottom: 0.25rem;">
+            ⚠️ ${d.fetchFailed.length} item${d.fetchFailed.length === 1 ? "" : "s"} failed to fetch
+          </div>
+          <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">${items}${more}</ul>
+        </div>
+      `);
+    }
+
+    // Download failures
+    if (d.downloadFailed.length > 0) {
+      const items = d.downloadFailed.slice(0, 5).map(item =>
+        `<li style="margin: 0.25rem 0; font-size: 0.85rem;"><strong>${escapeHtml(item.title)}</strong><br/><span style="color: #666;">${escapeHtml(item.error)}</span></li>`
+      ).join("");
+      const more = d.downloadFailed.length > 5 ? `<li style="color: #666; font-style: italic;">+ ${d.downloadFailed.length - 5} more...</li>` : "";
+
+      sections.push(`
+        <div style="margin-bottom: 0.75rem;">
+          <div style="font-weight: 600; color: #c62828; margin-bottom: 0.25rem;">
+            ❌ ${d.downloadFailed.length} download${d.downloadFailed.length === 1 ? "" : "s"} failed
+          </div>
+          <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">${items}${more}</ul>
+        </div>
+      `);
+    }
+
+    ragBundleDiagnostics.innerHTML = sections.join("");
+    ragBundleDiagnostics.style.display = "block";
+  };
+
+  // Expose helper for diagnostic links
+  (window as any).openDiagnosticUrl = async (path: string) => {
+    try {
+      await invoke("plugin:shell|open", { path });
+    } catch (e) {
+      console.error("Failed to open URL", e);
+    }
+  };
+
+  const toggleDiagnostics = () => {
+    if (ragBundleDiagnostics.style.display === "none" || !ragBundleDiagnostics.innerHTML) {
+      renderDiagnostics();
+    } else {
+      ragBundleDiagnostics.style.display = "none";
     }
   };
 
@@ -764,6 +930,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildDownloadUrlFromObject(objectData: any): string | null {
+    // Prefer the API URL (@id) if available, as it includes ++api++ and works with Bearer tokens
+    if (objectData && typeof objectData["@id"] === "string") {
+      return `${objectData["@id"].replace(/\/+$/, "")}/@@download/file`;
+    }
+
     const publicItemUrl = getPublicItemUrl(objectData);
     if (publicItemUrl) {
       return `${publicItemUrl.replace(/\/+$/, "")}/@@download/file`;
@@ -804,6 +975,48 @@ document.addEventListener("DOMContentLoaded", () => {
     return sanitized.toLowerCase().endsWith(".pdf") ? sanitized : `${sanitized}.pdf`;
   }
 
+  function ensureApiUrlFromObject(objectData: any, maybeUrl: string | null | undefined): string | null {
+    if (!maybeUrl) return null;
+
+    // If it's already an absolute URL
+    if (/^https?:\/\//i.test(maybeUrl)) {
+      // If it's missing ++api++ but we have an @id with ++api++, try to fix it
+      if (!maybeUrl.includes("++api++") && objectData?.["@id"]?.includes("++api++")) {
+        // If the URL ends with /@@download/file, it's safer to construct it from the @id
+        // which we know has the correct API path.
+        if (maybeUrl.endsWith("/@@download/file")) {
+          return `${objectData["@id"].replace(/\/+$/, "")}/@@download/file`;
+        }
+
+        // For other URLs, we could try to inject ++api++, but it's riskier. 
+        // However, if the domain matches, we probably should.
+        // For now, the @@download/file fix covers the most common case for File types.
+      }
+      return maybeUrl;
+    }
+
+    // For relative URLs, resolve against @id (which is the API URL)
+    if (objectData && typeof objectData["@id"] === "string") {
+      const apiId = objectData["@id"];
+
+      if (maybeUrl.startsWith("/")) {
+        // Root-relative: tricky because we need the API root, not just @id
+        // But usually download URLs in File objects are relative to the content item or absolute
+        // If we have currentBaseUrl (the API root), use that
+        if (currentBaseUrl) {
+          // Remove trailing slash from base and leading from url
+          return `${currentBaseUrl.replace(/\/+$/, "")}/${maybeUrl.replace(/^\/+/, "")}`;
+        }
+      } else {
+        // Relative to item
+        return `${apiId.replace(/\/+$/, "")}/${maybeUrl}`;
+      }
+    }
+
+    // Fallback to standard resolution if no @id
+    return ensureAbsoluteUrlFromObject(objectData, maybeUrl);
+  }
+
   function detectPdfInfo(objectData: any): { url: string; filename: string } | null {
     const checkField = (field: any): { url: string; filename: string } | null => {
       if (!field || !field.download) {
@@ -819,7 +1032,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!looksLikePdf) {
         return null;
       }
-      const absoluteUrl = ensureAbsoluteUrlFromObject(objectData, downloadUrl);
+      // Use API-aware URL resolution to ensure Bearer tokens work
+      const absoluteUrl = ensureApiUrlFromObject(objectData, downloadUrl);
       if (!absoluteUrl) {
         return null;
       }
@@ -1867,6 +2081,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const candidatesSnapshot = [...ragCandidates];
     setFailedDownloadJobs([], []);
 
+    // Initialize diagnostics
+    const diagnostics: DiagnosticInfo = {
+      totalCandidates: candidatesSnapshot.length,
+      pdfsDetected: 0,
+      downloaded: 0,
+      skippedNoPdf: [],
+      permissionDenied: [],
+      fetchFailed: [],
+      downloadFailed: []
+    };
+
     try {
       setRagBundleStatus("Select a folder to store the PDFs...", "#555");
       const directory = await open({
@@ -1901,31 +2126,71 @@ document.addEventListener("DOMContentLoaded", () => {
                 objectData = await api.fetch(candidate.item["@id"]);
               } catch (secondaryError) {
                 console.error("Secondary PDF inspection fetch failed:", secondaryError);
+                // Track fetch failure
+                diagnostics.fetchFailed.push({
+                  path: candidate.path,
+                  title: candidate.item?.title || candidate.path,
+                  error: secondaryError instanceof Error ? secondaryError.message : String(secondaryError)
+                });
+                continue;
               }
+            } else {
+              // Track fetch failure
+              diagnostics.fetchFailed.push({
+                path: candidate.path,
+                title: candidate.item?.title || candidate.path,
+                error: primaryError instanceof Error ? primaryError.message : String(primaryError)
+              });
+              continue;
             }
           }
 
           const pdfInfo = detectPdfInfo(objectData || candidate.item);
           if (pdfInfo) {
+            diagnostics.pdfsDetected++;
             try {
               const destinationPath = await join(targetDir, pdfInfo.filename);
               downloadJobs.push({ source: pdfInfo.url, destination: destinationPath });
             } catch (joinError) {
               console.error("Failed to prepare destination path:", joinError);
+              diagnostics.skippedNoPdf.push({
+                path: candidate.path,
+                title: candidate.item?.title || candidate.path,
+                reason: "Failed to create destination path"
+              });
             }
+          } else {
+            // Not a PDF - track why
+            const itemType = objectData?.["@type"] || candidate.item?.["@type"] || "Unknown";
+            diagnostics.skippedNoPdf.push({
+              path: candidate.path,
+              title: candidate.item?.title || candidate.path,
+              reason: `Not a PDF file (type: ${itemType})`
+            });
           }
         } catch (error) {
           console.error("Failed to inspect item for PDF:", error);
+          diagnostics.fetchFailed.push({
+            path: candidate.path,
+            title: candidate.item?.title || candidate.path,
+            error: error instanceof Error ? error.message : String(error)
+          });
         }
       }
 
       if (downloadJobs.length === 0) {
+        lastBundleDiagnostics = diagnostics;
+        updateLearnMoreButton();
         setRagBundleStatus("No PDFs detected in this result set.", "#c62828");
         return;
       }
 
-      const queueResult = await runDownloadJobQueue(downloadJobs, { label: "Downloading PDFs" });
+      const queueResult = await runDownloadJobQueue(downloadJobs, { label: "Downloading PDFs" }, diagnostics);
       setFailedDownloadJobs(queueResult.failedJobs, queueResult.failedDetails);
+
+      // Store diagnostics
+      lastBundleDiagnostics = diagnostics;
+      updateLearnMoreButton();
 
       if (queueResult.failed === 0) {
         setRagBundleStatus(`Saved ${queueResult.saved} PDF${queueResult.saved === 1 ? "" : "s"} to ${targetDir}.`, "#2e7d32");
@@ -1980,7 +2245,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function runDownloadJobQueue(
     downloadQueue: DownloadJob[],
-    options: { label: string } = { label: "Downloading PDFs" }
+    options: { label: string } = { label: "Downloading PDFs" },
+    diagnostics?: DiagnosticInfo
   ) {
     const queue = [...downloadQueue];
     const total = queue.length;
@@ -2006,6 +2272,9 @@ document.addEventListener("DOMContentLoaded", () => {
       results.forEach((result, index) => {
         if (result?.saved) {
           saved++;
+          if (diagnostics) {
+            diagnostics.downloaded++;
+          }
         } else {
           failedJobs.push(batch[index]);
           const errorMessage = result?.error || "Unknown error";
@@ -2020,13 +2289,34 @@ document.addEventListener("DOMContentLoaded", () => {
       setRagBundleStatus(progressText, "#2e7d32");
     }
 
+    // Categorize failures into permission vs other errors
     const filteredFailedDetails = failedDetails.filter((failure) => {
       const message = failure.error.toLowerCase();
       const isUnauthorized = message.includes("unauthorized") || message.includes("401");
       const isForbidden = message.includes("forbidden") || message.includes("403");
       const isPermissionRelated = isUnauthorized || isForbidden;
+
       if (isPermissionRelated) {
         console.warn("Skipping unauthorized PDF:", failure.job.destination, failure.error);
+        // Add to diagnostics if provided
+        if (diagnostics) {
+          diagnostics.permissionDenied.push({
+            path: failure.job.source,
+            title: failure.job.destination.split("/").pop() || failure.job.destination,
+            url: failure.job.source,
+            error: failure.error
+          });
+        }
+      } else {
+        // Add to download failed in diagnostics
+        if (diagnostics) {
+          diagnostics.downloadFailed.push({
+            path: failure.job.source,
+            title: failure.job.destination.split("/").pop() || failure.job.destination,
+            url: failure.job.source,
+            error: failure.error
+          });
+        }
       }
       return !isPermissionRelated;
     });
@@ -2087,6 +2377,11 @@ document.addEventListener("DOMContentLoaded", () => {
   ragBundleResumeBtn.addEventListener("click", () => {
     resumeFailedDownloads();
   });
+
+  ragBundleLearnMore.addEventListener("click", () => {
+    toggleDiagnostics();
+  });
+
 
 
   // Helper to display object details
@@ -3037,9 +3332,71 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 if (results.items && results.items.length > 0) {
-                  resultsContainer.innerHTML = `
-                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                      ${results.items.map(item => {
+                  // Convert results to RAG candidates for PDF bundling
+                  const listingCandidates: RagCandidate[] = results.items.map(item => ({
+                    item: item,
+                    path: item['@id'] || ''
+                  }));
+
+                  // Add bundle button at the top if RAG is enabled and there are items
+                  if (isRagBundleEnabled() && listingCandidates.length > 0) {
+                    const bundleButton = document.createElement('div');
+                    bundleButton.style.cssText = `
+                      margin-bottom: 0.75rem;
+                      padding: 0.75rem;
+                      background: linear-gradient(135deg, ${PLONE_BLUE} 0%, ${THEME_SECONDARY} 100%);
+                      border-radius: 6px;
+                      display: flex;
+                      align-items: center;
+                      justify-content: space-between;
+                      gap: 0.5rem;
+                    `;
+
+                    bundleButton.innerHTML = `
+                      <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                          <polyline points="7 10 12 15 17 10"></polyline>
+                          <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span style="color: white; font-weight: 500; font-size: 14px;">${listingCandidates.length} item${listingCandidates.length === 1 ? '' : 's'} available for PDF bundling</span>
+                      </div>
+                      <button class="bundle-listing-btn" style="
+                        padding: 0.5rem 1rem;
+                        background: white;
+                        color: ${PLONE_BLUE};
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-weight: 600;
+                        font-size: 13px;
+                        transition: all 0.2s;
+                      ">Bundle These PDFs</button>
+                    `;
+
+                    const btn = bundleButton.querySelector('.bundle-listing-btn') as HTMLButtonElement;
+                    btn.addEventListener('mouseenter', () => {
+                      btn.style.background = '#f0f7ff';
+                      btn.style.transform = 'scale(1.05)';
+                    });
+                    btn.addEventListener('mouseleave', () => {
+                      btn.style.background = 'white';
+                      btn.style.transform = 'scale(1)';
+                    });
+                    btn.addEventListener('click', (e) => {
+                      e.stopPropagation();
+                      setRagCandidates(listingCandidates);
+                      // Scroll to RAG bundle panel
+                      ragBundlePanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    });
+
+                    resultsContainer.appendChild(bundleButton);
+                  }
+
+                  // Render the results list
+                  const resultsList = document.createElement('div');
+                  resultsList.style.cssText = 'display: flex; flex-direction: column; gap: 0.5rem;';
+                  resultsList.innerHTML = results.items.map(item => {
                     // Determine icon based on type
                     let icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>`; // Default file
                     if (item['@type'] === 'Folder') {
@@ -3056,9 +3413,9 @@ document.addEventListener("DOMContentLoaded", () => {
                             <span style="font-weight: 500; color: ${PLONE_BLUE};">${item.title || 'Untitled'}</span>
                           </div>
                         `;
-                  }).join('')}
-                    </div>
-                  `;
+                  }).join('');
+
+                  resultsContainer.appendChild(resultsList);
 
                   // Add click handlers
                   resultsContainer.querySelectorAll('.listing-item').forEach(el => {
@@ -3098,74 +3455,6 @@ document.addEventListener("DOMContentLoaded", () => {
                       (el as HTMLElement).style.backgroundColor = 'white';
                     });
                   });
-
-                  // Convert results to RAG candidates for PDF bundling
-                  const listingCandidates: RagCandidate[] = results.items.map(item => ({
-                    item: item,
-                    path: item['@id'] || ''
-                  }));
-
-                  // Count PDFs in this listing
-                  let pdfCount = 0;
-                  for (const candidate of listingCandidates) {
-                    const pdfInfo = detectPdfInfo(candidate.item);
-                    if (pdfInfo) pdfCount++;
-                  }
-
-                  // Add bundle button if RAG is enabled and there are PDFs
-                  if (isRagBundleEnabled() && pdfCount > 0) {
-                    const bundleButton = document.createElement('div');
-                    bundleButton.style.cssText = `
-                      margin-top: 0.75rem;
-                      padding: 0.75rem;
-                      background: linear-gradient(135deg, ${PLONE_BLUE} 0%, ${THEME_SECONDARY} 100%);
-                      border-radius: 6px;
-                      display: flex;
-                      align-items: center;
-                      justify-content: space-between;
-                      gap: 0.5rem;
-                    `;
-
-                    bundleButton.innerHTML = `
-                      <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                          <polyline points="7 10 12 15 17 10"></polyline>
-                          <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        <span style="color: white; font-weight: 500; font-size: 14px;">${pdfCount} PDF${pdfCount === 1 ? '' : 's'} available in this listing</span>
-                      </div>
-                      <button class="bundle-listing-btn" style="
-                        padding: 0.5rem 1rem;
-                        background: white;
-                        color: ${PLONE_BLUE};
-                        border: none;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-weight: 600;
-                        font-size: 13px;
-                        transition: all 0.2s;
-                      ">Bundle These PDFs</button>
-                    `;
-
-                    const btn = bundleButton.querySelector('.bundle-listing-btn') as HTMLButtonElement;
-                    btn.addEventListener('mouseenter', () => {
-                      btn.style.background = '#f0f7ff';
-                      btn.style.transform = 'scale(1.05)';
-                    });
-                    btn.addEventListener('mouseleave', () => {
-                      btn.style.background = 'white';
-                      btn.style.transform = 'scale(1)';
-                    });
-                    btn.addEventListener('click', (e) => {
-                      e.stopPropagation();
-                      setRagCandidates(listingCandidates);
-                      // Scroll to RAG bundle panel
-                      ragBundlePanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    });
-
-                    resultsContainer.appendChild(bundleButton);
-                  }
 
                 } else {
                   resultsContainer.innerHTML = '<p style="margin: 0; color: #666; font-style: italic;">No items found.</p>';
@@ -3369,6 +3658,28 @@ document.addEventListener("DOMContentLoaded", () => {
           const actions = document.createElement('div');
           actions.style.cssText = 'display: flex; gap: 0.5rem; align-items: center;';
 
+          // Collapse/expand button
+          const collapseBtn = document.createElement('button');
+          collapseBtn.innerHTML = '▼';
+          collapseBtn.title = 'Collapse/Expand';
+          collapseBtn.style.cssText = `
+      background: transparent;
+      color: #757575;
+      border: none;
+      border-radius: 4px;
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    `;
+          collapseBtn.onmouseover = () => { collapseBtn.style.background = '#f5f5f5'; };
+          collapseBtn.onmouseout = () => { collapseBtn.style.background = 'transparent'; };
+
           const dragHandle = document.createElement('span');
           dragHandle.innerHTML = '⋮⋮';
           dragHandle.style.cssText = 'font-size: 18px; color: #bdbdbd; cursor: move; padding: 0 4px; user-select: none;';
@@ -3401,6 +3712,7 @@ document.addEventListener("DOMContentLoaded", () => {
             deleteBlock(blockId);
           };
 
+          actions.appendChild(collapseBtn);
           actions.appendChild(dragHandle);
           actions.appendChild(deleteBtn);
 
@@ -3409,9 +3721,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
           // Block content
           const contentWrapper = document.createElement('div');
-          contentWrapper.style.cssText = 'min-height: 2rem;';
+          contentWrapper.style.cssText = 'min-height: 2rem; transition: all 0.2s;';
           const blockContent = renderBlockContent(block, type);
           contentWrapper.appendChild(blockContent);
+
+          // Collapse/expand handler
+          let isCollapsed = false;
+          collapseBtn.onclick = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            isCollapsed = !isCollapsed;
+            if (isCollapsed) {
+              contentWrapper.style.display = 'none';
+              collapseBtn.innerHTML = '▶';
+              card.style.opacity = '0.7';
+            } else {
+              contentWrapper.style.display = 'block';
+              collapseBtn.innerHTML = '▼';
+              card.style.opacity = '1';
+            }
+          };
 
           card.appendChild(header);
           card.appendChild(contentWrapper);
@@ -3440,23 +3769,73 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const target = e.currentTarget as HTMLElement;
         if (target !== draggedElement && target.dataset.blockId) {
-          target.style.borderTop = '3px solid ' + PLONE_BLUE;
+          // Remove any existing drop indicators
+          document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+
+          // Determine if we should insert before or after based on mouse position
+          const rect = target.getBoundingClientRect();
+          const midpoint = rect.top + rect.height / 2;
+          const insertBefore = e.clientY < midpoint;
+
+          // Create drop indicator line
+          const indicator = document.createElement('div');
+          indicator.className = 'drop-indicator';
+          indicator.style.cssText = `
+            height: 4px;
+            background: #9c27b0;
+            border-radius: 2px;
+            margin: -2px 0;
+            box-shadow: 0 0 12px rgba(156, 39, 176, 0.8);
+            pointer-events: none;
+          `;
+
+          // Insert as sibling before or after the target
+          if (insertBefore) {
+            target.parentElement?.insertBefore(indicator, target);
+          } else {
+            if (target.nextSibling) {
+              target.parentElement?.insertBefore(indicator, target.nextSibling);
+            } else {
+              target.parentElement?.appendChild(indicator);
+            }
+          }
         }
       }
 
       function handleDrop(e: DragEvent) {
         e.preventDefault();
         const target = e.currentTarget as HTMLElement;
-        target.style.borderTop = '';
+
+        // Remove drop indicator
+        document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
 
         if (draggedElement && target !== draggedElement) {
           const fromIndex = parseInt(draggedElement.dataset.index || '0');
           const toIndex = parseInt(target.dataset.index || '0');
 
+          // Determine if we're inserting before or after based on indicator position
+          const rect = target.getBoundingClientRect();
+          const midpoint = rect.top + rect.height / 2;
+          const insertBefore = e.clientY < midpoint;
+
+          // Calculate the actual target index
+          let actualToIndex = toIndex;
+          if (!insertBefore && fromIndex < toIndex) {
+            // If inserting after and dragging down, don't adjust
+          } else if (!insertBefore && fromIndex > toIndex) {
+            // If inserting after and dragging up, add 1
+            actualToIndex = toIndex + 1;
+          } else if (insertBefore && fromIndex > toIndex) {
+            // If inserting before and dragging up, don't adjust
+          } else if (insertBefore && fromIndex < toIndex) {
+            // If inserting before and dragging down, subtract 1
+            actualToIndex = toIndex - 1;
+          }
+
           // Reorder the blocks_layout items array
           const items = [...currentBlocksLayout.items];
           const [movedItem] = items.splice(fromIndex, 1);
-          items.splice(toIndex, 0, movedItem);
+          items.splice(actualToIndex, 0, movedItem);
           currentBlocksLayout.items = items;
 
           renderBlockCards();
@@ -3467,10 +3846,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const target = e.target as HTMLElement;
         target.style.opacity = '1';
 
-        // Clear all border highlights
-        document.querySelectorAll('[data-block-id]').forEach(el => {
-          (el as HTMLElement).style.borderTop = '';
-        });
+        // Clear all drop indicators
+        document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
       }
 
       function deleteBlock(blockId: string) {
