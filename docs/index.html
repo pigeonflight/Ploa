@@ -242,10 +242,58 @@
             background: white;
         }
 
+        .hero-video {
+            position: relative;
+        }
+
         .hero-video video {
             width: 100%;
             height: auto;
             display: block;
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+        }
+
+        .hero-video video:hover {
+            opacity: 0.9;
+        }
+
+        .hero-video::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: rgba(140, 169, 255, 0.9);
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .hero-video::before {
+            content: '⛶';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            color: white;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1;
+        }
+
+        .hero-video:hover::after,
+        .hero-video:hover::before {
+            opacity: 1;
         }
 
         /* Features Section */
@@ -461,7 +509,7 @@
                 </div>
             </div>
             <div class="hero-video">
-                <video autoplay loop muted playsinline
+                <video id="demo-video" autoplay loop muted playsinline
                     poster="https://raw.githubusercontent.com/pigeonflight/Ploa/main/public/PloaCircle.svg">
                     <source src="videos/ploa-demo.mp4" type="video/mp4">
                     Your browser does not support the video tag.
@@ -725,6 +773,41 @@
             <p style="margin-top: 1rem;"><a href="https://github.com/pigeonflight/Ploa/issues">Report an Issue</a></p>
         </div>
     </footer>
+
+    <script>
+        // Make video fullscreen on click
+        document.addEventListener('DOMContentLoaded', function() {
+            const video = document.getElementById('demo-video');
+            if (video) {
+                video.addEventListener('click', function() {
+                    if (video.requestFullscreen) {
+                        video.requestFullscreen();
+                    } else if (video.webkitRequestFullscreen) {
+                        video.webkitRequestFullscreen();
+                    } else if (video.mozRequestFullScreen) {
+                        video.mozRequestFullScreen();
+                    } else if (video.msRequestFullscreen) {
+                        video.msRequestFullscreen();
+                    }
+                });
+
+                // Exit fullscreen on Escape key
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        } else if (document.webkitExitFullscreen) {
+                            document.webkitExitFullscreen();
+                        } else if (document.mozCancelFullScreen) {
+                            document.mozCancelFullScreen();
+                        } else if (document.msExitFullscreen) {
+                            document.msExitFullscreen();
+                        }
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 
 </html>
