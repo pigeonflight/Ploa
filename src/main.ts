@@ -464,7 +464,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Chat State
   let chatHistory: llm.Message[] = [];
-  let isChatActive = false;
   let llmConfig: llm.LlmConfig = { ...llm.DEFAULT_CONFIG };
 
 
@@ -728,7 +727,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const models = await llm.getOllamaModels(llmConfig.baseUrl);
       llmModelList.innerHTML = "";
-      models.forEach(model => {
+      models.forEach((model: string) => {
         const option = document.createElement("option");
         option.value = model;
         llmModelList.appendChild(option);
@@ -5539,7 +5538,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       // Save handler
-      const saveBtn = document.getElementById("saveItemKeywordsBtn")!;
+      const saveBtn = document.getElementById("saveItemKeywordsBtn") as HTMLButtonElement;
       saveBtn.addEventListener('click', async () => {
         try {
           saveBtn.disabled = true;
@@ -6031,7 +6030,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Accordion toggle handlers
         const toggleAccordion = async (accordion: HTMLElement, keyword: string, viewBtn: HTMLElement) => {
           const isExpanded = accordion.style.display !== "none";
-          const svg = viewBtn.querySelector("svg") as HTMLElement;
+          const svg = viewBtn.querySelector("svg") as SVGSVGElement | null;
           
           if (isExpanded) {
             // Collapse

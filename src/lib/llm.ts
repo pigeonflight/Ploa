@@ -19,6 +19,20 @@ export const DEFAULT_CONFIG: LlmConfig = {
     model: "llama2",
 };
 
+export async function getOllamaModels(baseUrl: string): Promise<string[]> {
+    try {
+        const response = await fetch(`${baseUrl}/api/tags`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch models: ${response.statusText}`);
+        }
+        const data = await response.json();
+        return data.models?.map((m: { name: string }) => m.name) || [];
+    } catch (error) {
+        console.error("Error fetching Ollama models:", error);
+        return [];
+    }
+}
+
 export async function chat(
     messages: Message[],
     config: LlmConfig
