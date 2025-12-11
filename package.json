@@ -1,7 +1,7 @@
 {
   "name": "ploa",
   "private": true,
-  "version": "1.1.21",
+  "version": "1.1.22",
   "description": "Plone REST API GUI - A Rust-based GUI application for interacting with Plone sites",
   "type": "module",
   "scripts": {

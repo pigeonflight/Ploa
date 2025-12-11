@@ -16,6 +16,7 @@ export type ItemMetadata = {
   is_folderish?: boolean;
   Subject?: string[];
   subjects?: string[];
+  document_type?: string;
 };
 
 export type LoginResponse = {
@@ -306,6 +307,22 @@ export async function collectTags(path?: string): Promise<Record<string, number>
 }
 
 /**
+ * Collect all content types from the site
+ */
+export async function collectContentTypes(path?: string): Promise<Record<string, number>> {
+  try {
+    const response = await invoke<Record<string, number>>("collect_content_types", {
+      path: path || null,
+    });
+    return response;
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to collect content types"
+    );
+  }
+}
+
+/**
  * Find similar tag pairs using Levenshtein distance
  */
 export async function findSimilarTags(
@@ -345,6 +362,31 @@ export async function mergeTags(
   } catch (error) {
     throw new Error(
       error instanceof Error ? error.message : "Failed to merge tags"
+    );
+  }
+}
+
+/**
+ * Search for items by subject/keyword
+ * @param subject - The subject/keyword to search for
+ * @param path - Optional path to limit search scope
+ */
+export async function searchItemsBySubject(
+  subject: string,
+  path?: string
+): Promise<ItemMetadata[]> {
+  try {
+    const response = await search({
+      additionalParams: {
+        Subject: subject,
+      },
+      path,
+      metadataFields: ["title", "path", "@id", "Subject", "description", "portal_type"],
+    });
+    return response.items || [];
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to search items by subject"
     );
   }
 }

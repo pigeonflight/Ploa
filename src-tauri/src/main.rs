@@ -335,6 +335,27 @@ async fn fetch_protected_file(
     Ok(general_purpose::STANDARD.encode(bytes))
 }
 
+#[tauri::command]
+async fn collect_content_types(
+    path: Option<String>,
+    state: State<'_, ApiClientState>,
+) -> Result<Value, String> {
+    let client = {
+        state
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or("Not connected. Please connect to a Plone site first.")?
+    };
+
+    let types = client
+        .collect_content_types(path.as_deref())
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(serde_json::to_value(types).map_err(|e| e.to_string())?)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -349,6 +370,7 @@ fn main() {
             patch,
             post,
             collect_tags,
+            collect_content_types,
             find_similar_tags,
             merge_tags,
             move_item,

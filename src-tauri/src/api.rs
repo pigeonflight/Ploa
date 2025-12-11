@@ -667,6 +667,78 @@ impl PloneApiClient {
         Ok(tags)
     }
 
+    pub async fn collect_content_types(
+        &self,
+        path: Option<&str>,
+    ) -> Result<HashMap<String, usize>, ApiError> {
+        let mut types: HashMap<String, usize> = HashMap::new();
+        let mut b_start = 0;
+        let page_size = 200;
+
+        loop {
+            let mut url = self.search_url()?;
+            url.query_pairs_mut()
+                .append_pair("b_size", &page_size.to_string());
+            url.query_pairs_mut()
+                .append_pair("b_start", &b_start.to_string());
+            url.query_pairs_mut()
+                .append_pair("metadata_fields", "portal_type");
+            if let Some(p) = path {
+                url.query_pairs_mut().append_pair("path", p);
+            }
+
+            let response = self
+                .build_request(reqwest::Method::GET, url.as_str())
+                .send()
+                .await
+                .map_err(|e| ApiError {
+                    message: format!("Type search failed: {}", e),
+                    status: None,
+                })?;
+
+            let status = response.status();
+            if !status.is_success() {
+                return Err(ApiError {
+                    message: format!("Type search failed with status {}", status.as_u16()),
+                    status: Some(status.as_u16()),
+                });
+            }
+
+            let data: Value = response.json().await.map_err(|e| ApiError {
+                message: format!("Failed to parse type search response: {}", e),
+                status: Some(status.as_u16()),
+            })?;
+
+            let items = data
+                .get("items")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
+
+            for item in items.iter() {
+                let type_name = item
+                    .get("portal_type")
+                    .or_else(|| item.get("@type"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Unknown");
+                *types.entry(type_name.to_string()).or_insert(0) += 1;
+            }
+
+            let items_total = data
+                .get("items_total")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(items.len() as u64);
+
+            if items.len() < page_size || (b_start as u64 + items.len() as u64) >= items_total {
+                break;
+            }
+
+            b_start += items.len();
+        }
+
+        Ok(types)
+    }
+
     pub fn find_similar_tag_pairs(
         &self,
         tags: &HashMap<String, usize>,

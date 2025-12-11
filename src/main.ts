@@ -1,5 +1,6 @@
 import "./style.css";
 import * as api from "./lib/api";
+import * as llm from "./lib/llm";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { join } from "@tauri-apps/api/path";
@@ -20,7 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
   <div style="padding: 2rem; height: 100%; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: ${THEME_BG_LIGHT};">
     <header style="border-bottom: 2px solid rgba(170, 196, 245, 0.15); padding: 0.5rem 0; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
       <div style="display: flex; align-items: center; gap: 0.75rem;">
-      <img src="/PloaCircle.svg" alt="Ploa" style="height: 28px;" />
+      <img src="/PloaCircle.svg" id="appLogo" alt="Ploa" style="height: 28px; cursor: pointer;" />
         <div id="updateIndicator" style="display: none; padding: 0.25rem 0.5rem; background: ${PLONE_BLUE}; color: white; border-radius: 4px; font-size: 11px; font-weight: 500; cursor: pointer; opacity: 0.9; transition: opacity 0.2s;" title="Update available - click to download">
           Update available
         </div>
@@ -127,6 +128,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 </svg>
                 Keywords Manager
               </button>
+              <button id="contentStatsBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 20V10"></path>
+                  <path d="M12 20V4"></path>
+                  <path d="M6 20v-6"></path>
+                </svg>
+                Content Stats
+              </button>
               <span id="currentPath" style="color: #666; font-family: monospace;">/</span>
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -136,6 +145,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 placeholder="Search content items..." 
                 style="flex: 1; padding: 0.5rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px;"
               />
+              <select id="contentTypeFilter" style="padding: 0.5rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px; background-color: white;">
+                <option value="">All Types</option>
+                <option value="Document">Page</option>
+                <option value="Folder">Folder</option>
+                <option value="News Item">News Item</option>
+                <option value="Event">Event</option>
+                <option value="Image">Image</option>
+                <option value="File">File</option>
+              </select>
               <button id="searchBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="11" cy="11" r="8"></circle>
@@ -157,13 +175,54 @@ document.addEventListener("DOMContentLoaded", () => {
                 <span id="ragBundleStatus" style="color: #2e7d32; font-size: 0.85rem;"></span>
                 <button id="learnMoreBtn" style="display: none; margin-left: 0.5rem; padding: 0.25rem 0.5rem; background: none; border: 1px solid #2e7d32; color: #2e7d32; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Learn More</button>
                 <div id="ragBundleErrorDetails" style="display: none; margin-top: 0.35rem; padding: 0.35rem 0.5rem; background: rgba(198, 40, 40, 0.08); border: 1px solid rgba(198, 40, 40, 0.3); border-radius: 4px; font-size: 0.8rem; color: #c62828;"></div>
-                <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+                </div>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
                   <button id="ragBundleResumeBtn" style="display: none; padding: 0.35rem 0.75rem; border: 1px solid ${PLONE_BLUE}; border-radius: 4px; background: white; color: ${PLONE_BLUE}; cursor: pointer;">
                     Resume failed downloads
+                  </button>
+                  <button id="ragChatBtn" style="display: none; padding: 0.35rem 0.75rem; border: 1px solid #2e7d32; border-radius: 4px; background: white; color: #2e7d32; cursor: pointer;">
+                    Chat with Bundle
                   </button>
                   <button id="ragBundleLearnMore" style="display: none; padding: 0.35rem 0.75rem; border: 1px solid #666; border-radius: 4px; background: white; color: #666; cursor: pointer;">
                     Learn More
                   </button>
+                </div>
+                <div id="ragChatPanel" style="display: none; margin-top: 0.5rem; border-top: 1px dashed #ccc; padding-top: 0.5rem;">
+                   <div id="ragChatHistory" style="height: 300px; overflow-y: auto; background: white; border: 1px solid #ddd; border-radius: 4px; padding: 0.5rem; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                     <div style="color: #666; font-style: italic; text-align: center; margin-top: 2rem;">
+                       Start chatting with the selected documents...
+                     </div>
+                   </div>
+                   <div style="display: flex; gap: 0.5rem;">
+                     <input type="text" id="ragChatInput" placeholder="Ask a question..." style="flex: 1; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;" />
+                     <button id="ragChatSendBtn" style="padding: 0.5rem 1rem; background: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer;">Send</button>
+                     <button id="ragChatSettingsBtn" style="padding: 0.5rem; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;" title="LLM Settings">⚙️</button>
+                   </div>
+                   <div id="ragChatSettingsPanel" style="display: none; margin-top: 0.5rem; padding: 0.5rem; background: #f9f9f9; border: 1px solid #eee; border-radius: 4px; font-size: 0.85rem;">
+                     <div style="margin-bottom: 0.5rem;">
+                       <label style="display: block; margin-bottom: 0.25rem;">Provider:</label>
+                       <select id="llmProvider" style="width: 100%; padding: 0.25rem;">
+                         <option value="ollama">Ollama (Local)</option>
+                         <option value="openai">OpenAI</option>
+                       </select>
+                     </div>
+                     <div style="margin-bottom: 0.5rem;">
+                       <label style="display: block; margin-bottom: 0.25rem;">Base URL:</label>
+                       <input type="text" id="llmBaseUrl" value="http://localhost:11434" style="width: 100%; padding: 0.25rem; border: 1px solid #ddd; border-radius: 3px;" />
+                     </div>
+                     <div style="margin-bottom: 0.5rem;">
+                       <label style="display: block; margin-bottom: 0.25rem;">Model:</label>
+                       <div style="display: flex; gap: 0.5rem;">
+                         <input type="text" id="llmModel" value="llama2" list="llmModelList" style="flex: 1; padding: 0.25rem; border: 1px solid #ddd; border-radius: 3px;" />
+                         <datalist id="llmModelList"></datalist>
+                         <button id="refreshModelsBtn" style="padding: 0.25rem 0.5rem; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;" title="Refresh Models">↻</button>
+                       </div>
+                     </div>
+                     <div id="llmApiKeyField" style="margin-bottom: 0.5rem; display: none;">
+                       <label style="display: block; margin-bottom: 0.25rem;">API Key:</label>
+                       <input type="password" id="llmApiKey" placeholder="sk-..." style="width: 100%; padding: 0.25rem; border: 1px solid #ddd; border-radius: 3px;" />
+                     </div>
+                   </div>
                 </div>
                 <div id="ragBundleDiagnostics" style="display: none; margin-top: 0.5rem; padding: 0.75rem; background: rgba(0, 0, 0, 0.02); border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem;"></div>
               </div>
@@ -250,9 +309,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const ragBundleStatus = document.querySelector<HTMLSpanElement>("#ragBundleStatus")!;
   const ragBundleErrorDetails = document.querySelector<HTMLDivElement>("#ragBundleErrorDetails")!;
   const ragBundleResumeBtn = document.querySelector<HTMLButtonElement>("#ragBundleResumeBtn")!;
+  const ragChatBtn = document.querySelector<HTMLButtonElement>("#ragChatBtn")!;
+  const ragChatPanel = document.querySelector<HTMLDivElement>("#ragChatPanel")!;
+  const ragChatHistory = document.querySelector<HTMLDivElement>("#ragChatHistory")!;
+  const ragChatInput = document.querySelector<HTMLInputElement>("#ragChatInput")!;
+  const ragChatSendBtn = document.querySelector<HTMLButtonElement>("#ragChatSendBtn")!;
+  const ragChatSettingsBtn = document.querySelector<HTMLButtonElement>("#ragChatSettingsBtn")!;
+  const ragChatSettingsPanel = document.querySelector<HTMLDivElement>("#ragChatSettingsPanel")!;
+  const llmProviderSelect = document.querySelector<HTMLSelectElement>("#llmProvider")!;
+  const llmBaseUrlInput = document.querySelector<HTMLInputElement>("#llmBaseUrl")!;
+  const llmModelInput = document.querySelector<HTMLInputElement>("#llmModel")!;
+  const llmModelList = document.querySelector<HTMLDataListElement>("#llmModelList")!;
+  const refreshModelsBtn = document.querySelector<HTMLButtonElement>("#refreshModelsBtn")!;
+  const llmApiKeyInput = document.querySelector<HTMLInputElement>("#llmApiKey")!;
+  const llmApiKeyField = document.querySelector<HTMLDivElement>("#llmApiKeyField")!;
   const ragBundleLearnMore = document.querySelector<HTMLButtonElement>("#ragBundleLearnMore")!;
   const ragBundleDiagnostics = document.querySelector<HTMLDivElement>("#ragBundleDiagnostics")!;
   const searchInput = document.querySelector<HTMLInputElement>("#searchInput")!;
+  const contentTypeFilter = document.querySelector<HTMLSelectElement>("#contentTypeFilter")!;
   const itemsList = document.querySelector<HTMLDivElement>("#itemsList")!;
   const currentPathSpan = document.querySelector<HTMLSpanElement>("#currentPath")!;
   const breadcrumb = document.querySelector<HTMLDivElement>("#breadcrumb")!;
@@ -273,6 +347,25 @@ document.addEventListener("DOMContentLoaded", () => {
   const credentialsHint = document.querySelector<HTMLDivElement>("#credentialsHint")!;
   const incrementicCredit = document.querySelector<HTMLSpanElement>("#incrementic-credit")!;
   const feedbackLink = document.querySelector<HTMLSpanElement>("#feedback-link")!;
+  const contentStatsBtn = document.querySelector<HTMLButtonElement>("#contentStatsBtn")!;
+  const appLogo = document.querySelector<HTMLImageElement>("#appLogo")!;
+
+  // Logo click handler - Go to home/root
+  appLogo.addEventListener("click", () => {
+    if (appContent.style.display !== "none") {
+      // If logged in, go to root
+      browseBtn.click();
+    } else {
+      // If not logged in, maybe reload or just stay on login
+      // For now, let's just ensure we are on the login screen (which we are)
+      // We could reload the window to reset everything:
+      // window.location.reload();
+      // But that might be too aggressive.
+      // Let's just clear any error messages
+      errorDiv.style.display = "none";
+      errorDiv.textContent = "";
+    }
+  });
 
   type Preferences = {
     enableRagBundle: boolean;
@@ -369,6 +462,11 @@ document.addEventListener("DOMContentLoaded", () => {
   let downloadFailures: DownloadFailure[] = [];
   let lastBundleDiagnostics: DiagnosticInfo | null = null;
 
+  // Chat State
+  let chatHistory: llm.Message[] = [];
+  let isChatActive = false;
+  let llmConfig: llm.LlmConfig = { ...llm.DEFAULT_CONFIG };
+
 
   const updateResumeButtonVisibility = () => {
     if (!isRagBundleEnabled()) {
@@ -429,6 +527,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const shouldShow = isRagBundleEnabled() && (ragCandidates.length > 0 || failedDownloadJobs.length > 0);
     ragBundlePanel.style.display = shouldShow ? "block" : "none";
     ragBundleBtn.style.display = isRagBundleEnabled() && ragCandidates.length > 0 ? "inline-flex" : "none";
+    ragChatBtn.style.display = isRagBundleEnabled() && ragCandidates.length > 0 ? "inline-flex" : "none";
     ragBundleBtn.disabled = isRagBundling;
     updateResumeButtonVisibility();
     if (!shouldShow) {
@@ -445,6 +544,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const clearRagCandidates = () => {
     ragCandidates = [];
     updateRagBundlePanelVisibility();
+    ragChatPanel.style.display = "none";
+    chatHistory = [];
+    ragChatHistory.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; margin-top: 2rem;">Start chatting with the selected documents...</div>';
   };
 
   const setRagBundleStatus = (message: string, color: string = "#2e7d32") => {
@@ -600,6 +702,228 @@ document.addEventListener("DOMContentLoaded", () => {
       ragBundleDiagnostics.style.display = "none";
     }
   };
+
+  // Chat Event Listeners
+  ragChatBtn.addEventListener("click", () => {
+    if (ragChatPanel.style.display === "none") {
+      ragChatPanel.style.display = "block";
+    } else {
+      ragChatPanel.style.display = "none";
+    }
+  });
+
+  ragChatSettingsBtn.addEventListener("click", () => {
+    ragChatSettingsPanel.style.display = ragChatSettingsPanel.style.display === "none" ? "block" : "none";
+    if (ragChatSettingsPanel.style.display === "block" && llmConfig.provider === "ollama") {
+      fetchOllamaModels();
+    }
+  });
+
+  const fetchOllamaModels = async () => {
+    if (llmConfig.provider !== "ollama") return;
+
+    refreshModelsBtn.textContent = "...";
+    refreshModelsBtn.disabled = true;
+
+    try {
+      const models = await llm.getOllamaModels(llmConfig.baseUrl);
+      llmModelList.innerHTML = "";
+      models.forEach(model => {
+        const option = document.createElement("option");
+        option.value = model;
+        llmModelList.appendChild(option);
+      });
+
+      // If current model is not in list and list is not empty, maybe suggest one?
+      // But for now let's just populate the list.
+    } catch (e) {
+      console.warn("Error fetching models", e);
+    } finally {
+      refreshModelsBtn.textContent = "↻";
+      refreshModelsBtn.disabled = false;
+    }
+  };
+
+  refreshModelsBtn.addEventListener("click", fetchOllamaModels);
+
+  llmProviderSelect.addEventListener("change", () => {
+    const provider = llmProviderSelect.value as llm.LlmProvider;
+    llmConfig.provider = provider;
+    if (provider === "openai") {
+      llmBaseUrlInput.value = "https://api.openai.com";
+      llmModelInput.value = "gpt-3.5-turbo";
+      llmApiKeyField.style.display = "block";
+      refreshModelsBtn.style.display = "none";
+    } else {
+      llmBaseUrlInput.value = "http://localhost:11434";
+      llmModelInput.value = "llama2";
+      llmApiKeyField.style.display = "none";
+      refreshModelsBtn.style.display = "block";
+      fetchOllamaModels();
+    }
+    llmConfig.baseUrl = llmBaseUrlInput.value;
+    llmConfig.model = llmModelInput.value;
+  });
+
+  llmBaseUrlInput.addEventListener("change", () => {
+    llmConfig.baseUrl = llmBaseUrlInput.value;
+  });
+
+  llmModelInput.addEventListener("change", () => {
+    llmConfig.model = llmModelInput.value;
+  });
+
+  llmApiKeyInput.addEventListener("change", () => {
+    llmConfig.apiKey = llmApiKeyInput.value;
+  });
+
+  ragChatSendBtn.addEventListener("click", async () => {
+    const message = ragChatInput.value.trim();
+    if (!message) return;
+
+    // Add user message to UI
+    appendChatMessage("user", message);
+    ragChatInput.value = "";
+    ragChatInput.disabled = true;
+    ragChatSendBtn.disabled = true;
+
+    try {
+      // 1. Prepare Context
+      // Fetch full content for candidates if we haven't already (or just fetch on demand)
+      // For simplicity, we'll fetch on demand for now.
+      // Optimization: Cache this context.
+
+      ragChatSendBtn.textContent = "Thinking...";
+
+      const contextParts: string[] = [];
+      for (const candidate of ragCandidates) {
+        try {
+          const item = await api.fetch(candidate.path);
+          // Try to get text content
+          let text = "";
+          if (item.text && item.text.data) {
+            text = item.text.data; // Rich text field
+          } else if (item.description) {
+            text = item.description;
+          }
+
+          if (text) {
+            contextParts.push(`Document: ${item.title}\nContent: ${text}`);
+          }
+        } catch (e) {
+          console.warn(`Failed to fetch context for ${candidate.path}`, e);
+        }
+      }
+
+      const context = contextParts.join("\n\n");
+      const systemPrompt = `You are a helpful assistant. Answer the user's question based ONLY on the following context:\n\n${context}\n\nIf the answer is not in the context, say so.`;
+
+      // 2. Prepare Messages
+      const messages: llm.Message[] = [
+        { role: "system", content: systemPrompt },
+        ...chatHistory,
+        { role: "user", content: message }
+      ];
+
+      // 3. Call LLM
+      const stream = await llm.chat(messages, llmConfig);
+
+      // 4. Stream Response
+      let fullResponse = "";
+      const assistantMessageDiv = appendChatMessage("assistant", "");
+
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+
+        // Parse JSON chunks from Ollama/OpenAI stream
+        // Note: This simple parsing assumes one JSON object per chunk which isn't always true for streams.
+        // A more robust implementation would handle partial JSON.
+        // For now, let's try to handle the common case.
+
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+        for (const line of lines) {
+          try {
+            let content = "";
+            if (llmConfig.provider === "ollama") {
+              const json = JSON.parse(line);
+              if (json.message && json.message.content) {
+                content = json.message.content;
+              }
+              if (json.done) break;
+            } else if (llmConfig.provider === "openai") {
+              if (line.startsWith("data: ")) {
+                const data = line.slice(6);
+                if (data === "[DONE]") break;
+                const json = JSON.parse(data);
+                if (json.choices && json.choices[0].delta && json.choices[0].delta.content) {
+                  content = json.choices[0].delta.content;
+                }
+              }
+            }
+
+            if (content) {
+              fullResponse += content;
+              assistantMessageDiv.textContent = fullResponse;
+              ragChatHistory.scrollTop = ragChatHistory.scrollHeight;
+            }
+          } catch (e) {
+            // console.warn("Failed to parse chunk", line, e);
+            // Just append raw if it looks like text? No, better to skip.
+          }
+        }
+      }
+
+      // Update history
+      chatHistory.push({ role: "user", content: message });
+      chatHistory.push({ role: "assistant", content: fullResponse });
+
+    } catch (error) {
+      console.error("Chat error:", error);
+      appendChatMessage("assistant", `Error: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      ragChatInput.disabled = false;
+      ragChatSendBtn.disabled = false;
+      ragChatSendBtn.textContent = "Send";
+      ragChatInput.focus();
+    }
+  });
+
+  function appendChatMessage(role: "user" | "assistant", text: string): HTMLDivElement {
+    const msgDiv = document.createElement("div");
+    msgDiv.style.marginBottom = "0.5rem";
+    msgDiv.style.padding = "0.5rem";
+    msgDiv.style.borderRadius = "4px";
+    msgDiv.style.maxWidth = "85%";
+
+    if (role === "user") {
+      msgDiv.style.alignSelf = "flex-end";
+      msgDiv.style.backgroundColor = "#e3f2fd";
+      msgDiv.style.marginLeft = "auto";
+      msgDiv.style.color = "#0d47a1";
+    } else {
+      msgDiv.style.alignSelf = "flex-start";
+      msgDiv.style.backgroundColor = "#f5f5f5";
+      msgDiv.style.marginRight = "auto";
+      msgDiv.style.color = "#333";
+    }
+
+    msgDiv.textContent = text;
+
+    // Clear placeholder if it's the first message
+    if (ragChatHistory.children.length === 1 && ragChatHistory.firstElementChild?.textContent?.includes("Start chatting")) {
+      ragChatHistory.innerHTML = "";
+    }
+
+    ragChatHistory.appendChild(msgDiv);
+    ragChatHistory.scrollTop = ragChatHistory.scrollHeight;
+    return msgDiv;
+  }
 
 
   // Handle Incrementic credit link
@@ -1933,6 +2257,19 @@ document.addEventListener("DOMContentLoaded", () => {
       typeDiv.style.color = "#666";
       typeDiv.textContent = item['@type'] || item.type || "Unknown";
 
+      // Show document_type if available
+      if (item.document_type) {
+        const docTypeSpan = document.createElement("span");
+        docTypeSpan.style.marginLeft = "0.5rem";
+        docTypeSpan.style.padding = "0.1rem 0.3rem";
+        docTypeSpan.style.background = "#eee";
+        docTypeSpan.style.borderRadius = "3px";
+        docTypeSpan.style.fontSize = "0.7rem";
+        docTypeSpan.style.color = "#555";
+        docTypeSpan.textContent = item.document_type;
+        typeDiv.appendChild(docTypeSpan);
+      }
+
       // Show path for search results
       const pathDiv = document.createElement("div");
       pathDiv.style.fontSize = "0.75rem";
@@ -2334,18 +2671,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   searchBtn.addEventListener("click", async () => {
     const query = searchInput.value.trim();
-    if (!query) {
-      return;
-    }
 
     try {
       itemsList.innerHTML = "<p>Searching...</p>";
       clearSearchBtn.style.display = "block";
 
-      const searchResults = await api.search({
+      const contentType = contentTypeFilter.value;
+      const searchOptions: any = {
         searchableText: query,
-        fullObjects: true,
-      });
+        metadataFields: ["is_folderish", "review_state", "portal_type", "path", "Description", "UID", "document_type"],
+      };
+      if (contentType) {
+        searchOptions.portalType = contentType;
+      }
+
+      const searchResults = await api.search(searchOptions);
       const items = searchResults.items || [];
       displaySearchResults(items);
     } catch (error) {
@@ -3996,6 +4336,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Keywords Manager UI
   async function showKeywordsManager() {
+    // Helper function to escape HTML
+    const escapeHtml = (text: string): string => {
+      const map: Record<string, string> = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;",
+      };
+      return text.replace(/[&<>"']/g, (m) => map[m]);
+    };
+
     itemsList.innerHTML = `
       <div style="padding: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -4977,6 +5329,307 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
+    // Show modal to manage keywords on a specific item
+    async function showItemKeywordModal(item: api.ItemMetadata) {
+      const itemPath = item.path || item["@id"] || "";
+      const itemTitle = item.title || itemPath || "Untitled";
+      const itemType = item["@type"] || item.type || "Unknown";
+      const itemDescription = item.description || "";
+      
+      // Get current subjects/keywords
+      const currentSubjects = item.Subject || item.subjects || [];
+      const subjectsArray = Array.isArray(currentSubjects) ? currentSubjects : [];
+      
+      // Create modal
+      const modal = document.createElement("div");
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+      `;
+
+      const modalContent = document.createElement("div");
+      modalContent.style.cssText = `
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 700px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      `;
+
+      // Create keyword tags HTML
+      const keywordsHtml = subjectsArray.length > 0 
+        ? subjectsArray.map((keyword: string) => `
+            <span class="keyword-tag" data-keyword="${escapeHtml(keyword)}" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; background: ${PLONE_BLUE}; color: white; border-radius: 4px; font-size: 0.9em; margin: 0.25rem;">
+              <span>${escapeHtml(keyword)}</span>
+              <button class="remove-keyword-btn" data-keyword="${escapeHtml(keyword)}" style="background: rgba(255,255,255,0.3); border: none; color: white; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.8em; padding: 0; line-height: 1;" title="Remove keyword">×</button>
+            </span>
+          `).join('')
+        : '<span style="color: #999; font-style: italic;">No keywords assigned</span>';
+
+      modalContent.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <h2 style="margin: 0; color: ${PLONE_BLUE}; display: flex; align-items: center; gap: 0.5rem;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${PLONE_BLUE}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+              <line x1="7" y1="7" x2="7.01" y2="7"></line>
+            </svg>
+            Manage Keywords
+          </h2>
+          <button id="closeItemModalBtn" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">&times;</button>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f5f5f5; border-radius: 4px;">
+          <div style="font-weight: 600; font-size: 1.1em; color: #333; margin-bottom: 0.5rem;">${escapeHtml(itemTitle)}</div>
+          ${itemDescription ? `<div style="font-size: 0.9em; color: #666; margin-bottom: 0.5rem; line-height: 1.4;">${escapeHtml(itemDescription)}</div>` : ''}
+          <div style="display: flex; gap: 1rem; font-size: 0.85em; color: #999;">
+            <span>Type: ${escapeHtml(itemType)}</span>
+            <span>Path: ${escapeHtml(itemPath)}</span>
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; margin-bottom: 0.75rem; font-weight: 500; color: #333;">Current Keywords</label>
+          <div id="keywordsContainer" style="min-height: 60px; padding: 1rem; background: #fafafa; border: 1px solid #e0e0e0; border-radius: 4px; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-start;">
+            ${keywordsHtml}
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; margin-bottom: 0.75rem; font-weight: 500; color: #333;">Add Keyword</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="newKeywordInput" placeholder="Enter keyword name..." style="flex: 1; padding: 0.75rem; border: 1px solid ${THEME_SECONDARY}; border-radius: 4px; font-size: 14px; background-color: ${THEME_BG_ACCENT};" />
+            <button id="addKeywordBtn" style="padding: 0.75rem 1.5rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; white-space: nowrap;">
+              Add
+            </button>
+          </div>
+          <p style="margin: 0.5rem 0 0 0; font-size: 0.85em; color: #666;">
+            You can also select from existing keywords below
+          </p>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; margin-bottom: 0.75rem; font-weight: 500; color: #333;">Existing Keywords</label>
+          <div id="allKeywordsList" style="max-height: 200px; overflow-y: auto; padding: 1rem; background: #fafafa; border: 1px solid #e0e0e0; border-radius: 4px;">
+            <div style="text-align: center; color: #999; padding: 1rem;">Loading keywords...</div>
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #eee;">
+          <button id="cancelItemModalBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #333;">
+            Cancel
+          </button>
+          <button id="saveItemKeywordsBtn" style="padding: 0.75rem 1.5rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+            Save Changes
+          </button>
+        </div>
+      `;
+
+      modal.appendChild(modalContent);
+      document.body.appendChild(modal);
+
+      // Current keywords state
+      let currentKeywords: string[] = [...subjectsArray];
+
+      // Function to update keywords display
+      const updateKeywordsDisplay = () => {
+        const container = document.getElementById("keywordsContainer")!;
+        if (currentKeywords.length === 0) {
+          container.innerHTML = '<span style="color: #999; font-style: italic;">No keywords assigned</span>';
+        } else {
+          container.innerHTML = currentKeywords.map((keyword: string) => `
+            <span class="keyword-tag" data-keyword="${escapeHtml(keyword)}" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; background: ${PLONE_BLUE}; color: white; border-radius: 4px; font-size: 0.9em; margin: 0.25rem;">
+              <span>${escapeHtml(keyword)}</span>
+              <button class="remove-keyword-btn" data-keyword="${escapeHtml(keyword)}" style="background: rgba(255,255,255,0.3); border: none; color: white; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.8em; padding: 0; line-height: 1;" title="Remove keyword">×</button>
+            </span>
+          `).join('');
+          
+          // Re-attach remove handlers
+          container.querySelectorAll('.remove-keyword-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const keyword = (btn as HTMLElement).getAttribute('data-keyword');
+              if (keyword) {
+                currentKeywords = currentKeywords.filter(k => k !== keyword);
+                updateKeywordsDisplay();
+              }
+            });
+          });
+        }
+      };
+
+      // Load all keywords for selection
+      const loadAllKeywords = async () => {
+        try {
+          const allTags = await getCachedTags();
+          const sortedTags = Object.keys(allTags).sort();
+          const allKeywordsContainer = document.getElementById("allKeywordsList")!;
+          
+          if (sortedTags.length === 0) {
+            allKeywordsContainer.innerHTML = '<div style="text-align: center; color: #999; padding: 1rem;">No keywords found</div>';
+            return;
+          }
+          
+          // Filter out keywords that are already added
+          const availableKeywords = sortedTags.filter(k => !currentKeywords.includes(k));
+          
+          if (availableKeywords.length === 0) {
+            allKeywordsContainer.innerHTML = '<div style="text-align: center; color: #999; padding: 1rem;">All keywords are already assigned</div>';
+            return;
+          }
+          
+          allKeywordsContainer.innerHTML = `
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+              ${availableKeywords.map((keyword: string) => `
+                <button class="existing-keyword-btn" data-keyword="${escapeHtml(keyword)}" style="padding: 0.5rem 0.75rem; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.9em; transition: all 0.2s; color: #333;" 
+                  onmouseover="this.style.background='${PLONE_BLUE}'; this.style.color='white'; this.style.borderColor='${PLONE_BLUE}'"
+                  onmouseout="this.style.background='white'; this.style.color='#333'; this.style.borderColor='#ddd'">
+                  ${escapeHtml(keyword)} <span style="color: #999; font-size: 0.85em;">(${allTags[keyword]})</span>
+                </button>
+              `).join('')}
+            </div>
+          `;
+          
+          // Attach click handlers to existing keyword buttons
+          allKeywordsContainer.querySelectorAll('.existing-keyword-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const keyword = (btn as HTMLElement).getAttribute('data-keyword');
+              if (keyword && !currentKeywords.includes(keyword)) {
+                currentKeywords.push(keyword);
+                updateKeywordsDisplay();
+                loadAllKeywords(); // Refresh the list
+              }
+            });
+          });
+        } catch (error) {
+          const allKeywordsContainer = document.getElementById("allKeywordsList")!;
+          allKeywordsContainer.innerHTML = `<div style="text-align: center; color: #d32f2f; padding: 1rem;">Error loading keywords: ${error instanceof Error ? escapeHtml(error.message) : "Unknown error"}</div>`;
+        }
+      };
+
+      // Add keyword handler
+      const addKeywordBtn = document.getElementById("addKeywordBtn")!;
+      const newKeywordInput = document.getElementById("newKeywordInput") as HTMLInputElement;
+      
+      const addKeyword = () => {
+        const keyword = newKeywordInput.value.trim();
+        if (keyword && !currentKeywords.includes(keyword)) {
+          currentKeywords.push(keyword);
+          updateKeywordsDisplay();
+          newKeywordInput.value = '';
+          loadAllKeywords(); // Refresh the list
+        }
+      };
+      
+      addKeywordBtn.addEventListener('click', addKeyword);
+      newKeywordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          addKeyword();
+        }
+      });
+
+      // Save handler
+      const saveBtn = document.getElementById("saveItemKeywordsBtn")!;
+      saveBtn.addEventListener('click', async () => {
+        try {
+          saveBtn.disabled = true;
+          saveBtn.textContent = "Saving...";
+          
+          await api.updateSubjects(itemPath, currentKeywords);
+          
+          // Invalidate cache and refresh
+          invalidateKeywordsCache();
+          
+          // Close modal
+          document.body.removeChild(modal);
+          
+          // Show success message
+          // Add keyframes if not already present
+          if (!document.getElementById('slideAnimations')) {
+            const style = document.createElement('style');
+            style.id = 'slideAnimations';
+            style.textContent = `
+              @keyframes slideIn {
+                from {
+                  transform: translateX(100%);
+                  opacity: 0;
+                }
+                to {
+                  transform: translateX(0);
+                  opacity: 1;
+                }
+              }
+              @keyframes slideOut {
+                from {
+                  transform: translateX(0);
+                  opacity: 1;
+                }
+                to {
+                  transform: translateX(100%);
+                  opacity: 0;
+                }
+              }
+            `;
+            document.head.appendChild(style);
+          }
+          
+          const successMsg = document.createElement("div");
+          successMsg.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4caf50;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 3000;
+            animation: slideIn 0.3s ease-out;
+          `;
+          successMsg.textContent = "Keywords updated successfully!";
+          document.body.appendChild(successMsg);
+          
+          setTimeout(() => {
+            successMsg.style.animation = "slideOut 0.3s ease-out";
+            setTimeout(() => document.body.removeChild(successMsg), 300);
+          }, 3000);
+          
+          // Refresh the accordion content if it's still open
+          // This will be handled by the accordion's refresh mechanism
+        } catch (error) {
+          alert(`Error updating keywords: ${error instanceof Error ? error.message : "Unknown error"}`);
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Save Changes";
+        }
+      });
+
+      // Close handlers
+      const closeBtn = document.getElementById("closeItemModalBtn")!;
+      const cancelBtn = document.getElementById("cancelItemModalBtn")!;
+      
+      const closeModal = () => {
+        document.body.removeChild(modal);
+      };
+      
+      closeBtn.addEventListener('click', closeModal);
+      cancelBtn.addEventListener('click', closeModal);
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+      });
+
+      // Load all keywords
+      loadAllKeywords();
+    }
 
     // Define the execute merge handler function at the showKeywordsManager scope so it persists
     const executeMergeHandler = async () => {
@@ -5320,36 +5973,153 @@ document.addEventListener("DOMContentLoaded", () => {
       similarPairs.forEach((pair, index) => {
         const row = document.createElement("div");
         row.className = "similarity-row";
-        row.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.75rem; transition: all 0.3s;";
+        row.style.cssText = "background: white; border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; transition: all 0.3s;";
         row.id = `pair-row-${index}`;
 
         row.innerHTML = `
-                <div style="flex: 1; display: flex; align-items: center; gap: 1rem;">
-                  <div class="tag-option" id="tag-left-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s;">
-                    <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
-                    <div style="font-size: 0.85em; color: #666;">${pair.count} items</div>
-                  </div>
-                  
-                  <div style="display: flex; flex-direction: column; align-items: center; color: #888;">
-                    <span style="font-size: 1.2em; font-weight: bold;">≈</span>
-                    <span style="font-size: 0.8em; background: ${pair.similarity >= 90 ? '#e8f5e9' : '#fff3e0'}; color: ${pair.similarity >= 90 ? '#2e7d32' : '#ef6c00'}; padding: 2px 6px; border-radius: 4px;">${pair.similarity}%</span>
-                  </div>
-                  
-                  <div class="tag-option" id="tag-right-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s;">
-                    <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.matched}</div>
-                    <div style="font-size: 0.85em; color: #666;">${pair.matched_count} items</div>
-                  </div>
-                </div>
-          <div style="margin-left: 1rem; min-width: 120px; text-align: center;">
-                  <span class="status-text" style="font-size: 0.9em; color: #888; font-style: italic;">Click to keep</span>
-                </div>
-              `;
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem;">
+            <div style="flex: 1; display: flex; align-items: center; gap: 1rem;">
+              <div class="tag-option" id="tag-left-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s; position: relative;">
+                <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.tag}</div>
+                <div style="font-size: 0.85em; color: #666;">${pair.count} items</div>
+                <button class="view-content-btn" data-keyword="${pair.tag}" data-side="left" data-index="${index}" style="position: absolute; top: 0.5rem; right: 0.5rem; background: rgba(255,255,255,0.8); border: 1px solid #ddd; border-radius: 4px; cursor: pointer; padding: 0.25rem 0.5rem; color: #666; opacity: 0.7; transition: all 0.2s; display: flex; align-items: center; gap: 0.25rem; font-size: 0.75em;" title="View associated content">
+                  <span style="font-size: 0.85em;">View</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;">
+                    <path d="M5 12h14M12 5l7 7-7 7"></path>
+                  </svg>
+                </button>
+              </div>
+              
+              <div style="display: flex; flex-direction: column; align-items: center; color: #888;">
+                <span style="font-size: 1.2em; font-weight: bold;">≈</span>
+                <span style="font-size: 0.8em; background: ${pair.similarity >= 90 ? '#e8f5e9' : '#fff3e0'}; color: ${pair.similarity >= 90 ? '#2e7d32' : '#ef6c00'}; padding: 2px 6px; border-radius: 4px;">${pair.similarity}%</span>
+              </div>
+              
+              <div class="tag-option" id="tag-right-${index}" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s; position: relative;">
+                <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 0.25rem;">${pair.matched}</div>
+                <div style="font-size: 0.85em; color: #666;">${pair.matched_count} items</div>
+                <button class="view-content-btn" data-keyword="${pair.matched}" data-side="right" data-index="${index}" style="position: absolute; top: 0.5rem; right: 0.5rem; background: rgba(255,255,255,0.8); border: 1px solid #ddd; border-radius: 4px; cursor: pointer; padding: 0.25rem 0.5rem; color: #666; opacity: 0.7; transition: all 0.2s; display: flex; align-items: center; gap: 0.25rem; font-size: 0.75em;" title="View associated content">
+                  <span style="font-size: 0.85em;">View</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;">
+                    <path d="M5 12h14M12 5l7 7-7 7"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div style="margin-left: 1rem; min-width: 120px; text-align: center;">
+              <span class="status-text" style="font-size: 0.9em; color: #888; font-style: italic;">Click to keep</span>
+            </div>
+          </div>
+          <div class="content-accordion" id="accordion-left-${index}" style="display: none; border-top: 1px solid #eee; padding: 1rem; background: #fafafa; max-height: 400px; overflow-y: auto;">
+            <div class="accordion-content" style="color: #666; font-size: 0.9em;">Loading content...</div>
+          </div>
+          <div class="content-accordion" id="accordion-right-${index}" style="display: none; border-top: 1px solid #eee; padding: 1rem; background: #fafafa; max-height: 400px; overflow-y: auto;">
+            <div class="accordion-content" style="color: #666; font-size: 0.9em;">Loading content...</div>
+          </div>
+        `;
 
         pairsList.appendChild(row);
 
         const leftCard = row.querySelector(`#tag-left-${index}`) as HTMLElement;
         const rightCard = row.querySelector(`#tag-right-${index}`) as HTMLElement;
         const statusText = row.querySelector(`.status-text`) as HTMLElement;
+        const leftAccordion = row.querySelector(`#accordion-left-${index}`) as HTMLElement;
+        const rightAccordion = row.querySelector(`#accordion-right-${index}`) as HTMLElement;
+        const leftViewBtn = row.querySelector(`.view-content-btn[data-side="left"]`) as HTMLElement;
+        const rightViewBtn = row.querySelector(`.view-content-btn[data-side="right"]`) as HTMLElement;
+
+        // Accordion toggle handlers
+        const toggleAccordion = async (accordion: HTMLElement, keyword: string, viewBtn: HTMLElement) => {
+          const isExpanded = accordion.style.display !== "none";
+          const svg = viewBtn.querySelector("svg") as HTMLElement;
+          
+          if (isExpanded) {
+            // Collapse
+            accordion.style.display = "none";
+            if (svg) svg.style.transform = "rotate(0deg)";
+          } else {
+            // Expand - fetch content if not already loaded
+            accordion.style.display = "block";
+            if (svg) svg.style.transform = "rotate(90deg)";
+            
+            const contentDiv = accordion.querySelector(".accordion-content") as HTMLElement;
+            if (contentDiv.textContent === "Loading content..." || contentDiv.textContent?.includes("Loading")) {
+              try {
+                contentDiv.innerHTML = '<div style="text-align: center; padding: 1rem;"><div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid ' + PLONE_BLUE + '; border-radius: 50%; animation: spin 0.8s linear infinite;"></div><p style="margin: 0.5rem 0 0 0; color: #666;">Loading items...</p></div>';
+                
+                const items = await api.searchItemsBySubject(keyword);
+                
+                if (items.length === 0) {
+                  contentDiv.innerHTML = '<div style="padding: 1rem; text-align: center; color: #999;">No items found with this keyword.</div>';
+                } else {
+                  const itemsList = items.map((item, itemIndex) => {
+                    const title = item.title || item["@id"] || "Untitled";
+                    const path = item.path || item["@id"] || "";
+                    const type = item["@type"] || item.type || "Unknown";
+                    const description = item.description || "";
+                    const itemId = `item-${index}-${itemIndex}`;
+                    return `
+                      <div class="item-row" data-item-id="${itemId}" data-item-path="${escapeHtml(path)}" style="padding: 0.75rem; margin-bottom: 0.5rem; background: white; border: 1px solid #e0e0e0; border-radius: 4px; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.background='#f5f5f5'; this.style.borderColor='${PLONE_BLUE}'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)'" onmouseout="this.style.background='white'; this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'">
+                        <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">${escapeHtml(title)}</div>
+                        ${description ? `<div style="font-size: 0.85em; color: #666; margin-bottom: 0.25rem; line-height: 1.4;">${escapeHtml(description.substring(0, 150))}${description.length > 150 ? '...' : ''}</div>` : ''}
+                        <div style="display: flex; gap: 1rem; font-size: 0.8em; color: #999;">
+                          <span>Type: ${escapeHtml(type)}</span>
+                          <span>Path: ${escapeHtml(path)}</span>
+                        </div>
+                      </div>
+                    `;
+                  }).join('');
+                  
+                  contentDiv.innerHTML = `
+                    <div style="margin-bottom: 0.5rem; font-weight: 500; color: #333;">
+                      ${items.length} item${items.length !== 1 ? 's' : ''} with keyword "${escapeHtml(keyword)}"
+                    </div>
+                    <div style="max-height: 350px; overflow-y: auto;">
+                      ${itemsList}
+                    </div>
+                  `;
+                  
+                  // Add click handlers to item rows
+                  contentDiv.querySelectorAll('.item-row').forEach((row, itemIndex) => {
+                    row.addEventListener('click', () => {
+                      const item = items[itemIndex];
+                      showItemKeywordModal(item);
+                    });
+                  });
+                }
+              } catch (error) {
+                contentDiv.innerHTML = `<div style="padding: 1rem; text-align: center; color: #d32f2f;">Error loading items: ${error instanceof Error ? escapeHtml(error.message) : "Unknown error"}</div>`;
+              }
+            }
+          }
+        };
+
+        // Add hover effect to view buttons
+        [leftViewBtn, rightViewBtn].forEach(btn => {
+          btn.addEventListener("mouseenter", () => {
+            btn.style.opacity = "1";
+            btn.style.background = "rgba(255,255,255,1)";
+            btn.style.borderColor = PLONE_BLUE;
+            btn.style.color = PLONE_BLUE;
+          });
+          btn.addEventListener("mouseleave", () => {
+            btn.style.opacity = "0.7";
+            btn.style.background = "rgba(255,255,255,0.8)";
+            btn.style.borderColor = "#ddd";
+            btn.style.color = "#666";
+          });
+        });
+
+        // Prevent card click when clicking view button
+        leftViewBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleAccordion(leftAccordion, pair.tag, leftViewBtn);
+        });
+
+        rightViewBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleAccordion(rightAccordion, pair.matched, rightViewBtn);
+        });
 
         const updateRowVisuals = (keepLeft: boolean) => {
           // Reset styles
@@ -5404,12 +6174,20 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         };
 
-        leftCard.onclick = () => {
+        leftCard.onclick = (e) => {
+          // Don't trigger if clicking the view button
+          if ((e.target as HTMLElement).closest('.view-content-btn')) {
+            return;
+          }
           updateRowVisuals(true);
           toggleMerge(pair.tag, pair.matched);
         };
 
-        rightCard.onclick = () => {
+        rightCard.onclick = (e) => {
+          // Don't trigger if clicking the view button
+          if ((e.target as HTMLElement).closest('.view-content-btn')) {
+            return;
+          }
           updateRowVisuals(false);
           toggleMerge(pair.matched, pair.tag);
         };
@@ -5523,6 +6301,117 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   }
+
+  // Content Stats Logic
+  contentStatsBtn.addEventListener("click", async () => {
+    // Create modal
+    const modal = document.createElement("div");
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    `;
+
+    const content = document.createElement("div");
+    content.style.cssText = `
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    `;
+
+    content.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h2 style="margin: 0; color: ${PLONE_BLUE};">Content Statistics</h2>
+        <button id="closeStatsBtn" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
+      </div>
+      <div id="statsLoading" style="text-align: center; padding: 2rem; color: #666;">
+        <p>Scanning content types...</p>
+        <p style="font-size: 0.9em; margin-top: 0.5rem;">This may take a moment for large sites.</p>
+      </div>
+      <div id="statsTableContainer" style="display: none;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #f5f5f5; text-align: left;">
+              <th style="padding: 0.75rem; border-bottom: 2px solid #ddd;">Content Type</th>
+              <th style="padding: 0.75rem; border-bottom: 2px solid #ddd; text-align: right;">Count</th>
+            </tr>
+          </thead>
+          <tbody id="statsTableBody"></tbody>
+        </table>
+      </div>
+    `;
+
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+
+    const closeBtn = content.querySelector("#closeStatsBtn")!;
+    closeBtn.addEventListener("click", () => document.body.removeChild(modal));
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) document.body.removeChild(modal);
+    });
+
+    try {
+      const stats = await api.collectContentTypes();
+      const sortedStats = Object.entries(stats).sort((a, b) => b[1] - a[1]);
+
+      const tbody = content.querySelector("#statsTableBody")!;
+      tbody.innerHTML = sortedStats.map(([type, count]) => `
+        <tr class="stat-row" style="border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s;">
+          <td style="padding: 0.75rem; color: ${PLONE_BLUE}; font-weight: 500;">${type}</td>
+          <td style="padding: 0.75rem; text-align: right; font-family: monospace; font-size: 1.1em;">${count}</td>
+        </tr>
+      `).join("");
+
+      // Add click handlers to rows
+      content.querySelectorAll(".stat-row").forEach((row, index) => {
+        row.addEventListener("click", () => {
+          const type = sortedStats[index][0];
+
+          // Update filter dropdown if option exists, otherwise add it temporarily
+          let option = Array.from(contentTypeFilter.options).find(opt => opt.value === type);
+          if (!option) {
+            option = document.createElement("option");
+            option.value = type;
+            option.textContent = type;
+            contentTypeFilter.appendChild(option);
+          }
+          contentTypeFilter.value = type;
+
+          // Trigger search
+          searchBtn.click();
+
+          // Close modal
+          document.body.removeChild(modal);
+        });
+
+        // Hover effect
+        (row as HTMLElement).onmouseover = () => { (row as HTMLElement).style.background = "#f0f7ff"; };
+        (row as HTMLElement).onmouseout = () => { (row as HTMLElement).style.background = "transparent"; };
+      });
+
+      content.querySelector("#statsLoading")!.setAttribute("style", "display: none;");
+      content.querySelector("#statsTableContainer")!.setAttribute("style", "display: block;");
+
+    } catch (error) {
+      console.error("Failed to load stats:", error);
+      content.querySelector("#statsLoading")!.innerHTML = `
+        <p style="color: #d32f2f;">Failed to load statistics.</p>
+        <p style="font-size: 0.9em; color: #666;">${error instanceof Error ? error.message : String(error)}</p>
+      `;
+    }
+  });
 });
 
 
