@@ -30,6 +30,7 @@ jobs:
             arch: ''
 
     runs-on: ${{ matrix.platform }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -99,6 +100,8 @@ jobs:
           security unlock-keychain -p "" build.keychain
           security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+          # Set keychain timeout to 1 hour to prevent timeout during build
+          security set-keychain-settings -t 3600 -u build.keychain
           rm certificate.p12
 
       - name: Build the app
