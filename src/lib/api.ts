@@ -412,3 +412,57 @@ export async function moveItem(
     );
   }
 }
+
+/**
+ * Get available upgrade steps from the Plone site
+ * Returns structure: { upgrade_steps: { "6006-6007": [...], ... }, versions: { fs: "...", instance: "..." } }
+ */
+export async function getUpgradeSteps(): Promise<any> {
+  try {
+    const response = await invoke("get_upgrade_steps", {});
+    return response;
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to get upgrade steps"
+    );
+  }
+}
+
+/**
+ * Run all pending upgrade steps
+ * @param dryRun - If true, perform a dry run without actually executing the upgrade (default: false)
+ */
+export async function runUpgrades(dryRun: boolean = false): Promise<any> {
+  try {
+    const response = await invoke("run_upgrades", {
+      dryRun: dryRun || null,
+    });
+    return response;
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to run upgrades"
+    );
+  }
+}
+
+/**
+ * Run selected upgrade steps
+ * @param stepIds - Array of step IDs to run
+ * @param dryRun - If true, perform a dry run without actually executing the upgrade (default: false)
+ */
+export async function runSelectedUpgrades(
+  stepIds: string[],
+  dryRun: boolean = false
+): Promise<any> {
+  try {
+    const response = await invoke("run_selected_upgrades", {
+      stepIds: stepIds,
+      dryRun: dryRun || null,
+    });
+    return response;
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to run selected upgrades"
+    );
+  }
+}

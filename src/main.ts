@@ -136,6 +136,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 </svg>
                 Content Stats
               </button>
+              <button id="upgradeStepsBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+                Upgrade Steps
+              </button>
               <span id="currentPath" style="color: #666; font-family: monospace;">/</span>
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -348,6 +354,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const incrementicCredit = document.querySelector<HTMLSpanElement>("#incrementic-credit")!;
   const feedbackLink = document.querySelector<HTMLSpanElement>("#feedback-link")!;
   const contentStatsBtn = document.querySelector<HTMLButtonElement>("#contentStatsBtn")!;
+  const upgradeStepsBtn = document.querySelector<HTMLButtonElement>("#upgradeStepsBtn")!;
   const appLogo = document.querySelector<HTMLImageElement>("#appLogo")!;
 
   // Logo click handler - Go to home/root
@@ -4551,26 +4558,37 @@ document.addEventListener("DOMContentLoaded", () => {
             }
           </style>
           <div id="allKeywordsList" style="display: grid; gap: 0.75rem;">
-            ${sortedTags.map(([tag, count]) => `
-              <div class="keyword-item" data-keyword="${tag}" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: white; border: 1px solid #eee; border-radius: 8px; transition: all 0.2s;">
-                <input type="checkbox" class="keyword-checkbox" data-keyword="${tag}" style="width: 18px; height: 18px; cursor: pointer; flex-shrink: 0;" />
-                <div style="flex: 1;">
-                  <div class="keyword-name-editable" data-keyword="${tag}" title="Click to rename">
-                    <span>${tag}</span>
-                    <svg class="edit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
+            ${sortedTags.map(([tag, count], index) => `
+              <div class="keyword-item" data-keyword="${tag}" style="background: white; border: 1px solid #eee; border-radius: 8px; transition: all 0.2s; overflow: hidden;">
+                <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem;">
+                  <input type="checkbox" class="keyword-checkbox" data-keyword="${tag}" style="width: 18px; height: 18px; cursor: pointer; flex-shrink: 0;" />
+                  <div style="flex: 1; position: relative;">
+                    <div class="keyword-name-editable" data-keyword="${tag}" title="Click to rename">
+                      <span>${tag}</span>
+                      <svg class="edit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                    </div>
+                    <div style="font-size: 0.85em; color: #666; margin-top: 0.25rem;">Used in ${count} item${count !== 1 ? 's' : ''}</div>
+                    <button class="view-items-btn" data-keyword="${tag}" data-index="${index}" style="position: absolute; top: 0.5rem; right: 0.5rem; background: rgba(255,255,255,0.8); border: 1px solid #ddd; border-radius: 4px; cursor: pointer; padding: 0.25rem 0.5rem; color: #666; opacity: 0.7; transition: all 0.2s; display: flex; align-items: center; gap: 0.25rem; font-size: 0.75em;" title="View associated content">
+                      <span style="font-size: 0.85em;">View</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;">
+                        <path d="M5 12h14M12 5l7 7-7 7"></path>
+                      </svg>
+                    </button>
                   </div>
-                  <div style="font-size: 0.85em; color: #666; margin-top: 0.25rem;">Used in ${count} item${count !== 1 ? 's' : ''}</div>
+                  <div style="display: flex; gap: 0.5rem;">
+                    <button class="rename-keyword-btn" data-keyword="${tag}" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
+                      Rename
+                    </button>
+                    <button class="delete-keyword-btn" data-keyword="${tag}" style="padding: 0.5rem 1rem; background: #ef5350; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
+                      Delete
+                    </button>
+                  </div>
                 </div>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button class="rename-keyword-btn" data-keyword="${tag}" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
-                    Rename
-                  </button>
-                  <button class="delete-keyword-btn" data-keyword="${tag}" style="padding: 0.5rem 1rem; background: #ef5350; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
-                    Delete
-                  </button>
+                <div class="content-accordion" id="accordion-all-${index}" style="display: none; border-top: 1px solid #eee; padding: 1rem; background: #fafafa; max-height: 400px; overflow-y: auto;">
+                  <div class="accordion-content" style="color: #666; font-size: 0.9em;">Loading content...</div>
                 </div>
               </div>
             `).join('')}
@@ -4626,6 +4644,100 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         });
       });
+
+      // Accordion toggle handlers for viewing items
+      document.querySelectorAll(".view-items-btn").forEach((btnElement) => {
+        const btn = btnElement as HTMLElement;
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const keyword = btn.getAttribute("data-keyword");
+          const index = btn.getAttribute("data-index");
+          if (keyword && index !== null) {
+            const accordion = document.getElementById(`accordion-all-${index}`) as HTMLElement;
+            const svg = btn.querySelector("svg") as SVGSVGElement | null;
+            toggleAllKeywordsAccordion(accordion, keyword, svg);
+          }
+        });
+
+        // Add hover effect to view buttons
+        btn.addEventListener("mouseenter", () => {
+          btn.style.opacity = "1";
+          btn.style.background = "rgba(255,255,255,1)";
+          btn.style.borderColor = PLONE_BLUE;
+          btn.style.color = PLONE_BLUE;
+        });
+        btn.addEventListener("mouseleave", () => {
+          btn.style.opacity = "0.7";
+          btn.style.background = "rgba(255,255,255,0.8)";
+          btn.style.borderColor = "#ddd";
+          btn.style.color = "#666";
+        });
+      });
+
+      // Accordion toggle function for all keywords view
+      async function toggleAllKeywordsAccordion(accordion: HTMLElement, keyword: string, svg: SVGSVGElement | null) {
+        const isExpanded = accordion.style.display !== "none";
+        
+        if (isExpanded) {
+          // Collapse
+          accordion.style.display = "none";
+          if (svg) svg.style.transform = "rotate(0deg)";
+        } else {
+          // Expand - fetch content if not already loaded
+          accordion.style.display = "block";
+          if (svg) svg.style.transform = "rotate(90deg)";
+          
+          const contentDiv = accordion.querySelector(".accordion-content") as HTMLElement;
+          if (contentDiv.textContent === "Loading content..." || contentDiv.textContent?.includes("Loading")) {
+            try {
+              contentDiv.innerHTML = '<div style="text-align: center; padding: 1rem;"><div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid ' + PLONE_BLUE + '; border-radius: 50%; animation: spin 0.8s linear infinite;"></div><p style="margin: 0.5rem 0 0 0; color: #666;">Loading items...</p></div>';
+              
+              const items = await api.searchItemsBySubject(keyword);
+              
+              if (items.length === 0) {
+                contentDiv.innerHTML = '<div style="padding: 1rem; text-align: center; color: #999;">No items found with this keyword.</div>';
+              } else {
+                const itemsList = items.map((item, itemIndex) => {
+                  const title = item.title || item["@id"] || "Untitled";
+                  const path = item.path || item["@id"] || "";
+                  const type = item["@type"] || item.type || "Unknown";
+                  const description = item.description || "";
+                  const itemId = `item-all-${itemIndex}`;
+                  return `
+                    <div class="item-row" data-item-id="${itemId}" data-item-path="${escapeHtml(path)}" style="padding: 0.75rem; margin-bottom: 0.5rem; background: white; border: 1px solid #e0e0e0; border-radius: 4px; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.background='#f5f5f5'; this.style.borderColor='${PLONE_BLUE}'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)'" onmouseout="this.style.background='white'; this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'">
+                      <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">${escapeHtml(title)}</div>
+                      ${description ? `<div style="font-size: 0.85em; color: #666; margin-bottom: 0.25rem; line-height: 1.4;">${escapeHtml(description.substring(0, 150))}${description.length > 150 ? '...' : ''}</div>` : ''}
+                      <div style="display: flex; gap: 1rem; font-size: 0.8em; color: #999;">
+                        <span>Type: ${escapeHtml(type)}</span>
+                        <span>Path: ${escapeHtml(path)}</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('');
+                
+                contentDiv.innerHTML = `
+                  <div style="margin-bottom: 0.5rem; font-weight: 500; color: #333;">
+                    ${items.length} item${items.length !== 1 ? 's' : ''} with keyword "${escapeHtml(keyword)}"
+                  </div>
+                  <div style="max-height: 350px; overflow-y: auto;">
+                    ${itemsList}
+                  </div>
+                `;
+                
+                // Add click handlers to item rows
+                contentDiv.querySelectorAll('.item-row').forEach((row, itemIndex) => {
+                  row.addEventListener('click', () => {
+                    const item = items[itemIndex];
+                    showItemKeywordModal(item);
+                  });
+                });
+              }
+            } catch (error) {
+              contentDiv.innerHTML = `<div style="padding: 1rem; text-align: center; color: #d32f2f;">Error loading items: ${error instanceof Error ? escapeHtml(error.message) : "Unknown error"}</div>`;
+            }
+          }
+        }
+      }
 
       // Bulk selection functionality
       function updateBulkActionsBar() {
@@ -6410,6 +6522,435 @@ document.addEventListener("DOMContentLoaded", () => {
         <p style="font-size: 0.9em; color: #666;">${error instanceof Error ? error.message : String(error)}</p>
       `;
     }
+  });
+
+  // Upgrade Steps Logic - Built around actual @upgrade endpoint
+  upgradeStepsBtn.addEventListener("click", async () => {
+    // Create modal
+    const modal = document.createElement("div");
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    `;
+
+    const content = document.createElement("div");
+    content.style.cssText = `
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 900px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    `;
+
+    // Helper function to escape HTML
+    const escapeHtml = (text: string): string => {
+      const map: Record<string, string> = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;",
+      };
+      return String(text).replace(/[&<>"']/g, (m) => map[m]);
+    };
+
+    let upgradeData: any = null;
+    const selectedSteps = new Set<string>();
+
+    // Helper function to get all step IDs from upgrade data
+    const getAllStepIds = (): string[] => {
+      if (!upgradeData) return [];
+      const upgradeSteps = upgradeData.upgrade_steps || {};
+      const stepIds: string[] = [];
+      Object.values(upgradeSteps).forEach((steps: any) => {
+        steps.forEach((step: any, index: number) => {
+          const stepId = step.id || `step-${index}`;
+          stepIds.push(String(stepId));
+        });
+      });
+      return stepIds;
+    };
+
+    // Helper function to get step IDs for a version range
+    const getStepIdsForRange = (versionRange: string): string[] => {
+      if (!upgradeData) return [];
+      const upgradeSteps = upgradeData.upgrade_steps || {};
+      const steps = upgradeSteps[versionRange] || [];
+      return steps.map((step: any, index: number) => {
+        return String(step.id || `step-${index}`);
+      });
+    };
+
+    // Update button text based on selection
+    const updateRunButton = () => {
+      const runBtn = content.querySelector("#runSelectedUpgradesBtn") as HTMLButtonElement;
+      const selectedCount = selectedSteps.size;
+      
+      if (runBtn) {
+        runBtn.disabled = selectedCount === 0;
+        runBtn.textContent = selectedCount > 0 
+          ? `Run Selected (${selectedCount} step${selectedCount !== 1 ? 's' : ''})`
+          : 'No Steps Selected';
+      }
+    };
+
+    const renderSteps = () => {
+      const stepsList = content.querySelector("#upgradeStepsList")!;
+      const versionsInfo = content.querySelector("#versionsInfo")!;
+
+      if (!upgradeData) {
+        stepsList.innerHTML = '<p style="color: #666;">No upgrade data available.</p>';
+        return;
+      }
+
+      // Display version information
+      const versions = upgradeData.versions || {};
+      const fsVersion = versions.fs || 'Unknown';
+      const instanceVersion = versions.instance || 'Unknown';
+      const isUpToDate = fsVersion === instanceVersion;
+
+      versionsInfo.innerHTML = `
+        <div style="display: flex; gap: 2rem; align-items: center; padding: 1rem; background: ${isUpToDate ? '#d4edda' : '#fff3cd'}; border-radius: 4px; border: 1px solid ${isUpToDate ? '#c3e6cb' : '#ffeaa7'};">
+          <div>
+            <strong style="color: #333;">Filesystem Version:</strong>
+            <span style="font-family: monospace; margin-left: 0.5rem; color: ${PLONE_BLUE};">${escapeHtml(String(fsVersion))}</span>
+          </div>
+          <div>
+            <strong style="color: #333;">Instance Version:</strong>
+            <span style="font-family: monospace; margin-left: 0.5rem; color: ${PLONE_BLUE};">${escapeHtml(String(instanceVersion))}</span>
+          </div>
+          ${isUpToDate ? '<span style="color: #155724; font-weight: 500;">✓ Up to date</span>' : '<span style="color: #856404; font-weight: 500;">⚠ Upgrades available</span>'}
+        </div>
+      `;
+
+      // Get upgrade steps grouped by version ranges
+      const upgradeSteps = upgradeData.upgrade_steps || {};
+      const versionRanges = Object.keys(upgradeSteps).sort();
+
+      if (versionRanges.length === 0) {
+        stepsList.innerHTML = `
+          <div style="padding: 2rem; text-align: center; color: #666;">
+            <p>No upgrade steps found.</p>
+            <p style="font-size: 0.9em; margin-top: 0.5rem;">Your Plone instance is up to date.</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Count total pending steps
+      let totalSteps = 0;
+      versionRanges.forEach(range => {
+        const steps = upgradeSteps[range] || [];
+        totalSteps += steps.length;
+      });
+
+      // Check if all steps are selected
+      const allStepIds = getAllStepIds();
+      const allSelected = allStepIds.length > 0 && allStepIds.every(id => selectedSteps.has(id));
+
+      stepsList.innerHTML = `
+        <div style="margin-bottom: 1rem; padding: 0.75rem; background: #f5f5f5; border-radius: 4px; display: flex; align-items: center; gap: 0.5rem;">
+          <input type="checkbox" id="selectAllSteps" ${allSelected ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+          <label for="selectAllSteps" style="cursor: pointer; font-weight: 500; color: #333;">Select All (${totalSteps} step${totalSteps !== 1 ? 's' : ''})</label>
+        </div>
+        ${versionRanges.map(versionRange => {
+        const steps = upgradeSteps[versionRange] || [];
+        const [fromVersion, toVersion] = versionRange.split('-');
+        const rangeStepIds = getStepIdsForRange(versionRange);
+        const allRangeSelected = rangeStepIds.length > 0 && rangeStepIds.every(id => selectedSteps.has(id));
+        
+        return `
+          <div style="margin-bottom: 2rem; border: 1px solid #ddd; border-radius: 4px; overflow: hidden;">
+            <div style="background: ${PLONE_BLUE}; color: white; padding: 0.75rem 1rem; font-weight: 500; display: flex; align-items: center; gap: 0.75rem;">
+              <input type="checkbox" class="range-checkbox" data-range="${escapeHtml(versionRange)}" ${allRangeSelected ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+              <span>Version Range: ${escapeHtml(fromVersion)} → ${escapeHtml(toVersion)} (${steps.length} step${steps.length !== 1 ? 's' : ''})</span>
+            </div>
+            <div style="padding: 1rem;">
+              ${steps.map((step: any, index: number) => {
+                const stepId = step.id || `step-${index}`;
+                const stepTitle = step.title || stepId;
+                const stepIdStr = String(stepId);
+                const isSelected = selectedSteps.has(stepIdStr);
+                
+                return `
+                  <div style="padding: 0.75rem; margin-bottom: 0.5rem; background: ${isSelected ? '#e3f2fd' : '#f9f9f9'}; border-left: 3px solid ${isSelected ? '#1976d2' : PLONE_BLUE}; border-radius: 2px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; gap: 0.75rem;">
+                      <input type="checkbox" class="step-checkbox" data-step-id="${escapeHtml(stepIdStr)}" data-range="${escapeHtml(versionRange)}" ${isSelected ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer; margin-top: 2px; flex-shrink: 0;">
+                      <div style="flex: 1;">
+                        <div style="font-weight: 500; color: #333; margin-bottom: 0.25rem;">${escapeHtml(stepTitle)}</div>
+                        <div style="font-size: 0.85em; color: #999; font-family: monospace;">ID: ${escapeHtml(stepIdStr)}</div>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }).join('')}
+      `;
+
+      // Attach event listeners for checkboxes
+      const selectAllCheckbox = content.querySelector("#selectAllSteps") as HTMLInputElement;
+      if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener("change", (e) => {
+          const checked = (e.target as HTMLInputElement).checked;
+          const allIds = getAllStepIds();
+          if (checked) {
+            allIds.forEach(id => selectedSteps.add(id));
+          } else {
+            allIds.forEach(id => selectedSteps.delete(id));
+          }
+          renderSteps();
+          updateRunButton();
+        });
+      }
+
+      // Range checkboxes
+      content.querySelectorAll(".range-checkbox").forEach(checkbox => {
+        checkbox.addEventListener("change", (e) => {
+          const checked = (e.target as HTMLInputElement).checked;
+          const range = (e.target as HTMLInputElement).dataset.range!;
+          const rangeStepIds = getStepIdsForRange(range);
+          if (checked) {
+            rangeStepIds.forEach(id => selectedSteps.add(id));
+          } else {
+            rangeStepIds.forEach(id => selectedSteps.delete(id));
+          }
+          renderSteps();
+          updateRunButton();
+        });
+      });
+
+      // Individual step checkboxes
+      content.querySelectorAll(".step-checkbox").forEach(checkbox => {
+        checkbox.addEventListener("change", (e) => {
+          const checked = (e.target as HTMLInputElement).checked;
+          const stepId = (e.target as HTMLInputElement).dataset.stepId!;
+          if (checked) {
+            selectedSteps.add(stepId);
+          } else {
+            selectedSteps.delete(stepId);
+          }
+          renderSteps();
+          updateRunButton();
+        });
+      });
+
+      updateRunButton();
+    };
+
+    const loadSteps = async () => {
+      const loadingEl = content.querySelector("#upgradeLoading")!;
+      const containerEl = content.querySelector("#upgradeStepsContainer")!;
+      (loadingEl as HTMLElement).style.display = "block";
+      (containerEl as HTMLElement).style.display = "none";
+
+      try {
+        upgradeData = await api.getUpgradeSteps();
+        
+        // Expected structure: { upgrade_steps: { "6006-6007": [...], ... }, versions: { fs: "...", instance: "..." } }
+        if (!upgradeData || typeof upgradeData !== 'object') {
+          throw new Error("Invalid response format from upgrade endpoint");
+        }
+
+        (loadingEl as HTMLElement).style.display = "none";
+        (containerEl as HTMLElement).style.display = "block";
+        renderSteps();
+      } catch (error) {
+        (loadingEl as HTMLElement).innerHTML = `
+          <p style="color: #d32f2f;">Error: ${error instanceof Error ? error.message : "Failed to load upgrade steps"}</p>
+          <p style="font-size: 0.9em; margin-top: 0.5rem; color: #666;">Make sure you are connected to a Plone site and have administrator permissions (cmf.ManagePortal).</p>
+        `;
+      }
+    };
+
+    content.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h2 style="margin: 0; color: ${PLONE_BLUE}; display: flex; align-items: center; gap: 0.5rem;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${PLONE_BLUE}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+          </svg>
+          Upgrades
+        </h2>
+        <button id="closeUpgradeBtn" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
+      </div>
+      <div id="upgradeLoading" style="text-align: center; padding: 2rem; color: #666;">
+        <p>Loading upgrade steps...</p>
+      </div>
+      <div id="upgradeStepsContainer" style="display: none;">
+        <div id="versionsInfo" style="margin-bottom: 1.5rem;"></div>
+        <div style="margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+          <button id="runSelectedUpgradesBtn" style="padding: 0.75rem 1.5rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; font-weight: 500;">
+            Run Selected
+          </button>
+          <button id="runAllUpgradesBtn" style="padding: 0.75rem 1.5rem; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; font-weight: 500;">
+            Run All Upgrades
+          </button>
+          <button id="dryRunSelectedBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 1em;">
+            Dry Run Selected
+          </button>
+          <button id="dryRunAllBtn" style="padding: 0.75rem 1.5rem; background: #f0f0f0; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 1em;">
+            Dry Run All
+          </button>
+        </div>
+        <div id="upgradeStepsList"></div>
+      </div>
+    `;
+
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+
+    const closeBtn = content.querySelector("#closeUpgradeBtn")!;
+    closeBtn.addEventListener("click", () => document.body.removeChild(modal));
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) document.body.removeChild(modal);
+    });
+
+    const runSelectedBtn = content.querySelector("#runSelectedUpgradesBtn") as HTMLButtonElement;
+    const runAllBtn = content.querySelector("#runAllUpgradesBtn") as HTMLButtonElement;
+    const dryRunSelectedBtn = content.querySelector("#dryRunSelectedBtn") as HTMLButtonElement;
+    const dryRunAllBtn = content.querySelector("#dryRunAllBtn") as HTMLButtonElement;
+
+    // Helper function to show notification
+    const showNotification = (message: string, color: string = "#2e7d32") => {
+      const notification = document.createElement("div");
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${color};
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 2000;
+        max-width: 400px;
+      `;
+      notification.textContent = message;
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 3000);
+    };
+
+    // Run selected upgrades handler
+    runSelectedBtn.addEventListener("click", async () => {
+      if (runSelectedBtn.disabled || selectedSteps.size === 0) return;
+
+      const originalText = runSelectedBtn.textContent;
+      runSelectedBtn.disabled = true;
+      runSelectedBtn.textContent = "Running selected upgrades...";
+      runSelectedBtn.style.opacity = "0.6";
+
+      try {
+        const stepIds = Array.from(selectedSteps);
+        await api.runSelectedUpgrades(stepIds, false);
+        
+        showNotification(`Successfully ran ${stepIds.length} upgrade step${stepIds.length !== 1 ? 's' : ''}`);
+        
+        // Clear selection and reload steps
+        selectedSteps.clear();
+        await loadSteps();
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : "Failed to run selected upgrades";
+        alert(`Error running selected upgrades: ${errorMsg}`);
+      } finally {
+        runSelectedBtn.textContent = originalText;
+        runSelectedBtn.style.opacity = "1";
+        runSelectedBtn.disabled = false;
+      }
+    });
+
+    // Run all upgrades handler
+    runAllBtn.addEventListener("click", async () => {
+      const originalText = runAllBtn.textContent;
+      runAllBtn.disabled = true;
+      runAllBtn.textContent = "Running all upgrades...";
+      runAllBtn.style.opacity = "0.6";
+
+      try {
+        await api.runUpgrades(false);
+        
+        showNotification("All upgrades completed successfully");
+        
+        // Clear selection and reload steps
+        selectedSteps.clear();
+        await loadSteps();
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : "Failed to run upgrades";
+        alert(`Error running upgrades: ${errorMsg}`);
+      } finally {
+        runAllBtn.textContent = originalText;
+        runAllBtn.style.opacity = "1";
+        runAllBtn.disabled = false;
+      }
+    });
+
+    // Dry run selected handler
+    dryRunSelectedBtn.addEventListener("click", async () => {
+      if (selectedSteps.size === 0) {
+        alert("Please select at least one upgrade step to run a dry run.");
+        return;
+      }
+
+      const originalText = dryRunSelectedBtn.textContent;
+      dryRunSelectedBtn.disabled = true;
+      dryRunSelectedBtn.textContent = "Running dry run...";
+      dryRunSelectedBtn.style.opacity = "0.6";
+
+      try {
+        const stepIds = Array.from(selectedSteps);
+        await api.runSelectedUpgrades(stepIds, true);
+        
+        showNotification(`Dry run completed for ${stepIds.length} step${stepIds.length !== 1 ? 's' : ''} (no changes made)`, "#2196F3");
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : "Failed to run dry run";
+        alert(`Error running dry run: ${errorMsg}`);
+      } finally {
+        dryRunSelectedBtn.textContent = originalText;
+        dryRunSelectedBtn.style.opacity = "1";
+        dryRunSelectedBtn.disabled = false;
+      }
+    });
+
+    // Dry run all handler
+    dryRunAllBtn.addEventListener("click", async () => {
+      const originalText = dryRunAllBtn.textContent;
+      dryRunAllBtn.disabled = true;
+      dryRunAllBtn.textContent = "Running dry run...";
+      dryRunAllBtn.style.opacity = "0.6";
+
+      try {
+        await api.runUpgrades(true);
+        
+        showNotification("Dry run completed for all steps (no changes made)", "#2196F3");
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : "Failed to run dry run";
+        alert(`Error running dry run: ${errorMsg}`);
+      } finally {
+        dryRunAllBtn.textContent = originalText;
+        dryRunAllBtn.style.opacity = "1";
+        dryRunAllBtn.disabled = false;
+      }
+    });
+
+    // Initial load
+    loadSteps();
   });
 });
 

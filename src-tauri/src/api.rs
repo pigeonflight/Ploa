@@ -996,6 +996,175 @@ impl PloneApiClient {
             errors,
         })
     }
+
+    pub async fn run_upgrades(
+        &self,
+        dry_run: Option<bool>,
+    ) -> Result<Value, ApiError> {
+        // The @upgrade endpoint runs all pending upgrades
+        // According to the API, we POST with dry_run parameter
+        let upgrade_url = self.resolve_url(Some("@upgrade"));
+        let upgrade_data = json!({
+            "dry_run": dry_run.unwrap_or(false),
+        });
+
+        let response = self
+            .build_request(reqwest::Method::POST, &upgrade_url)
+            .json(&upgrade_data)
+            .send()
+            .await
+            .map_err(|e| ApiError {
+                message: format!("Upgrade request failed: {}", e),
+                status: None,
+            })?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| format!("Upgrade failed with status {}", status.as_u16()));
+
+            // Try to extract error message from JSON
+            let error_msg = if let Ok(error_json) = serde_json::from_str::<Value>(&error_text) {
+                error_json
+                    .get("message")
+                    .or_else(|| error_json.get("error"))
+                    .or_else(|| error_json.get("type"))
+                    .and_then(|v| v.as_str())
+                    .map(|s| format!("{}: {}", status.as_u16(), s))
+                    .unwrap_or_else(|| error_text)
+            } else {
+                error_text
+            };
+
+            return Err(ApiError {
+                message: error_msg,
+                status: Some(status.as_u16()),
+            });
+        }
+
+        let content = response.text().await.map_err(|e| ApiError {
+            message: format!("Failed to read upgrade response: {}", e),
+            status: Some(status.as_u16()),
+        })?;
+
+        if content.is_empty() {
+            Ok(Value::Object(serde_json::Map::new()))
+        } else {
+            serde_json::from_str(&content).map_err(|e| ApiError {
+                message: format!("Failed to parse upgrade response: {}", e),
+                status: Some(status.as_u16()),
+            })
+        }
+    }
+
+    pub async fn run_selected_upgrades(
+        &self,
+        step_ids: Vec<String>,
+        dry_run: Option<bool>,
+    ) -> Result<Value, ApiError> {
+        // The @upgrade endpoint can run specific steps by providing a "steps" parameter
+        // with an array of step IDs
+        let upgrade_url = self.resolve_url(Some("@upgrade"));
+        let upgrade_data = json!({
+            "steps": step_ids,
+            "dry_run": dry_run.unwrap_or(false),
+        });
+
+        let response = self
+            .build_request(reqwest::Method::POST, &upgrade_url)
+            .json(&upgrade_data)
+            .send()
+            .await
+            .map_err(|e| ApiError {
+                message: format!("Upgrade request failed: {}", e),
+                status: None,
+            })?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| format!("Upgrade failed with status {}", status.as_u16()));
+
+            // Try to extract error message from JSON
+            let error_msg = if let Ok(error_json) = serde_json::from_str::<Value>(&error_text) {
+                error_json
+                    .get("message")
+                    .or_else(|| error_json.get("error"))
+                    .or_else(|| error_json.get("type"))
+                    .and_then(|v| v.as_str())
+                    .map(|s| format!("{}: {}", status.as_u16(), s))
+                    .unwrap_or_else(|| error_text)
+            } else {
+                error_text
+            };
+
+            return Err(ApiError {
+                message: error_msg,
+                status: Some(status.as_u16()),
+            });
+        }
+
+        let content = response.text().await.map_err(|e| ApiError {
+            message: format!("Failed to read upgrade response: {}", e),
+            status: Some(status.as_u16()),
+        })?;
+
+        if content.is_empty() {
+            Ok(Value::Object(serde_json::Map::new()))
+        } else {
+            serde_json::from_str(&content).map_err(|e| ApiError {
+                message: format!("Failed to parse upgrade response: {}", e),
+                status: Some(status.as_u16()),
+            })
+        }
+    }
+
+    pub async fn get_upgrade_steps(&self) -> Result<Value, ApiError> {
+        // GET @upgrade returns:
+        // {
+        //   "@id": "...",
+        //   "upgrade_steps": {
+        //     "6006-6007": [...],
+        //     "6007-6008": [...]
+        //   },
+        //   "versions": {
+        //     "fs": "6008",
+        //     "instance": "6006"
+        //   }
+        // }
+        let upgrade_url = self.resolve_url(Some("@upgrade"));
+        
+        let response = self
+            .build_request(reqwest::Method::GET, &upgrade_url)
+            .send()
+            .await
+            .map_err(|e| ApiError {
+                message: format!("Failed to fetch upgrade steps: {}", e),
+                status: None,
+            })?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| format!("Failed to fetch upgrade steps with status {}", status.as_u16()));
+
+            return Err(ApiError {
+                message: error_text,
+                status: Some(status.as_u16()),
+            });
+        }
+
+        response.json().await.map_err(|e| ApiError {
+            message: format!("Failed to parse upgrade steps response: {}", e),
+            status: Some(status.as_u16()),
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]

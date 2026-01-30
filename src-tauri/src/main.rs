@@ -356,6 +356,63 @@ async fn collect_content_types(
     Ok(serde_json::to_value(types).map_err(|e| e.to_string())?)
 }
 
+#[tauri::command]
+async fn run_upgrades(
+    dry_run: Option<bool>,
+    state: State<'_, ApiClientState>,
+) -> Result<Value, String> {
+    let client = {
+        state
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or("Not connected. Please connect to a Plone site first.")?
+    };
+
+    client
+        .run_upgrades(dry_run)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_upgrade_steps(
+    state: State<'_, ApiClientState>,
+) -> Result<Value, String> {
+    let client = {
+        state
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or("Not connected. Please connect to a Plone site first.")?
+    };
+
+    client
+        .get_upgrade_steps()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn run_selected_upgrades(
+    step_ids: Vec<String>,
+    dry_run: Option<bool>,
+    state: State<'_, ApiClientState>,
+) -> Result<Value, String> {
+    let client = {
+        state
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or("Not connected. Please connect to a Plone site first.")?
+    };
+
+    client
+        .run_selected_upgrades(step_ids, dry_run)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -376,7 +433,10 @@ fn main() {
             move_item,
             download_files,
             fetch_protected_file,
-            get_app_version
+            get_app_version,
+            run_upgrades,
+            get_upgrade_steps,
+            run_selected_upgrades
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
