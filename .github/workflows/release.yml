@@ -47,7 +47,6 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libjavascriptcoregtk-4.1-dev \
             libsoup-3.0-dev \
-            libsoup3 \
             gir1.2-soup-3.0 \
             build-essential \
             curl \
