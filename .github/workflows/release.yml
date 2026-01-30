@@ -43,6 +43,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            pkg-config \
             libwebkit2gtk-4.1-dev \
             libjavascriptcoregtk-4.1-dev \
             libsoup-3.0-dev \
@@ -58,6 +59,16 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf
+          # Debug: find libsoup .pc files
+          echo "Searching for libsoup .pc files..."
+          find /usr -name "*soup*.pc" 2>/dev/null || true
+          # Verify pkg-config can find libsoup
+          pkg-config --modversion libsoup-3.0 || echo "libsoup-3.0 not found by pkg-config"
+
+      - name: Set PKG_CONFIG_PATH (Linux only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: bun install
