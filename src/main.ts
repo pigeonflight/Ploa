@@ -4677,7 +4677,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Accordion toggle function for all keywords view
       async function toggleAllKeywordsAccordion(accordion: HTMLElement, keyword: string, svg: SVGSVGElement | null) {
         const isExpanded = accordion.style.display !== "none";
-        
+
         if (isExpanded) {
           // Collapse
           accordion.style.display = "none";
@@ -4686,14 +4686,14 @@ document.addEventListener("DOMContentLoaded", () => {
           // Expand - fetch content if not already loaded
           accordion.style.display = "block";
           if (svg) svg.style.transform = "rotate(90deg)";
-          
+
           const contentDiv = accordion.querySelector(".accordion-content") as HTMLElement;
           if (contentDiv.textContent === "Loading content..." || contentDiv.textContent?.includes("Loading")) {
             try {
               contentDiv.innerHTML = '<div style="text-align: center; padding: 1rem;"><div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid ' + PLONE_BLUE + '; border-radius: 50%; animation: spin 0.8s linear infinite;"></div><p style="margin: 0.5rem 0 0 0; color: #666;">Loading items...</p></div>';
-              
+
               const items = await api.searchItemsBySubject(keyword);
-              
+
               if (items.length === 0) {
                 contentDiv.innerHTML = '<div style="padding: 1rem; text-align: center; color: #999;">No items found with this keyword.</div>';
               } else {
@@ -4714,7 +4714,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                   `;
                 }).join('');
-                
+
                 contentDiv.innerHTML = `
                   <div style="margin-bottom: 0.5rem; font-weight: 500; color: #333;">
                     ${items.length} item${items.length !== 1 ? 's' : ''} with keyword "${escapeHtml(keyword)}"
@@ -4723,7 +4723,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     ${itemsList}
                   </div>
                 `;
-                
+
                 // Add click handlers to item rows
                 contentDiv.querySelectorAll('.item-row').forEach((row, itemIndex) => {
                   row.addEventListener('click', () => {
@@ -5446,11 +5446,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const itemTitle = item.title || itemPath || "Untitled";
       const itemType = item["@type"] || item.type || "Unknown";
       const itemDescription = item.description || "";
-      
+
       // Get current subjects/keywords
       const currentSubjects = item.Subject || item.subjects || [];
       const subjectsArray = Array.isArray(currentSubjects) ? currentSubjects : [];
-      
+
       // Create modal
       const modal = document.createElement("div");
       modal.style.cssText = `
@@ -5479,7 +5479,7 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
 
       // Create keyword tags HTML
-      const keywordsHtml = subjectsArray.length > 0 
+      const keywordsHtml = subjectsArray.length > 0
         ? subjectsArray.map((keyword: string) => `
             <span class="keyword-tag" data-keyword="${escapeHtml(keyword)}" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; background: ${PLONE_BLUE}; color: white; border-radius: 4px; font-size: 0.9em; margin: 0.25rem;">
               <span>${escapeHtml(keyword)}</span>
@@ -5564,7 +5564,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <button class="remove-keyword-btn" data-keyword="${escapeHtml(keyword)}" style="background: rgba(255,255,255,0.3); border: none; color: white; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.8em; padding: 0; line-height: 1;" title="Remove keyword">×</button>
             </span>
           `).join('');
-          
+
           // Re-attach remove handlers
           container.querySelectorAll('.remove-keyword-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -5585,20 +5585,20 @@ document.addEventListener("DOMContentLoaded", () => {
           const allTags = await getCachedTags();
           const sortedTags = Object.keys(allTags).sort();
           const allKeywordsContainer = document.getElementById("allKeywordsList")!;
-          
+
           if (sortedTags.length === 0) {
             allKeywordsContainer.innerHTML = '<div style="text-align: center; color: #999; padding: 1rem;">No keywords found</div>';
             return;
           }
-          
+
           // Filter out keywords that are already added
           const availableKeywords = sortedTags.filter(k => !currentKeywords.includes(k));
-          
+
           if (availableKeywords.length === 0) {
             allKeywordsContainer.innerHTML = '<div style="text-align: center; color: #999; padding: 1rem;">All keywords are already assigned</div>';
             return;
           }
-          
+
           allKeywordsContainer.innerHTML = `
             <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
               ${availableKeywords.map((keyword: string) => `
@@ -5610,7 +5610,7 @@ document.addEventListener("DOMContentLoaded", () => {
               `).join('')}
             </div>
           `;
-          
+
           // Attach click handlers to existing keyword buttons
           allKeywordsContainer.querySelectorAll('.existing-keyword-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -5631,7 +5631,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Add keyword handler
       const addKeywordBtn = document.getElementById("addKeywordBtn")!;
       const newKeywordInput = document.getElementById("newKeywordInput") as HTMLInputElement;
-      
+
       const addKeyword = () => {
         const keyword = newKeywordInput.value.trim();
         if (keyword && !currentKeywords.includes(keyword)) {
@@ -5641,7 +5641,7 @@ document.addEventListener("DOMContentLoaded", () => {
           loadAllKeywords(); // Refresh the list
         }
       };
-      
+
       addKeywordBtn.addEventListener('click', addKeyword);
       newKeywordInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
@@ -5655,15 +5655,15 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           saveBtn.disabled = true;
           saveBtn.textContent = "Saving...";
-          
+
           await api.updateSubjects(itemPath, currentKeywords);
-          
+
           // Invalidate cache and refresh
           invalidateKeywordsCache();
-          
+
           // Close modal
           document.body.removeChild(modal);
-          
+
           // Show success message
           // Add keyframes if not already present
           if (!document.getElementById('slideAnimations')) {
@@ -5693,7 +5693,7 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
             document.head.appendChild(style);
           }
-          
+
           const successMsg = document.createElement("div");
           successMsg.style.cssText = `
             position: fixed;
@@ -5709,12 +5709,12 @@ document.addEventListener("DOMContentLoaded", () => {
           `;
           successMsg.textContent = "Keywords updated successfully!";
           document.body.appendChild(successMsg);
-          
+
           setTimeout(() => {
             successMsg.style.animation = "slideOut 0.3s ease-out";
             setTimeout(() => document.body.removeChild(successMsg), 300);
           }, 3000);
-          
+
           // Refresh the accordion content if it's still open
           // This will be handled by the accordion's refresh mechanism
         } catch (error) {
@@ -5727,11 +5727,11 @@ document.addEventListener("DOMContentLoaded", () => {
       // Close handlers
       const closeBtn = document.getElementById("closeItemModalBtn")!;
       const cancelBtn = document.getElementById("cancelItemModalBtn")!;
-      
+
       const closeModal = () => {
         document.body.removeChild(modal);
       };
-      
+
       closeBtn.addEventListener('click', closeModal);
       cancelBtn.addEventListener('click', closeModal);
       modal.addEventListener('click', (e) => {
@@ -6143,7 +6143,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const toggleAccordion = async (accordion: HTMLElement, keyword: string, viewBtn: HTMLElement) => {
           const isExpanded = accordion.style.display !== "none";
           const svg = viewBtn.querySelector("svg") as SVGSVGElement | null;
-          
+
           if (isExpanded) {
             // Collapse
             accordion.style.display = "none";
@@ -6152,14 +6152,14 @@ document.addEventListener("DOMContentLoaded", () => {
             // Expand - fetch content if not already loaded
             accordion.style.display = "block";
             if (svg) svg.style.transform = "rotate(90deg)";
-            
+
             const contentDiv = accordion.querySelector(".accordion-content") as HTMLElement;
             if (contentDiv.textContent === "Loading content..." || contentDiv.textContent?.includes("Loading")) {
               try {
                 contentDiv.innerHTML = '<div style="text-align: center; padding: 1rem;"><div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid ' + PLONE_BLUE + '; border-radius: 50%; animation: spin 0.8s linear infinite;"></div><p style="margin: 0.5rem 0 0 0; color: #666;">Loading items...</p></div>';
-                
+
                 const items = await api.searchItemsBySubject(keyword);
-                
+
                 if (items.length === 0) {
                   contentDiv.innerHTML = '<div style="padding: 1rem; text-align: center; color: #999;">No items found with this keyword.</div>';
                 } else {
@@ -6180,7 +6180,7 @@ document.addEventListener("DOMContentLoaded", () => {
                       </div>
                     `;
                   }).join('');
-                  
+
                   contentDiv.innerHTML = `
                     <div style="margin-bottom: 0.5rem; font-weight: 500; color: #333;">
                       ${items.length} item${items.length !== 1 ? 's' : ''} with keyword "${escapeHtml(keyword)}"
@@ -6189,7 +6189,7 @@ document.addEventListener("DOMContentLoaded", () => {
                       ${itemsList}
                     </div>
                   `;
-                  
+
                   // Add click handlers to item rows
                   contentDiv.querySelectorAll('.item-row').forEach((row, itemIndex) => {
                     row.addEventListener('click', () => {
@@ -6413,7 +6413,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Content Stats Logic
+  // Content Stats Logic - Enhanced Version
   contentStatsBtn.addEventListener("click", async () => {
     // Create modal
     const modal = document.createElement("div");
@@ -6435,9 +6435,9 @@ document.addEventListener("DOMContentLoaded", () => {
       background: white;
       padding: 2rem;
       border-radius: 8px;
-      width: 90%;
-      max-width: 600px;
-      max-height: 80vh;
+      width: 95%;
+      max-width: 900px;
+      max-height: 90vh;
       overflow-y: auto;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
     `;
@@ -6457,6 +6457,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <tr style="background: #f5f5f5; text-align: left;">
               <th style="padding: 0.75rem; border-bottom: 2px solid #ddd;">Content Type</th>
               <th style="padding: 0.75rem; border-bottom: 2px solid #ddd; text-align: right;">Count</th>
+              <th style="padding: 0.75rem; border-bottom: 2px solid #ddd; text-align: right;">Actions</th>
             </tr>
           </thead>
           <tbody id="statsTableBody"></tbody>
@@ -6473,41 +6474,496 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.target === modal) document.body.removeChild(modal);
     });
 
+    // Function to show detailed view for a content type
+    const showDetailedView = async (portalType: string, count: number) => {
+      // Create detailed modal
+      const detailModal = document.createElement("div");
+      detailModal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1001;
+      `;
+
+      const detailContent = document.createElement("div");
+      detailContent.style.cssText = `
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        width: 98%;
+        max-width: 1400px;
+        max-height: 95vh;
+        overflow-y: auto;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+      `;
+
+      detailContent.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <div>
+            <h2 style="margin: 0 0 0.25rem 0; color: ${PLONE_BLUE};">${portalType} Items</h2>
+            <p style="margin: 0; color: #666; font-size: 0.9em;">${count} total items</p>
+          </div>
+          <button id="closeDetailBtn" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
+        </div>
+        
+        <!-- Search and filters -->
+        <div style="margin-bottom: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 6px;">
+          <input 
+            type="text" 
+            id="detailSearchInput" 
+            placeholder="Search items by title..." 
+            style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 0.5rem;"
+          />
+        </div>
+
+        <!-- Bulk actions toolbar -->
+        <div id="bulkActionsToolbar" style="display: none; margin-bottom: 1rem; padding: 1rem; background: #e3f2fd; border-radius: 6px; border-left: 4px solid ${PLONE_BLUE};">
+          <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <span id="selectedCount" style="font-weight: 500;">0 items selected</span>
+            <button id="bulkDeleteBtn" style="padding: 0.5rem 1rem; background: #d32f2f; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              Delete Selected
+            </button>
+            <button id="bulkWorkflowBtn" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              Change Workflow
+            </button>
+            <button id="bulkTagsBtn" style="padding: 0.5rem 1rem; background: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              Update Tags
+            </button>
+            <button id="deselectAllBtn" style="padding: 0.5rem 1rem; background: white; color: #666; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">
+              Deselect All
+            </button>
+          </div>
+        </div>
+
+        <!-- Classification breakdowns -->
+        <div id="classificationsPanel" style="margin-bottom: 1.5rem;">
+          <h3 style="margin: 0 0 0.75rem 0; font-size: 1.1em; color: #333;">Classifications</h3>
+          <div id="classificationsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+            <!-- Will be populated with breakdown cards -->
+          </div>
+        </div>
+
+        <!-- Items loading -->
+        <div id="itemsLoading" style="text-align: center; padding: 2rem; color: #666;">
+          <p>Loading items...</p>
+        </div>
+
+        <!-- Items table -->
+        <div id="itemsTableContainer" style="display: none; overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+            <thead>
+              <tr style="background: #f5f5f5; text-align: left;">
+                <th style="padding: 0.75rem; border-bottom: 2px solid #ddd; width: 40px;">
+                  <input type="checkbox" id="selectAllCheckbox" style="cursor: pointer;" />
+                </th>
+                <th style="padding: 0.75rem; border-bottom: 2px solid #ddd;">Title</th>
+                <th style="padding: 0.75rem; border-bottom: 2px solid #ddd;">Creator</th>
+                <th style="padding: 0.75rem; border-bottom: 2px solid #ddd;">Workflow</th>
+                <th style="padding: 0.75rem; border-bottom: 2px solid #ddd;">Created</th>
+                <th style="padding: 0.75rem; border-bottom: 2px solid #ddd;">Modified</th>
+                <th style="padding: 0.75rem; border-bottom: 2px solid #ddd; text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="itemsTableBody"></tbody>
+          </table>
+        </div>
+      `;
+
+      detailModal.appendChild(detailContent);
+      document.body.appendChild(detailModal);
+
+      const closeDetailBtn = detailContent.querySelector("#closeDetailBtn")!;
+      closeDetailBtn.addEventListener("click", () => document.body.removeChild(detailModal));
+      detailModal.addEventListener("click", (e) => {
+        if (e.target === detailModal) document.body.removeChild(detailModal);
+      });
+
+      // State management
+      let allItems: api.ItemMetadata[] = [];
+      let filteredItems: api.ItemMetadata[] = [];
+      const selectedItems = new Set<string>();
+
+      // Helper to format dates
+      const formatDate = (dateStr: string | undefined) => {
+        if (!dateStr) return "N/A";
+        try {
+          const date = new Date(dateStr);
+          return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+        } catch {
+          return "N/A";
+        }
+      };
+
+      // Helper to get base URL
+      const getBaseUrl = () => {
+        const urlInput = document.querySelector<HTMLInputElement>("#ploneUrl")!;
+        return urlInput.value;
+      };
+
+      // Update selections UI
+      const updateBulkToolbar = () => {
+        const toolbar = detailContent.querySelector("#bulkActionsToolbar") as HTMLElement;
+        const selectedCount = detailContent.querySelector("#selectedCount")!;
+
+        if (selectedItems.size > 0) {
+          toolbar.style.display = "block";
+          selectedCount.textContent = `${selectedItems.size} item${selectedItems.size !== 1 ? "s" : ""} selected`;
+        } else {
+          toolbar.style.display = "none";
+        }
+      };
+
+      // Render classifications
+      const renderClassifications = () => {
+        const container = detailContent.querySelector("#classificationsContainer")!;
+
+        // Group by workflow state
+        const byWorkflow: Record<string, number> = {};
+        const byCreator: Record<string, number> = {};
+        const byMonth: Record<string, number> = {};
+
+        filteredItems.forEach(item => {
+          const workflow = (item.review_state as string) || "unknown";
+          byWorkflow[workflow] = (byWorkflow[workflow] || 0) + 1;
+
+          const creator = (item as any).Creator || "unknown";
+          byCreator[creator] = (byCreator[creator] || 0) + 1;
+
+          const modified = (item as any).modified;
+          if (modified) {
+            try {
+              const date = new Date(modified);
+              const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+              byMonth[monthKey] = (byMonth[monthKey] || 0) + 1;
+            } catch { }
+          }
+        });
+
+        const createBreakdownCard = (title: string, data: Record<string, number>, icon: string) => {
+          const sortedEntries = Object.entries(data).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+          return `
+            <div style="background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 1rem;">
+              <h4 style="margin: 0 0 0.75rem 0; display: flex; align-items: center; gap: 0.5rem; font-size: 0.95em; color: #555;">
+                ${icon} ${title}
+              </h4>
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                ${sortedEntries.map(([key, count]) => `
+                  <div class="breakdown-item" data-filter-type="${title}" data-filter-value="${key}" style="display: flex; justify-content: space-between; padding: 0.25rem; cursor: pointer; border-radius: 3px; transition: background 0.2s;">
+                    <span style="font-size: 0.85em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${key}</span>
+                    <span style="font-weight: 500; font-size: 0.85em; color: ${PLONE_BLUE};">${count}</span>
+                  </div>
+                `).join("")}
+                ${Object.keys(data).length > 5 ? `<div style="font-size: 0.75em; color: #999; margin-top: 0.25rem;">+${Object.keys(data).length - 5} more</div>` : ""}
+              </div>
+            </div>
+          `;
+        };
+
+        container.innerHTML = `
+          ${createBreakdownCard("Workflow States", byWorkflow, "🔄")}
+          ${createBreakdownCard("Creators", byCreator, "👤")}
+          ${createBreakdownCard("Recent Activity", byMonth, "📅")}
+        `;
+
+        // Add click handlers to breakdown items
+        container.querySelectorAll(".breakdown-item").forEach(item => {
+          item.addEventListener("click", () => {
+            const filterType = (item as HTMLElement).dataset.filterType;
+            const filterValue = (item as HTMLElement).dataset.filterValue;
+            const searchInput = detailContent.querySelector("#detailSearchInput") as HTMLInputElement;
+            searchInput.value = filterValue || "";
+            renderItems();
+          });
+
+          // Hover effect
+          (item as HTMLElement).addEventListener("mouseenter", () => {
+            (item as HTMLElement).style.background = "#f0f7ff";
+          });
+          (item as HTMLElement).addEventListener("mouseleave", () => {
+            (item as HTMLElement).style.background = "transparent";
+          });
+        });
+      };
+
+      // Render items table
+      const renderItems = () => {
+        const tbody = detailContent.querySelector("#itemsTableBody")!;
+        const searchInput = detailContent.querySelector("#detailSearchInput") as HTMLInputElement;
+        const searchTerm = searchInput.value.toLowerCase();
+
+        // Filter items by search
+        filteredItems = allItems.filter(item => {
+          const title = (item.title || "").toLowerCase();
+          const creator = ((item as any).Creator || "").toLowerCase();
+          const workflow = ((item.review_state as string) || "").toLowerCase();
+
+          return title.includes(searchTerm) || creator.includes(searchTerm) || workflow.includes(searchTerm);
+        });
+
+        tbody.innerHTML = filteredItems.map((item, index) => {
+          const itemId = item["@id"] || item.path || `item-${index}`;
+          const isSelected = selectedItems.has(itemId);
+          const publicUrl = api.constructPublicUrl(itemId, getBaseUrl());
+
+          return `
+            <tr class="item-row" data-item-id="${itemId}" style="border-bottom: 1px solid #eee; transition: background 0.2s; ${isSelected ? "background: #e3f2fd;" : ""}">
+              <td style="padding: 0.75rem;">
+                <input type="checkbox" class="item-checkbox" data-item-id="${itemId}" ${isSelected ? "checked" : ""} style="cursor: pointer;" />
+              </td>
+              <td style="padding: 0.75rem;">
+                <div style="font-weight: 500; color: #333; margin-bottom: 0.25rem;">${item.title || "Untitled"}</div>
+                ${item.description ? `<div style="font-size: 0.8em; color: #666; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.description}</div>` : ""}
+              </td>
+              <td style="padding: 0.75rem; color: #555;">${(item as any).Creator || "N/A"}</td>
+              <td style="padding: 0.75rem;">
+                <span style="padding: 0.25rem 0.5rem; background: ${item.review_state === "published" ? "#e8f5e9" : "#fff3e0"}; color: ${item.review_state === "published" ? "#2e7d32" : "#ef6c00"}; border-radius: 3px; font-size: 0.8em; white-space: nowrap;">
+                  ${(item.review_state as string) || "unknown"}
+                </span>
+              </td>
+              <td style="padding: 0.75rem; color: #666; font-size: 0.85em;">${formatDate((item as any).created)}</td>
+              <td style="padding: 0.75rem; color: #666; font-size: 0.85em;">${formatDate((item as any).modified)}</td>
+              <td style="padding: 0.75rem; text-align: right;">
+                <button class="open-item-btn" data-url="${publicUrl}" style="padding: 0.35rem 0.75rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8em; margin-right: 0.5rem;" title="Open in browser">
+                  Open
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join("");
+
+        // Add event listeners to checkboxes
+        tbody.querySelectorAll(".item-checkbox").forEach(checkbox => {
+          checkbox.addEventListener("change", (e) => {
+            const itemId = (e.target as HTMLInputElement).dataset.itemId!;
+            if ((e.target as HTMLInputElement).checked) {
+              selectedItems.add(itemId);
+            } else {
+              selectedItems.delete(itemId);
+            }
+            updateBulkToolbar();
+            renderItems();
+          });
+        });
+
+        // Add event listeners to open buttons
+        tbody.querySelectorAll(".open-item-btn").forEach(btn => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const url = (btn as HTMLElement).dataset.url!;
+            window.open(url, "_blank");
+          });
+        });
+
+        // Update select all checkbox
+        const selectAllCheckbox = detailContent.querySelector("#selectAllCheckbox") as HTMLInputElement;
+        selectAllCheckbox.checked = filteredItems.length > 0 && filteredItems.every(item => {
+          const itemId = item["@id"] || item.path || "";
+          return selectedItems.has(itemId);
+        });
+
+        // Render classifications
+        renderClassifications();
+      };
+
+      // Select all handler
+      const selectAllCheckbox = detailContent.querySelector("#selectAllCheckbox")!;
+      selectAllCheckbox.addEventListener("change", (e) => {
+        const checked = (e.target as HTMLInputElement).checked;
+        filteredItems.forEach(item => {
+          const itemId = item["@id"] || item.path || "";
+          if (checked) {
+            selectedItems.add(itemId);
+          } else {
+            selectedItems.delete(itemId);
+          }
+        });
+        updateBulkToolbar();
+        renderItems();
+      });
+
+      // Search handler
+      const searchInput = detailContent.querySelector("#detailSearchInput")!;
+      let searchTimeout: number;
+      searchInput.addEventListener("input", () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => renderItems(), 300);
+      });
+
+      // Deselect all handler
+      detailContent.querySelector("#deselectAllBtn")!.addEventListener("click", () => {
+        selectedItems.clear();
+        updateBulkToolbar();
+        renderItems();
+      });
+
+      // Bulk delete handler
+      detailContent.querySelector("#bulkDeleteBtn")!.addEventListener("click", async () => {
+        if (selectedItems.size === 0) return;
+
+        const confirmed = confirm(`Are you sure you want to delete ${selectedItems.size} item${selectedItems.size !== 1 ? "s" : ""}? This action cannot be undone.`);
+        if (!confirmed) return;
+
+        const paths = Array.from(selectedItems).map(id => {
+          const item = allItems.find(i => i["@id"] === id || i.path === id);
+          return item?.path || api.extractPath(id);
+        });
+
+        try {
+          const result = await api.bulkDelete(paths);
+
+          if (result.success > 0) {
+            alert(`Successfully deleted ${result.success} item${result.success !== 1 ? "s" : ""}.`);
+
+            // Remove deleted items from allItems
+            allItems = allItems.filter(item => {
+              const itemId = item["@id"] || item.path || "";
+              return !selectedItems.has(itemId);
+            });
+
+            selectedItems.clear();
+            updateBulkToolbar();
+            renderItems();
+          }
+
+          if (result.errors.length > 0) {
+            console.error("Delete errors:", result.errors);
+            alert(`Failed to delete ${result.errors.length} item${result.errors.length !== 1 ? "s" : ""}. Check console for details.`);
+          }
+        } catch (error) {
+          console.error("Bulk delete failed:", error);
+          alert(`Bulk delete failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
+      });
+
+      // Bulk workflow handler
+      detailContent.querySelector("#bulkWorkflowBtn")!.addEventListener("click", async () => {
+        if (selectedItems.size === 0) return;
+
+        const newState = prompt("Enter new workflow state (e.g., published, private):");
+        if (!newState) return;
+
+        const items = Array.from(selectedItems).map(id => {
+          const item = allItems.find(i => i["@id"] === id || i.path === id);
+          const path = item?.path || api.extractPath(id);
+          return { path, data: { review_state: newState } };
+        });
+
+        try {
+          const result = await api.bulkPatch(items);
+
+          if (result.success > 0) {
+            alert(`Successfully updated ${result.success} item${result.success !== 1 ? "s" : ""}.`);
+
+            // Refresh items
+            allItems = await api.searchItemsByType(portalType);
+            selectedItems.clear();
+            updateBulkToolbar();
+            renderItems();
+          }
+
+          if (result.errors.length > 0) {
+            console.error("Update errors:", result.errors);
+            alert(`Failed to update ${result.errors.length} item${result.errors.length !== 1 ? "s" : ""}. Check console for details.`);
+          }
+        } catch (error) {
+          console.error("Bulk workflow update failed:", error);
+          alert(`Bulk update failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
+      });
+
+      // Bulk tags handler
+      detailContent.querySelector("#bulkTagsBtn")!.addEventListener("click", async () => {
+        if (selectedItems.size === 0) return;
+
+        const newTags = prompt("Enter comma-separated tags to add:");
+        if (!newTags) return;
+
+        const tagsArray = newTags.split(",").map(t => t.trim()).filter(t => t);
+
+        const items = Array.from(selectedItems).map(id => {
+          const item = allItems.find(i => i["@id"] === id || i.path === id);
+          const path = item?.path || api.extractPath(id);
+          const existingTags = item?.Subject || [];
+          const combinedTags = [...new Set([...existingTags, ...tagsArray])];
+          return { path, data: { Subject: combinedTags } };
+        });
+
+        try {
+          const result = await api.bulkPatch(items);
+
+          if (result.success > 0) {
+            alert(`Successfully updated tags on ${result.success} item${result.success !== 1 ? "s" : ""}.`);
+
+            // Refresh items
+            allItems = await api.searchItemsByType(portalType);
+            selectedItems.clear();
+            updateBulkToolbar();
+            renderItems();
+          }
+
+          if (result.errors.length > 0) {
+            console.error("Tag update errors:", result.errors);
+            alert(`Failed to update ${result.errors.length} item${result.errors.length !== 1 ? "s" : ""}. Check console for details.`);
+          }
+        } catch (error) {
+          console.error("Bulk tag update failed:", error);
+          alert(`Bulk update failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
+      });
+
+      // Load items
+      try {
+        allItems = await api.searchItemsByType(portalType);
+        filteredItems = allItems;
+
+        detailContent.querySelector("#itemsLoading")!.setAttribute("style", "display: none;");
+        detailContent.querySelector("#itemsTableContainer")!.setAttribute("style", "display: block;");
+
+        renderItems();
+      } catch (error) {
+        console.error("Failed to load items:", error);
+        detailContent.querySelector("#itemsLoading")!.innerHTML = `
+          <p style="color: #d32f2f;">Failed to load items.</p>
+          <p style="font-size: 0.9em; color: #666;">${error instanceof Error ? error.message : String(error)}</p>
+        `;
+      }
+    };
+
     try {
       const stats = await api.collectContentTypes();
       const sortedStats = Object.entries(stats).sort((a, b) => b[1] - a[1]);
 
       const tbody = content.querySelector("#statsTableBody")!;
       tbody.innerHTML = sortedStats.map(([type, count]) => `
-        <tr class="stat-row" style="border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s;">
+        <tr class="stat-row" style="border-bottom: 1px solid #eee; transition: background 0.2s;">
           <td style="padding: 0.75rem; color: ${PLONE_BLUE}; font-weight: 500;">${type}</td>
           <td style="padding: 0.75rem; text-align: right; font-family: monospace; font-size: 1.1em;">${count}</td>
+          <td style="padding: 0.75rem; text-align: right;">
+            <button class="view-details-btn" data-type="${type}" data-count="${count}" style="padding: 0.5rem 1rem; background: ${PLONE_BLUE}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
+              View Details
+            </button>
+          </td>
         </tr>
       `).join("");
 
-      // Add click handlers to rows
-      content.querySelectorAll(".stat-row").forEach((row, index) => {
-        row.addEventListener("click", () => {
-          const type = sortedStats[index][0];
-
-          // Update filter dropdown if option exists, otherwise add it temporarily
-          let option = Array.from(contentTypeFilter.options).find(opt => opt.value === type);
-          if (!option) {
-            option = document.createElement("option");
-            option.value = type;
-            option.textContent = type;
-            contentTypeFilter.appendChild(option);
-          }
-          contentTypeFilter.value = type;
-
-          // Trigger search
-          searchBtn.click();
-
-          // Close modal
-          document.body.removeChild(modal);
+      // Add click handlers to view details buttons
+      content.querySelectorAll(".view-details-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const type = (btn as HTMLElement).dataset.type!;
+          const count = parseInt((btn as HTMLElement).dataset.count!);
+          showDetailedView(type, count);
         });
+      });
 
-        // Hover effect
+      // Hover effects
+      content.querySelectorAll(".stat-row").forEach(row => {
         (row as HTMLElement).onmouseover = () => { (row as HTMLElement).style.background = "#f0f7ff"; };
         (row as HTMLElement).onmouseout = () => { (row as HTMLElement).style.background = "transparent"; };
       });
@@ -6596,10 +7052,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const updateRunButton = () => {
       const runBtn = content.querySelector("#runSelectedUpgradesBtn") as HTMLButtonElement;
       const selectedCount = selectedSteps.size;
-      
+
       if (runBtn) {
         runBtn.disabled = selectedCount === 0;
-        runBtn.textContent = selectedCount > 0 
+        runBtn.textContent = selectedCount > 0
           ? `Run Selected (${selectedCount} step${selectedCount !== 1 ? 's' : ''})`
           : 'No Steps Selected';
       }
@@ -6669,7 +7125,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const [fromVersion, toVersion] = versionRange.split('-');
         const rangeStepIds = getStepIdsForRange(versionRange);
         const allRangeSelected = rangeStepIds.length > 0 && rangeStepIds.every(id => selectedSteps.has(id));
-        
+
         return `
           <div style="margin-bottom: 2rem; border: 1px solid #ddd; border-radius: 4px; overflow: hidden;">
             <div style="background: ${PLONE_BLUE}; color: white; padding: 0.75rem 1rem; font-weight: 500; display: flex; align-items: center; gap: 0.75rem;">
@@ -6678,12 +7134,12 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
             <div style="padding: 1rem;">
               ${steps.map((step: any, index: number) => {
-                const stepId = step.id || `step-${index}`;
-                const stepTitle = step.title || stepId;
-                const stepIdStr = String(stepId);
-                const isSelected = selectedSteps.has(stepIdStr);
-                
-                return `
+          const stepId = step.id || `step-${index}`;
+          const stepTitle = step.title || stepId;
+          const stepIdStr = String(stepId);
+          const isSelected = selectedSteps.has(stepIdStr);
+
+          return `
                   <div style="padding: 0.75rem; margin-bottom: 0.5rem; background: ${isSelected ? '#e3f2fd' : '#f9f9f9'}; border-left: 3px solid ${isSelected ? '#1976d2' : PLONE_BLUE}; border-radius: 2px;">
                     <div style="display: flex; justify-content: space-between; align-items: start; gap: 0.75rem;">
                       <input type="checkbox" class="step-checkbox" data-step-id="${escapeHtml(stepIdStr)}" data-range="${escapeHtml(versionRange)}" ${isSelected ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer; margin-top: 2px; flex-shrink: 0;">
@@ -6694,7 +7150,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                   </div>
                 `;
-              }).join('')}
+        }).join('')}
             </div>
           </div>
         `;
@@ -6759,7 +7215,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         upgradeData = await api.getUpgradeSteps();
-        
+
         // Expected structure: { upgrade_steps: { "6006-6007": [...], ... }, versions: { fs: "...", instance: "..." } }
         if (!upgradeData || typeof upgradeData !== 'object') {
           throw new Error("Invalid response format from upgrade endpoint");
@@ -6840,7 +7296,7 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
       notification.textContent = message;
       document.body.appendChild(notification);
-      
+
       setTimeout(() => {
         if (notification.parentNode) {
           notification.parentNode.removeChild(notification);
@@ -6860,9 +7316,9 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const stepIds = Array.from(selectedSteps);
         await api.runSelectedUpgrades(stepIds, false);
-        
+
         showNotification(`Successfully ran ${stepIds.length} upgrade step${stepIds.length !== 1 ? 's' : ''}`);
-        
+
         // Clear selection and reload steps
         selectedSteps.clear();
         await loadSteps();
@@ -6885,9 +7341,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         await api.runUpgrades(false);
-        
+
         showNotification("All upgrades completed successfully");
-        
+
         // Clear selection and reload steps
         selectedSteps.clear();
         await loadSteps();
@@ -6916,7 +7372,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const stepIds = Array.from(selectedSteps);
         await api.runSelectedUpgrades(stepIds, true);
-        
+
         showNotification(`Dry run completed for ${stepIds.length} step${stepIds.length !== 1 ? 's' : ''} (no changes made)`, "#2196F3");
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : "Failed to run dry run";
@@ -6937,7 +7393,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         await api.runUpgrades(true);
-        
+
         showNotification("Dry run completed for all steps (no changes made)", "#2196F3");
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : "Failed to run dry run";

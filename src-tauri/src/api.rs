@@ -361,6 +361,63 @@ impl PloneApiClient {
         }
     }
 
+    pub async fn delete(
+        &self,
+        path_or_url: Option<&str>,
+    ) -> Result<Value, ApiError> {
+        let url = self.resolve_url(path_or_url);
+        let response = self
+            .build_request(reqwest::Method::DELETE, &url)
+            .send()
+            .await
+            .map_err(|e| ApiError {
+                message: format!("Request failed: {}", e),
+                status: None,
+            })?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| format!("Delete failed with status {}", status.as_u16()));
+
+            // Try to extract error message from JSON
+            let error_msg = if let Ok(error_json) = serde_json::from_str::<Value>(&error_text) {
+                error_json
+                    .get("message")
+                    .or_else(|| error_json.get("error"))
+                    .or_else(|| error_json.get("type"))
+                    .and_then(|v| v.as_str())
+                    .map(|s| format!("{}: {}", status.as_u16(), s))
+                    .unwrap_or_else(|| error_text)
+            } else {
+                error_text
+            };
+
+            return Err(ApiError {
+                message: error_msg,
+                status: Some(status.as_u16()),
+            });
+        }
+
+        // DELETE typically returns 204 No Content or empty response
+        let content = response.text().await.map_err(|e| ApiError {
+            message: format!("Failed to read response: {}", e),
+            status: Some(status.as_u16()),
+        })?;
+
+        if content.is_empty() {
+            Ok(Value::Object(serde_json::Map::new()))
+        } else {
+            serde_json::from_str(&content).map_err(|e| ApiError {
+                message: format!("Failed to parse JSON response: {}", e),
+                status: Some(status.as_u16()),
+            })
+        }
+    }
+
+
     pub async fn move_item(
         &self,
         source_path: &str,

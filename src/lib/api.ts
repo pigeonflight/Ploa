@@ -466,3 +466,111 @@ export async function runSelectedUpgrades(
     );
   }
 }
+
+/**
+ * Search for items by portal type with full metadata
+ * @param portalType - The portal_type to search for
+ * @param path - Optional path to limit search scope
+ */
+export async function searchItemsByType(
+  portalType: string,
+  path?: string
+): Promise<ItemMetadata[]> {
+  try {
+    const response = await search({
+      portalType,
+      path,
+      metadataFields: [
+        "title",
+        "path",
+        "@id",
+        "Subject",
+        "description",
+        "portal_type",
+        "review_state",
+        "Creator",
+        "created",
+        "modified",
+        "document_type",
+        "Type",
+      ],
+    });
+    return response.items || [];
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to search items by type"
+    );
+  }
+}
+
+/**
+ * Construct public URL from item path or @id
+ * Removes ++api++ prefix and constructs viewable URL
+ */
+export function constructPublicUrl(itemId: string, baseUrl: string): string {
+  try {
+    // If it's already a full URL, parse it
+    if (itemId.startsWith("http://") || itemId.startsWith("https://")) {
+      const url = new URL(itemId);
+      let path = url.pathname;
+
+      // Remove ++api++ if present
+      if (path.includes("++api++")) {
+        path = path.replace(/\/\+\+api\+\+/, "");
+      }
+
+      // Reconstruct URL without ++api++
+      return `${url.protocol}//${url.host}${path}`;
+    }
+
+    // If it's a relative path, construct full URL
+    const cleanPath = itemId.replace(/\/\+\+api\+\+/, "").replace(/^\//, "");
+    const cleanBase = baseUrl.replace(/\/\+\+api\+\+.*$/, "").replace(/\/$/, "");
+    return `${cleanBase}/${cleanPath}`;
+  } catch {
+    return itemId;
+  }
+}
+
+/**
+ * Delete multiple items
+ * @param paths - Array of item paths to delete
+ */
+export async function bulkDelete(paths: string[]): Promise<{ success: number; errors: string[] }> {
+  let success = 0;
+  const errors: string[] = [];
+
+  for (const path of paths) {
+    try {
+      await invoke("delete_item", { path });
+      success++;
+    } catch (error) {
+      errors.push(`${path}: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+
+  return { success, errors };
+}
+
+/**
+ * Bulk update items with PATCH
+ * @param items - Array of {path, data} objects
+ */
+export async function bulkPatch(
+  items: Array<{ path: string; data: Record<string, any> }>
+): Promise<{ success: number; errors: string[] }> {
+  let success = 0;
+  const errors: string[] = [];
+
+  for (const item of items) {
+    try {
+      await patch(item.path, item.data);
+      success++;
+    } catch (error) {
+      errors.push(`${item.path}: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+
+  return { success, errors };
+}
+

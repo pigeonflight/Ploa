@@ -135,6 +135,26 @@ async fn post(
 }
 
 #[tauri::command]
+async fn delete_item(
+    path: String,
+    state: State<'_, ApiClientState>,
+) -> Result<Value, String> {
+    let client = {
+        state
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or("Not connected. Please connect to a Plone site first.")?
+    };
+
+    client
+        .delete(Some(&path))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+
+#[tauri::command]
 async fn connect(base_url: String, state: State<'_, ApiClientState>) -> Result<Value, String> {
     let client = PloneApiClient::new(base_url).map_err(|e| e.to_string())?;
 
@@ -426,6 +446,7 @@ fn main() {
             search,
             patch,
             post,
+            delete_item,
             collect_tags,
             collect_content_types,
             find_similar_tags,
